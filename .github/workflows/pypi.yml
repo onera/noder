@@ -56,22 +56,20 @@ jobs:
           CIBW_SKIP: "*-manylinux_i686 *-musllinux* *-win32 *-pp*"
           CIBW_BEFORE_ALL_LINUX: >
             yum install -y epel-release &&
-            yum install -y mpich-devel hdf5-mpich-devel pkgconfig &&
-            export PATH=/usr/lib64/mpich/bin:$PATH &&
-            ln -sf /usr/lib64/mpich/bin/mpicc /usr/local/bin/mpicc &&
-            ln -sf /usr/lib64/mpich/bin/mpicxx /usr/local/bin/mpicxx &&
+            yum install -y openmpi-devel hdf5-devel pkgconfig &&
+            export PATH=/usr/lib64/openmpi/bin:$PATH &&
+            ln -sf /usr/lib64/openmpi/bin/mpicc /usr/local/bin/mpicc &&
+            ln -sf /usr/lib64/openmpi/bin/mpicxx /usr/local/bin/mpicxx &&
             find /usr -name mpicc &&
             find /usr -name hdf5.h &&
             find /usr -name libhdf5.so
           CIBW_ENVIRONMENT_LINUX: >
-            CC=/usr/lib64/mpich/bin/mpicc
-            CXX=/usr/lib64/mpich/bin/mpicxx
-            PATH=/usr/lib64/mpich/bin:$PATH
-            HDF5_C_LIBRARY=/usr/lib64/mpich/lib/libhdf5.so
-            HDF5_INCLUDE_DIR=/usr/include/mpich-x86_64
-            CMAKE_PREFIX_PATH="/usr/include/mpich-x86_64:/usr/lib64/mpich:/usr"
-            CMAKE_INCLUDE_PATH="/usr/include/mpich-x86_64:/usr/include"
-            CMAKE_LIBRARY_PATH="/usr/lib64/mpich:/usr/lib64"
+            CC=/usr/lib64/openmpi/bin/mpicc
+            CXX=/usr/lib64/openmpi/bin/mpicxx
+            PATH=/usr/lib64/openmpi/bin:$PATH
+            CMAKE_PREFIX_PATH="/usr/lib64/openmpi:/usr"
+            CMAKE_INCLUDE_PATH="/usr/include"
+            CMAKE_LIBRARY_PATH="/usr/lib64"
           CIBW_ENVIRONMENT_WINDOWS: >
             HDF5_C_LIBRARY=%HDF5_C_LIBRARY%
             HDF5_INCLUDE_DIR=%HDF5_INCLUDE_DIR%
