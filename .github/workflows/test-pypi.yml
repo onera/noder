@@ -1,0 +1,95 @@
+name: Build and Publish to Test PyPI
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers when you push a tag like v0.1.0
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest] #[ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13" # Used for bootstrapping cibuildwheel
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install cibuildwheel delocate auditwheel build numpy scikit-build-core pybind11 twine
+
+ 
+      - name: Configure pkg-config path (Linux)
+        if: runner.os == 'Linux'
+        run: echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
+
+      - name: Set macOS deployment target
+        if: runner.os == 'macOS'
+        run: |
+          echo "MACOSX_DEPLOYMENT_TARGET=14.0" >> $GITHUB_ENV
+          echo "CMAKE_OSX_DEPLOYMENT_TARGET=14.0" >> $GITHUB_ENV    
+
+      - name: Configure pkg-config path (macOS)
+        if: runner.os == 'macOS'
+        run: echo "PKG_CONFIG_PATH=$(brew --prefix)/lib/pkgconfig" >> $GITHUB_ENV
+
+      - name: Install HDF5 via Homebrew (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install hdf5 pkg-config
+
+      - name: Setup HDF5 for Windows
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: scripts/setup_hdf5_windows.ps1
+          
+      - name: Build wheels
+        env:
+          CIBW_BUILD: "cp312-*" #"cp38-* cp39-* cp310-* cp311-* cp312-* cp313-*"
+          CIBW_SKIP: "*-manylinux_i686 *-musllinux* *-win32 *-pp*"
+          CIBW_BEFORE_ALL_LINUX: >
+            yum install -y epel-release &&
+            yum install -y mpich-devel hdf5-mpich-devel pkgconfig &&
+            export PATH=/usr/lib64/mpich/bin:$PATH &&
+            ln -sf /usr/lib64/mpich/bin/mpicc /usr/local/bin/mpicc &&
+            ln -sf /usr/lib64/mpich/bin/mpicxx /usr/local/bin/mpicxx &&
+            find /usr -name mpicc &&
+            find /usr -name hdf5.h &&
+            find /usr -name libhdf5.so
+          CIBW_ENVIRONMENT_LINUX: >
+            CC=/usr/lib64/mpich/bin/mpicc
+            CXX=/usr/lib64/mpich/bin/mpicxx
+            PATH=/usr/lib64/mpich/bin:$PATH
+            HDF5_C_LIBRARY=/usr/lib64/mpich/lib/libhdf5.so
+            HDF5_INCLUDE_DIR=/usr/include/mpich-x86_64
+            CMAKE_PREFIX_PATH="/usr/include/mpich-x86_64:/usr/lib64/mpich:/usr"
+            CMAKE_INCLUDE_PATH="/usr/include/mpich-x86_64:/usr/include"
+            CMAKE_LIBRARY_PATH="/usr/lib64/mpich:/usr/lib64"
+          CIBW_ENVIRONMENT_WINDOWS: >
+            HDF5_C_LIBRARY=%HDF5_C_LIBRARY%
+            HDF5_INCLUDE_DIR=%HDF5_INCLUDE_DIR%
+            CMAKE_PREFIX_PATH=%HDF5_ROOT%
+            CMAKE_INCLUDE_PATH=%HDF5_INCLUDE_DIR%
+            CMAKE_LIBRARY_PATH=%HDF5_ROOT%\lib
+          CIBW_REPAIR_WHEEL_COMMAND_MACOS: >
+            bash scripts/repair_macos_wheel.sh {wheel} {dest_dir}
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: >
+            auditwheel repair -w {dest_dir} {wheel}
+
+        run: python -m cibuildwheel --output-dir wheelhouse
+
+      - name: Publish to Test PyPI
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        run: |
+          python -m pip install twine
+          twine upload --repository-url https://test.pypi.org/legacy/ wheelhouse/*

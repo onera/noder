@@ -1,0 +1,207 @@
+[build-system]
+requires = ["setuptools>=42", "wheel", "scikit-build-core>=0.8.0", "pybind11>=2.12"]
+build-backend = "scikit_build_core.build"
+
+
+[project]
+name = "noder"
+authors = [
+  { name = "Luis Bernardos", email = "luisfco.bernardos@gmail.com" },
+]
+description = "A library for efficient large data operations designed for handling arrays hierarchically using an object-oriented approach"
+readme = "README.md"
+license.file = "LICENSE"
+requires-python = ">=3.8"
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering",
+  "Typing :: Typed",
+]
+dynamic = ["version"]
+dependencies = [
+  "numpy",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest >=6",
+  "pytest-cov >=3",
+]
+dev = [
+  "pytest >=6",
+  "pytest-cov >=3",
+]
+docs = [
+  "sphinx>=7.0",
+  "myst_parser>=0.13",
+  "sphinx_copybutton",
+  "sphinx_autodoc_typehints",
+  "furo>=2023.08.17",
+]
+
+[project.urls]
+Homepage = "https://github.com/onera/noder"
+"Bug Tracker" = "https://github.com/onera/noder/issues"
+Discussions = "https://github.com/onera/noder/discussions"
+Changelog = "https://github.com/onera/noder/releases"
+
+
+[tool.scikit-build]
+minimum-version = "0.4"
+build-dir = "build/{wheel_tag}"
+metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
+sdist.include = [
+  "src/python/noder/_version.py",
+  "src/python/noder",
+  "src/python/noder/**",
+  "include",
+  "tests",
+]
+
+cmake.minimum-version = "3.15"
+
+[tool.scikit-build.cmake.define]
+Python3_FIND_COMPONENTS = "Interpreter;Development"
+Python3_FIND_IMPLEMENTATIONS = "CPython"
+Python3_FIND_STRATEGY = "LOCATION"
+Python3_FIND_REGISTRY = "NEVER"
+Python3_FIND_FRAMEWORK = "NEVER"
+Python3_USE_STATIC_LIBS = "OFF"
+
+
+[tool.setuptools.data-files]
+"include" = ["include/**"]
+"tests" = ["tests/**"]
+
+[tool.setuptools_scm]
+write_to = "src/python/noder/_version.py"
+
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src/python"]
+include = ["noder", "noder.*"]
+
+[tool.setuptools.package-data]
+noder = [
+  "*.txt",
+  "*.so",
+  "*.py",
+  "*.dll",  # <-- include Windows runtime DLLs
+  "**/*.hpp",
+  "**/*.cpp",
+  "**/*.py",
+  "**/*.dll",
+  "**/*.so",
+  "**/*.py",
+  ]
+
+
+[tool.cibuildwheel] 
+test-command = "pytest {project}/tests"
+test-extras = ["test"]
+test-skip = ["*universal2:arm64"]
+
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
+xfail_strict = true
+filterwarnings = [
+  "error",
+]
+log_cli_level = "INFO"
+testpaths = [
+  "tests",
+]
+
+
+[tool.coverage]
+run.source = ["noder"]
+report.exclude_also = [
+  '\.\.\.',
+  'if typing.TYPE_CHECKING:',
+]
+
+[tool.mypy]
+files = ["src", "tests"]
+python_version = "3.12"
+warn_unused_configs = true
+strict = true
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+warn_unreachable = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+module = "noder.*"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+
+[tool.ruff]
+src = ["src"]
+
+[tool.ruff.lint]
+extend-select = [
+  "B",        # flake8-bugbear
+  "I",        # isort
+  "ARG",      # flake8-unused-arguments
+  "C4",       # flake8-comprehensions
+  "EM",       # flake8-errmsg
+  "ICN",      # flake8-import-conventions
+  "G",        # flake8-logging-format
+  "PGH",      # pygrep-hooks
+  "PIE",      # flake8-pie
+  "PL",       # pylint
+  "PT",       # flake8-pytest-style
+  "PTH",      # flake8-use-pathlib
+  "RET",      # flake8-return
+  "RUF",      # Ruff-specific
+  "SIM",      # flake8-simplify
+  "T20",      # flake8-print
+  "UP",       # pyupgrade
+  "YTT",      # flake8-2020
+  "EXE",      # flake8-executable
+  "NPY",      # NumPy specific rules
+  "PD",       # pandas-vet
+]
+ignore = [
+  "PLR09",    # Too many <...>
+  "PLR2004",  # Magic value used in comparison
+  "ISC001",   # Conflicts with formatter
+]
+
+# Uncomment if using a _compat.typing backport
+# typing-modules = ["noder._compat.typing"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["T20"]
+"noxfile.py" = ["T20"]
+
+
+[tool.pylint]
+py-version = "3.8"
+ignore-paths = [".*/_version.py"]
+extension-pkg-allow-list = ["noder.core"]
+reports.output-format = "colorized"
+similarities.ignore-imports = "yes"
+messages_control.disable = [
+  "design",
+  "fixme",
+  "line-too-long",
+  "missing-module-docstring",
+  "missing-function-docstring",
+  "wrong-import-position",
+]
