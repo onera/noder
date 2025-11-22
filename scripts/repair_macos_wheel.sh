@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
+export MACOSX_DEPLOYMENT_TARGET=15.0
 INPUT_WHEEL="$1"
 OUTPUT_DIR="$2"
 ARCHS="${CIBW_ARCHS_MACOS:-arm64}"
