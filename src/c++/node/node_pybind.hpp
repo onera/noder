@@ -12,7 +12,7 @@ void bindNode(py::module_ &m) {
         .def("pick", &Node::pick)  
 
         .def("name", &Node::name)
-        .def("setName", py::overload_cast<const std::string&>(&Node::setName))
+        .def("set_name", py::overload_cast<const std::string&>(&Node::setName))
 
         .def("data", [](const Node &node) -> py::object {
             std::shared_ptr<Data> data = node.dataPtr();
@@ -22,29 +22,29 @@ void bindNode(py::module_ &m) {
             return py::cast(data);  // Cast to correct type (`Array`, `ParallelArray`)
         })
         
-        .def("setData", [](Node &node, std::shared_ptr<Data> d) {
+        .def("set_data", [](Node &node, std::shared_ptr<Data> d) {
             node.setData(std::move(d));  // Forward the shared_ptr<Data> correctly
         })
                 
         .def("children", &Node::children)
         .def("type", &Node::type)
-        .def("setType", py::overload_cast<const std::string&>(&Node::setType))
+        .def("set_type", py::overload_cast<const std::string&>(&Node::setType))
         .def("parent", [](const Node &self) -> std::shared_ptr<Node> {
             return self.parent().lock();
         }, "Returns the parent Node or None if no parent exists.")
         .def("root", &Node::root)
         .def("level", &Node::level)
-        .def("positionAmongSiblings", &Node::positionAmongSiblings)
+        .def("position", &Node::position)
         .def("detach", &Node::detach)
-        .def("attachTo", &Node::attachTo)
-        .def("addChild", &Node::addChild)
+        .def("attach_to", &Node::attachTo)
+        .def("add_child", &Node::addChild)
         .def("path", &Node::path)
         .def("write", &Node::write)
-        .def("getAllDescendants", &Node::getAllDescendants)
+        .def("descendants", &Node::descendants)
 
 
         .def("__str__", &Node::__str__)
-        .def("printTree", &Node::printTree, "print node in tree format",
+        .def("print_tree", &Node::printTree, "print node in tree format",
              py::arg("max_depth")=9999,  py::arg("highlighted_path")=std::string(""),
              py::arg("depth")=0, py::arg("last_pos")=false, py::arg("markers")=std::string(""))
 

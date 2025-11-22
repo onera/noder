@@ -4,11 +4,11 @@ from noder.core import Node
 def test_get_child_by_name():
     a = Node("a")
     b = Node("b")
-    b.attachTo(a)
+    b.attach_to(a)
     c = Node("c")
-    c.attachTo(a)
+    c.attach_to(a)
     d = Node("d")
-    d.attachTo(c)
+    d.attach_to(c)
 
     n = a.pick().child_by_name("c")
     assert n.name() == "c"
@@ -21,11 +21,11 @@ def test_get_child_by_name():
 def test_get_by_name_pattern():
     a = Node("a")
     b = Node("b")
-    b.attachTo(a)
+    b.attach_to(a)
     c = Node("c")
-    c.attachTo(a)
+    c.attach_to(a)
     d = Node("abcd")
-    d.attachTo(c)
+    d.attach_to(c)
 
     n = a.pick().by_name_pattern("ab\\B")
     assert n.name() == "abcd"
@@ -38,11 +38,11 @@ def test_get_by_name_pattern():
 def test_get_child_by_type():
     a = Node("a","a_t")
     b = Node("b","b_t")
-    b.attachTo(a)
+    b.attach_to(a)
     c = Node("c","c_t")
-    c.attachTo(a)
+    c.attach_to(a)
     d = Node("d","d_t")
-    d.attachTo(c)
+    d.attach_to(c)
 
     n = a.pick().child_by_type("c_t")
     assert n.type() == "c_t"
@@ -55,11 +55,11 @@ def test_get_child_by_type():
 def test_get_by_type():
     a = Node("a","a_t")
     b = Node("b","b_t")
-    b.attachTo(a)
+    b.attach_to(a)
     c = Node("c","c_t")
-    c.attachTo(a)
+    c.attach_to(a)
     d = Node("d","d_t")
-    d.attachTo(c)
+    d.attach_to(c)
 
     n = a.pick().by_type("d_t")
     assert n.type() == "d_t"
@@ -72,11 +72,11 @@ def test_get_by_type():
 def test_get_by_type_pattern():
     a = Node("a","a_t")
     b = Node("b","b_t")
-    b.attachTo(a)
+    b.attach_to(a)
     c = Node("c","c_t")
-    c.attachTo(a)
+    c.attach_to(a)
     d = Node("d","abcd_t")
-    d.attachTo(c)
+    d.attach_to(c)
 
     n = a.pick().by_type_pattern("ab\\B")
     assert n.type() == "abcd_t"

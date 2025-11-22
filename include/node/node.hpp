@@ -55,7 +55,7 @@ public:
     
     static void setDefaultFactory(std::function<std::shared_ptr<Data>()> factory);
 
-    std::vector<std::shared_ptr<Node>> getAllDescendants(); // to be refactored into Navigation
+    std::vector<std::shared_ptr<Node>> descendants(); // to be refactored into Navigation
 
     Node(const std::string& name = "", const std::string& type = "DataArray_t");
 
@@ -91,7 +91,7 @@ public:
 
     size_t level() const;
 
-    size_t positionAmongSiblings() const;
+    size_t position() const;
 
     void detach();
 

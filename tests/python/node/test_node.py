@@ -21,9 +21,9 @@ def test_name():
     name = a.name()
     assert name == "a"
 
-def test_setName():
+def test_set_name():
     a = Node("a")
-    a.setName("b")
+    a.set_name("b")
     name = a.name()
     assert name == "b"
 
@@ -32,9 +32,9 @@ def test_type():
     node_type = a.type()
     assert node_type == "type_t"
 
-def test_setType():
+def test_set_type():
     a = Node("a")
-    a.setType("NewType_t")
+    a.set_type("NewType_t")
     node_type = a.type()
     assert node_type == "NewType_t"
 
@@ -51,7 +51,7 @@ def test_parent_empty():
 def test_dataInt():
     a = Node("a")
     arr = Array(np.array([1]))
-    a.setData(arr)
+    a.set_data(arr)
     print(a.data())
 
 
@@ -65,30 +65,30 @@ def test_level_0():
     level = a.level()
     assert level == 0
 
-def test_positionAmongSiblings_null():
+def test_position_null():
     a = Node("a")
-    position = a.positionAmongSiblings()
-    assert position == 0
+    pos = a.position()
+    assert pos == 0
 
 def test_getPath_itself():
     a = Node("a")
     path = a.path()
     assert path == "a"
 
-def test_attachTo():
+def test_attach_to():
     a = Node("a")
     b = Node("b")
-    b.attachTo(a)
+    b.attach_to(a)
     expected_path_of_b = "a/b"
     assert b.path() == expected_path_of_b 
 
-def test_attachTo_multiple_levels():
+def test_attach_to_multiple_levels():
     max_levels = 20
     nodes = [Node('0', 'type_t')]
     paths = ['0']
     for i in range(1,max_levels):
         node = Node('%d'%i, 'type_t')
-        node.attachTo(nodes[-1])
+        node.attach_to(nodes[-1])
         nodes += [ node ]
         paths += [ paths[-1]+'/'+node.name() ]
 
@@ -102,10 +102,10 @@ def test_attachTo_multiple_levels():
         parent = node.parent()
         assert parent is nodes[-2]        
 
-def test_addChild():
+def test_add_child():
     a = Node("a")
     b = Node("b")
-    a.addChild(b)
+    a.add_child(b)
     expected_path_of_b = "a/b"
     assert b.path() == expected_path_of_b 
 
@@ -117,7 +117,7 @@ def test_detach_0():
 def test_detach_1():
     a = Node('a')
     b = Node('b')
-    b.attachTo(a)
+    b.attach_to(a)
     b.detach()
     assert b.parent() is None
 
@@ -132,7 +132,7 @@ def test_detach_2():
     nb_of_children = 5
     a = Node('a')
     nodes_to_attach = [ Node('%d'%i) for i in range(nb_of_children) ]
-    for n in nodes_to_attach: n.attachTo(a)
+    for n in nodes_to_attach: n.attach_to(a)
     children_of_a = a.children()
     
     index_child_to_detach = 2
@@ -152,7 +152,7 @@ def test_detach_3():
     nodes = [Node('0', 'type_t')]
     for i in range(1,max_levels):
         node = Node('%d'%i, 'type_t')
-        node.attachTo(nodes[-1])
+        node.attach_to(nodes[-1])
         nodes += [ node ]
         children_of_parent = nodes[-2].children()
 
@@ -177,7 +177,7 @@ def test_delete_multiple_descendants():
     nodes = [Node('0', 'type_t')]
     for i in range(1,max_levels):
         node = Node('%d'%i, 'type_t')
-        node.attachTo(nodes[-1])
+        node.attach_to(nodes[-1])
         nodes += [ node ]
 
     # WARNING important to detach before deleting. 
@@ -186,7 +186,7 @@ def test_delete_multiple_descendants():
     del nodes[index_node_to_delete]
 
     expected_number_of_descendants_from_root = index_node_to_delete
-    descendants = nodes[0].getAllDescendants()
+    descendants = nodes[0].descendants()
     assert len(descendants) == expected_number_of_descendants_from_root
     print(nodes[1])
 
@@ -194,8 +194,8 @@ def test_getPath():
     a = Node("a")
     b = Node("b")
     c = Node("c")
-    b.attachTo(a)
-    c.attachTo(b)
+    b.attach_to(a)
+    c.attach_to(b)
     expected_path_of_c = "a/b/c"
     assert c.path() == expected_path_of_c
 
@@ -206,10 +206,10 @@ def test_root():
     d = Node("d")
     e = Node("e")
 
-    a.addChild(b)
-    b.addChild(c)
-    c.addChild(d)
-    d.addChild(e)
+    a.add_child(b)
+    b.add_child(c)
+    c.add_child(d)
+    d.add_child(e)
 
     assert e.root() is a
 
@@ -220,14 +220,14 @@ def test_level():
     d = Node("d")
     e = Node("e")
 
-    a.addChild(b)
-    b.addChild(c)
-    c.addChild(d)
-    d.addChild(e)
+    a.add_child(b)
+    b.add_child(c)
+    c.add_child(d)
+    d.add_child(e)
 
     assert e.level() == 4
 
-def test_printTree():
+def test_print_tree():
     a = Node("a")
     b = Node("b")
     c = Node("c")
@@ -238,16 +238,16 @@ def test_printTree():
     h = Node("h")
     i = Node("i")
 
-    a.addChild(b)
-    b.addChild(c)
-    c.addChild(d)
-    d.addChild(e)
+    a.add_child(b)
+    b.add_child(c)
+    c.add_child(d)
+    d.add_child(e)
 
-    f.addChild(g)
-    g.addChild(h)
-    f.addChild(i)
+    f.add_child(g)
+    g.add_child(h)
+    f.add_child(i)
 
-    f.attachTo(b)
+    f.attach_to(b)
 
     print(g)
 
@@ -255,9 +255,9 @@ def test_printTree():
 def test_children():
     a = Node('a')
     b = Node('b')
-    b.attachTo(a)
+    b.attach_to(a)
     c = Node('c')
-    c.attachTo(a)
+    c.attach_to(a)
 
     assert len(a.children()) == len(a.children())
     assert a.children() is not a.children() # important
@@ -268,9 +268,9 @@ def test_children():
 def test_children_checkPaths():
     a = Node('a')
     b = Node('b')
-    b.attachTo(a)
+    b.attach_to(a)
     c = Node('c')
-    c.attachTo(a)
+    c.attach_to(a)
 
     children = a.children()
     expected_children_paths = ['a/b', 'a/c']
@@ -281,20 +281,20 @@ def test_children_checkPaths():
         assert child.path() == expected_children_paths[i]
         
 
-def test_positionAmongSiblings():
+def test_position():
     a = Node("a")
     b = Node("b")
     c = Node("c")
     d = Node("d")
 
-    b.attachTo(a)
-    c.attachTo(a)
-    d.attachTo(a)
+    b.attach_to(a)
+    c.attach_to(a)
+    d.attach_to(a)
 
-    assert a.positionAmongSiblings() == 0
-    assert b.positionAmongSiblings() == 0
-    assert c.positionAmongSiblings() == 1
-    assert d.positionAmongSiblings() == 2
+    assert a.position() == 0
+    assert b.position() == 0
+    assert c.position() == 1
+    assert d.position() == 2
 
 
 def test_dangerous_extendChildren():
@@ -322,8 +322,8 @@ def test_dangerous_extendChildren():
     assert c.path() == "c" # not "a/c"
 
     # IN CONCLUSION: avoid manipulating directly the children list.
-    # Prefer using dedicated methods addChild or attachTo.
+    # Prefer using dedicated methods add_child or attach_to.
     
 
 if __name__ == '__main__':
-    test_printTree()
+    test_print_tree()

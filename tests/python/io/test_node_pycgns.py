@@ -39,11 +39,11 @@ def test_pyCGNSToNode_tree():
 def test_toPyCGNS_NodeWithChildren():
     a = Node('a', 'd_t')
     b = Node('b', 'd_t')
-    b.setData(Array(np.array([0])))
-    b.attachTo(a)
+    b.set_data(Array(np.array([0])))
+    b.attach_to(a)
     c = Node('c', 'd_t')
-    c.setData(Array(np.array([1])))
-    c.attachTo(a)
+    c.set_data(Array(np.array([1])))
+    c.attach_to(a)
     node_pycgns = nodeToPyCGNS(a)
     assert node_pycgns == ['a', None, [['b', np.array([0]), [], 'd_t'], \
                                        ['c', np.array([1]), [], 'd_t']], 'd_t']
@@ -75,16 +75,16 @@ def test_nodeToPyCGNS_tree():
     h = Node("h")
     i = Node("i")
 
-    a.addChild(b)
-    b.addChild(c)
-    c.addChild(d)
-    d.addChild(e)
+    a.add_child(b)
+    b.add_child(c)
+    c.add_child(d)
+    d.add_child(e)
 
-    f.addChild(g)
-    g.addChild(h)
-    f.addChild(i)
+    f.add_child(g)
+    g.add_child(h)
+    f.add_child(i)
 
-    f.attachTo(b)
+    f.attach_to(b)
 
     a_pycgns = nodeToPyCGNS(a)
     is_empty_pycgns(a_pycgns)

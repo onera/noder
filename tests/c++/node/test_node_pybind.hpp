@@ -19,7 +19,7 @@ void bindTestsOfNode(py::module_ &m) {
     sm.def("test_parent_empty", &test_parent_empty);
     sm.def("test_root_itself", &test_root_itself);
     sm.def("test_level_0", &test_level_0);
-    sm.def("test_positionAmongSiblings_null", &test_positionAmongSiblings_null);
+    sm.def("test_position_null", &test_position_null);
     sm.def("test_getPath_itself", &test_getPath_itself);
     sm.def("test_attachTo", &test_attachTo);
     sm.def("test_attachTo_multiple_levels", &test_attachTo_multiple_levels);
@@ -36,7 +36,7 @@ void bindTestsOfNode(py::module_ &m) {
     sm.def("test_printTree", &test_printTree);
     sm.def("test_children", &test_children);
     sm.def("test_binding_addChildrenFromPython", &test_binding_addChildrenFromPython);
-    sm.def("test_positionAmongSiblings", &test_positionAmongSiblings);
+    sm.def("test_position", &test_position);
 }
 
 # endif

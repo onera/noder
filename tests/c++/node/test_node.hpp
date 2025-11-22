@@ -34,7 +34,7 @@ void test_root_itself();
 
 void test_level_0();
 
-void test_positionAmongSiblings_null();
+void test_position_null();
 
 void test_getPath_itself();
 
@@ -70,8 +70,8 @@ void test_children_checkPaths();
 
 void test_binding_addChildrenFromPython(std::shared_ptr<Node> node);
 
-void test_positionAmongSiblings();
+void test_position();
 
-void test_getAllDescendants();
+void test_descendants();
 
 #endif // TEST_NODE_CLASS_H

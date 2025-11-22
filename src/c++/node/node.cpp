@@ -155,7 +155,7 @@ const std::vector<std::shared_ptr<Node>>& Node::children() const {
 }
 
 
-std::vector<std::shared_ptr<Node>> Node::getAllDescendants() {
+std::vector<std::shared_ptr<Node>> Node::descendants() {
     std::vector<std::shared_ptr<Node>> descendants;
     gatherAllDescendantsInList(shared_from_this(), descendants);
     return descendants;
@@ -194,11 +194,11 @@ size_t Node::level() const {
     return level;
 }
 
-size_t Node::positionAmongSiblings() const {
-    size_t position = 0;
+size_t Node::position() const {
+    size_t pos = 0;
 
     std::shared_ptr<Node> parent = this->_parent.lock();
-    if (!parent) return position;
+    if (!parent) return pos;
 
     auto& siblings_including_myself = parent->children();
     for (size_t i = 0; i < siblings_including_myself.size(); ++i) {
@@ -207,7 +207,7 @@ size_t Node::positionAmongSiblings() const {
         }
     }
 
-    throw std::runtime_error("positionAmongSiblings: Node is not found among its siblings");
+    throw std::runtime_error("position: Node is not found among its siblings");
 }
 
 

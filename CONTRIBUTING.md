@@ -118,3 +118,15 @@ cmake -G "Visual Studio 17 2022" -B build/dev .
 cmake --build build/dev --config Release -j 8
 cmake --install build/dev --prefix dist/dev --config Release
 ```
+
+
+Example of Linux aliases:
+```
+alias noder_init='export PYTHONPATH=$(pwd)/dist/dev:$PYTHONPATH && rm -rf build dist && cmake -B build/dev . && cmake --build build/dev -j 8 && cmake --install build/dev --prefix dist/dev && python scripts/gen_stubs.py'
+alias noder_build_install='cmake --build build/dev -j 8 && cmake --install build/dev --prefix dist/dev && python scripts/gen_stubs.py'
+alias noder_config_build_install='rm -rf build dist && cmake -B build/dev . && cmake --build build/dev -j 8 && cmake --install build/dev --prefix dist/dev && python scripts/gen_stubs.py'
+alias noder_config_build_install_seqwarn='rm -rf build dist && cmake -B build/dev . && cmake --build build/dev -j 1 2>output_warnings.txt && cmake --install build/dev --prefix dist/dev && python scripts/gen_stubs.py'
+alias noder_gen_stubs='python scripts/gen_stubs.py'
+
+export PYTHONPATH=/home/luis/noder/dist/dev
+```

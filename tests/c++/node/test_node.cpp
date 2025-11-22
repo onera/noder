@@ -68,10 +68,10 @@ void test_level_0() {
     if ( level != 0 ) throw py::value_error("single node level is not 0");
 }
 
-void test_positionAmongSiblings_null() {
+void test_position_null() {
     auto a = std::make_shared<Node>("a");
-    size_t position = a->positionAmongSiblings();
-    if ( position != 0 ) throw py::value_error("expected 0 for single node sibling position");
+    size_t pos = a->position();
+    if ( pos != 0 ) throw py::value_error("expected 0 for single node sibling pos");
 }
 
 void test_getPath_itself() {
@@ -354,7 +354,7 @@ void test_binding_addChildrenFromPython(std::shared_ptr<Node> node) {
     d->attachTo(node);
 }
 
-void test_positionAmongSiblings() {
+void test_position() {
     auto a = std::make_shared<Node>("a");
     auto b = std::make_shared<Node>("b");
     auto c = std::make_shared<Node>("c");
@@ -364,8 +364,8 @@ void test_positionAmongSiblings() {
     c->attachTo(a);
     d->attachTo(a);
 
-    if (a->positionAmongSiblings() != 0) throw py::value_error("expected position 0 for node a");
-    if (b->positionAmongSiblings() != 0) throw py::value_error("expected position 0 for node b");
-    if (c->positionAmongSiblings() != 1) throw py::value_error("expected position 1 for node c");
-    if (d->positionAmongSiblings() != 2) throw py::value_error("expected position 2 for node d");
+    if (a->position() != 0) throw py::value_error("expected pos 0 for node a");
+    if (b->position() != 0) throw py::value_error("expected pos 0 for node b");
+    if (c->position() != 1) throw py::value_error("expected pos 1 for node c");
+    if (d->position() != 2) throw py::value_error("expected pos 2 for node d");
 }

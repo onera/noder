@@ -30,7 +30,7 @@ def test_cpp_root_itself(): return test_in_cpp.test_root_itself()
 
 def test_cpp_level_0(): return test_in_cpp.test_level_0()
 
-def test_cpp_positionAmongSiblings_null(): return test_in_cpp.test_positionAmongSiblings_null()
+def test_cpp_position_null(): return test_in_cpp.test_position_null()
 
 def test_cpp_getPath_itself(): return test_in_cpp.test_getPath_itself()
 
@@ -79,7 +79,7 @@ def test_binding_addChildrenFromPython():
 
     print(c)
 
-def test_cpp_positionAmongSiblings(): return test_in_cpp.test_positionAmongSiblings()
+def test_cpp_position(): return test_in_cpp.test_position()
 
 if __name__ == '__main__':
     test_cpp_printTree()
