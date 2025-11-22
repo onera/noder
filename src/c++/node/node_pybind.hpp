@@ -9,7 +9,7 @@ void bindNode(py::module_ &m) {
         .def(py::init<const std::string&, const std::string&>(), "Node constructor",
              py::arg("name"), py::arg("type")="DataArray_t")
 
-        .def("nav", &Node::nav)  
+        .def("pick", &Node::pick)  
 
         .def("name", &Node::name)
         .def("setName", py::overload_cast<const std::string&>(&Node::setName))

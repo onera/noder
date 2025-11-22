@@ -18,7 +18,7 @@ std::shared_ptr<Node> Navigation::byName(const std::string& name, const int& dep
         if ( _node.name() == name ) return _node.shared_from_this();
 
         for (auto child: _node.children()) {
-            auto foundNode = child->nav().byName(name, depth-1);
+            auto foundNode = child->pick().byName(name, depth-1);
             if (foundNode) return foundNode;
         }
     }
@@ -32,7 +32,7 @@ std::shared_ptr<Node> Navigation::byNamePattern(const std::string& namePattern, 
         if (std::regex_search(_node.name(), regexPattern)) return _node.shared_from_this();
 
         for (auto child: _node.children()) {
-            auto foundNode = child->nav().byNamePattern(namePattern, depth-1);
+            auto foundNode = child->pick().byNamePattern(namePattern, depth-1);
             if (foundNode) return foundNode;
         }
     }
@@ -55,7 +55,7 @@ std::shared_ptr<Node> Navigation::byType(const std::string& type, const int& dep
         if ( _node.type() == type ) return _node.shared_from_this();
 
         for (auto child: _node.children()) {
-            auto foundNode = child->nav().byType(type, depth-1);
+            auto foundNode = child->pick().byType(type, depth-1);
             if (foundNode) return foundNode;
         }
     }
@@ -70,7 +70,7 @@ std::shared_ptr<Node> Navigation::byTypePattern(const std::string& typePattern,
         if (std::regex_search(_node.type(), regexPattern)) return _node.shared_from_this();
 
         for (auto child: _node.children()) {
-            auto foundNode = child->nav().byTypePattern(typePattern, depth-1);
+            auto foundNode = child->pick().byTypePattern(typePattern, depth-1);
             if (foundNode) return foundNode;
         }
     }

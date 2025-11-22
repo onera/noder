@@ -85,7 +85,7 @@ Node::~Node() {
  }
 
 
-Navigation& Node::nav() {
+Navigation& Node::pick() {
     if (!_navigator) {
         _navigator = std::make_shared<Navigation>(*this);
     }

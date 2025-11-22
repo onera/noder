@@ -61,7 +61,7 @@ public:
 
     ~Node();
 
-    Navigation& nav();
+    Navigation& pick();
     
     std::shared_ptr<Node> selfPtr();
     std::shared_ptr<const Node> selfPtr() const;

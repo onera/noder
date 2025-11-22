@@ -75,11 +75,11 @@ def test_read(tmp_path):
 
     node = giocpp.test_read(tmp_filename)
 
-    b = node.nav().byName("b")
+    b = node.pick().by_name("b")
     assert b is not None
     assert len(b.data().getPyArray()) == 5
 
-    c = node.nav().byName("c")
+    c = node.pick().by_name("c")
     assert c is not None
     assert c.data().extractString() == "toto"
 

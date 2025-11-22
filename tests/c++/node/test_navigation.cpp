@@ -11,10 +11,10 @@ void test_childByName() {
     auto d = std::make_shared<Node>("d"s);
     d->attachTo(c);
 
-    auto n = a->nav().childByName("c"s);
+    auto n = a->pick().childByName("c"s);
     if (n->name()!="c") throw std::runtime_error("failed test_childByName");
 
-    auto unexpected = a->nav().childByName("d"s);
+    auto unexpected = a->pick().childByName("d"s);
     if (unexpected) throw std::runtime_error("failed null test_childByName");
 }
 
@@ -28,11 +28,11 @@ void test_byName() {
     auto d = std::make_shared<Node>("d");
     d->attachTo(c);
 
-    auto n = a->nav().byName("d"s);
+    auto n = a->pick().byName("d"s);
     if (n->name()!="d") throw py::value_error("expected name 'd'");
     if (n.get() != d.get()) throw py::value_error("expected to recover node d without copy");
 
-    auto unexpected = a->nav().byName("e");
+    auto unexpected = a->pick().byName("e");
     if (unexpected != nullptr) throw py::value_error("expected nullptr");
 
 }
@@ -47,11 +47,11 @@ void test_byNamePattern() {
     auto d = std::make_shared<Node>("abcd");
     d->attachTo(c);
 
-    auto n = a->nav().byNamePattern("ab\\B"); // equivalent to R"(ab\B)" 
+    auto n = a->pick().byNamePattern("ab\\B"); // equivalent to R"(ab\B)" 
     if (n->name()!="abcd") throw py::value_error("failed test_byNamePattern");
     if (n.get() != d.get()) throw py::value_error("expected to recover node d without copy");
 
-    auto unexpected = a->nav().byNamePattern(R"(\Bab)");
+    auto unexpected = a->pick().byNamePattern(R"(\Bab)");
     if (unexpected != nullptr) throw py::value_error("failed null test_byNamePattern");
 }
 
@@ -65,10 +65,10 @@ void test_childByType() {
     auto d = std::make_shared<Node>("d"s,"d_t"s);
     d->attachTo(c);
 
-    auto n = a->nav().childByType("c_t"s); // important, note the "*" in order to avoid copy
+    auto n = a->pick().childByType("c_t"s); // important, note the "*" in order to avoid copy
     if (n->type()!="c_t") throw std::runtime_error("failed test_childByType");
 
-    auto unexpected = a->nav().childByType("d_t"s);
+    auto unexpected = a->pick().childByType("d_t"s);
     if (unexpected != nullptr) throw std::runtime_error("failed null test_childByType");
 }
 
@@ -82,11 +82,11 @@ void test_byType() {
     auto d = std::make_shared<Node>("d","d_t");
     d->attachTo(c);
 
-    auto n = a->nav().byType("d_t");
+    auto n = a->pick().byType("d_t");
     if (n->type()!="d_t") throw py::value_error("expected type 'd_t'");
     if (n.get() != d.get()) throw py::value_error("expected to recover node d without copy");
 
-    auto unexpected = a->nav().byType("e_t");
+    auto unexpected = a->pick().byType("e_t");
     if (unexpected != nullptr) throw py::value_error("expected nullptr");
 
 }
@@ -101,10 +101,10 @@ void test_byTypePattern() {
     auto d = std::make_shared<Node>("d","abcd_t");
     d->attachTo(c);
 
-    auto n = a->nav().byTypePattern("ab\\B"); // equivalent to R"(ab\B)" 
+    auto n = a->pick().byTypePattern("ab\\B"); // equivalent to R"(ab\B)" 
     if (n->type()!="abcd_t") throw py::value_error("failed test_byTypePattern");
     if (n.get() != d.get()) throw py::value_error("expected to recover node d without copy");
 
-    auto unexpected = a->nav().byTypePattern(R"(\Bab)");
+    auto unexpected = a->pick().byTypePattern(R"(\Bab)");
     if (unexpected != nullptr) throw py::value_error("failed null test_byTypePattern");
 }
