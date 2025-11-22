@@ -1,3 +1,15 @@
-# Stub for noder.__init__
-# Adjust exports to match your public API as needed.
-from .core import Node, Array  # type: ignore[misc]
+# needs to mimik here what is declared in __init__.py
+
+from .core import (
+    registerDefaultFactory,
+    factory,
+    Node,
+    Array,
+)
+
+__all__ = [
+    "registerDefaultFactory",
+    "factory",
+    "Node",
+    "Array"
+]
