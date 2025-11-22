@@ -39,6 +39,7 @@ test = [
 dev = [
   "pytest >=6",
   "pytest-cov >=3",
+  "pybind11-stubgen>=2.5",
 ]
 docs = [
   "sphinx>=7.0",
@@ -98,6 +99,7 @@ noder = [
   "*.txt",
   "*.so",
   "*.py",
+  "*.pyi",
   "*.dll",  # <-- include Windows runtime DLLs
   "**/*.hpp",
   "**/*.cpp",
@@ -105,6 +107,7 @@ noder = [
   "**/*.dll",
   "**/*.so",
   "**/*.py",
+  "**/*.pyi",
   ]
 
 

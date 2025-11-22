@@ -25,7 +25,11 @@ __all__ = ["__version__"]
 #     if hdf5_lib_dir: os.add_dll_directory(hdf5_lib_dir)
 
 
-from .core import registerDefaultFactory, factory
+from .core import (
+    registerDefaultFactory,
+    factory,
+    Node,
+    Array)
 registerDefaultFactory()
 
 def zeros(*args,**kwargs):
