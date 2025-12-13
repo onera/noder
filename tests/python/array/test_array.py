@@ -90,6 +90,9 @@ def test_isScalar(dtype):
     scalarArray = zeros_builder([1],'C')
     assert scalarArray.isScalar()
 
+    directScalarArray = Array(12)
+    assert directScalarArray.isScalar()
+
     vectorArray = zeros_builder([2],'C')
     assert not vectorArray.isScalar()
 

@@ -76,3 +76,20 @@ std::shared_ptr<Node> Navigation::byTypePattern(const std::string& typePattern,
     }
     return nullptr;
 }
+
+std::shared_ptr<Node> Navigation::childByData(const std::string& data) {
+
+    for (auto child: _node.children()) {
+        if (child) {
+
+            bool isDataString = child->data().hasString();
+            
+            if (isDataString) {
+                std::string dataAsString = child->data().extractString();
+
+                if (data == dataAsString) return child;
+            }
+        }
+    }
+    return nullptr;
+}

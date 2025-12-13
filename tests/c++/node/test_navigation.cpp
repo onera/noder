@@ -1,4 +1,5 @@
-#include "test_navigation.hpp"
+# include "test_navigation.hpp"
+# include <array/array.hpp>
 
 using namespace std::string_literals;
 
@@ -107,4 +108,35 @@ void test_byTypePattern() {
 
     auto unexpected = a->pick().byTypePattern(R"(\Bab)");
     if (unexpected != nullptr) throw py::value_error("failed null test_byTypePattern");
+}
+
+
+void test_childByData() {
+    auto a = std::make_shared<Node>("a"s);
+    auto b = std::make_shared<Node>("b"s);
+    Array bData("test"s);
+    b->setData(bData);
+    b->attachTo(a);
+
+    auto c = std::make_shared<Node>("c"s);
+    Array cData = arrayfactory::zeros<double>({1});
+    c->setData(cData);
+    c->attachTo(a);
+    
+    auto d = std::make_shared<Node>("d"s);
+    Array dData = arrayfactory::zeros<int8_t>({3,3});
+    d->setData(dData);
+    d->attachTo(c);
+
+    auto e = std::make_shared<Node>("e"s);
+    Array eData("requested"s);
+    e->setData(eData);
+    e->attachTo(a);
+
+
+    auto n = a->pick().childByData("requested"s);
+    if (n->name()!="e") throw std::runtime_error("failed test_childByData");
+
+    auto unexpected = a->pick().childByData("d"s);
+    if (unexpected) throw std::runtime_error("failed null test_childByData");
 }

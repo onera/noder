@@ -28,6 +28,8 @@ public:
 
     std::shared_ptr<Node> byTypePattern(const std::string& name_pattern, const int& depth=100);
 
+    std::shared_ptr<Node> childByData(const std::string& data);
+
 };
 
 # endif 

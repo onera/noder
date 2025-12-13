@@ -44,7 +44,20 @@ public:
     Array();
     Array(const py::array& other);
     Array(const std::string& string);
+    Array(const char* string);
     Array(const Array& other);
+
+    Array(int8_t scalar);
+    Array(int16_t scalar);
+    Array(int32_t scalar);
+    Array(int64_t scalar);
+    Array(uint8_t scalar);
+    Array(uint16_t scalar);
+    Array(uint32_t scalar);
+    Array(uint64_t scalar);
+    Array(float scalar);
+    Array(double scalar);
+    Array(bool scalar);
 
     Assertions& must() const;
 

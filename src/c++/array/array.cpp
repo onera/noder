@@ -56,10 +56,95 @@ Array::Array(const std::string& str) {
     this->setArrayMembersUsing(array.pyArray);
 }
 
+Array::Array(const char* str) {
+    Array array = arrayfactory::arrayFromString(std::string(str));
+    this->setArrayMembersUsing(array.pyArray);
+}
+
 
 Array::Array(const Array& other) : pyArray(other.pyArray) {
     this->setArrayMembersUsing(pyArray);
 }
+
+
+// TODO : reduce this boilerplate code
+Array::Array(int8_t scalar) {
+    py::array arr = py::array_t<int8_t>({1});
+    auto buffer = arr.mutable_unchecked<int8_t>();
+    buffer(0) = scalar;
+    this->setArrayMembersUsing(arr);
+}
+
+Array::Array(int16_t scalar) {
+    py::array arr = py::array_t<int16_t>({1});
+    auto buffer = arr.mutable_unchecked<int16_t>();
+    buffer(0) = scalar;
+    this->setArrayMembersUsing(arr);
+}
+
+Array::Array(int32_t scalar) {
+    py::array arr = py::array_t<int32_t>({1});
+    auto buffer = arr.mutable_unchecked<int32_t>();
+    buffer(0) = scalar;
+    this->setArrayMembersUsing(arr);
+}
+
+Array::Array(int64_t scalar) {
+    py::array arr = py::array_t<int64_t>({1});
+    auto buffer = arr.mutable_unchecked<int64_t>();
+    buffer(0) = scalar;
+    this->setArrayMembersUsing(arr);
+}
+
+Array::Array(uint8_t scalar) {
+    py::array arr = py::array_t<uint8_t>({1});
+    auto buffer = arr.mutable_unchecked<uint8_t>();
+    buffer(0) = scalar;
+    this->setArrayMembersUsing(arr);
+}
+
+Array::Array(uint16_t scalar) {
+    py::array arr = py::array_t<uint16_t>({1});
+    auto buffer = arr.mutable_unchecked<uint16_t>();
+    buffer(0) = scalar;
+    this->setArrayMembersUsing(arr);
+}
+
+Array::Array(uint32_t scalar) {
+    py::array arr = py::array_t<uint32_t>({1});
+    auto buffer = arr.mutable_unchecked<uint32_t>();
+    buffer(0) = scalar;
+    this->setArrayMembersUsing(arr);
+}
+
+Array::Array(uint64_t scalar) {
+    py::array arr = py::array_t<uint64_t>({1});
+    auto buffer = arr.mutable_unchecked<uint64_t>();
+    buffer(0) = scalar;
+    this->setArrayMembersUsing(arr);
+}
+
+Array::Array(float scalar) {
+    py::array arr = py::array_t<float>({1});
+    auto buffer = arr.mutable_unchecked<float>();
+    buffer(0) = scalar;
+    this->setArrayMembersUsing(arr);
+}
+
+Array::Array(double scalar) {
+    py::array arr = py::array_t<double>({1});
+    auto buffer = arr.mutable_unchecked<double>();
+    buffer(0) = scalar;
+    this->setArrayMembersUsing(arr);
+}
+
+Array::Array(bool scalar) {
+    py::array arr = py::array_t<bool>({1});
+    auto buffer = arr.mutable_unchecked<bool>();
+    buffer(0) = scalar;
+    this->setArrayMembersUsing(arr);
+}
+
 
 
 Array::Assertions& Array::must() const {
@@ -272,3 +357,5 @@ struct InstantiatorMethodScalar {
 };
 
 template void utils::instantiateFromTypeList<InstantiatorMethodScalar, utils::ScalarTypes>();
+
+

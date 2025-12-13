@@ -1,5 +1,5 @@
 import numpy as np
-from noder.core import Node
+from noder.core import Node, Array
 
 def test_get_child_by_name():
     a = Node("a")
@@ -83,4 +83,31 @@ def test_get_by_type_pattern():
     assert n is d
 
     none = a.pick().by_name(r"(\Bab)")
+    assert none is None
+
+
+def test_get_child_by_data():
+    a = Node("a")
+    b = Node("b")
+    b.set_data(Array("test"))
+    b.attach_to(a)
+
+    c = Node("c")
+    c.set_data(Array(np.ndarray([0],dtype=float)))
+    c.attach_to(a)
+
+    d = Node("d")
+    d.set_data(Array(np.zeros((3,3),dtype=int)))
+    d.attach_to(c)
+
+    e = Node("e")
+    e.set_data(Array("requested"))
+    e.attach_to(a)
+
+
+    n = a.pick().child_by_data("requested")
+    assert n.name() == "e"
+    assert n is e
+
+    none = a.pick().child_by_data("d")
     assert none is None

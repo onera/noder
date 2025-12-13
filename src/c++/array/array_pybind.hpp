@@ -11,6 +11,19 @@ void bindArray(py::module_ &m) {
         .def(py::init<const std::string&>())
         .def(py::init<const Array&>())
 
+        .def(py::init<int8_t>())
+        .def(py::init<int16_t>())
+        .def(py::init<int32_t>())
+        .def(py::init<int64_t>())
+        .def(py::init<uint8_t>())
+        .def(py::init<uint16_t>())
+        .def(py::init<uint32_t>())
+        .def(py::init<uint64_t>())
+        .def(py::init<float>())
+        .def(py::init<double>())
+        .def(py::init<bool>())
+
+
         .def("__getitem__", [](const Array& self, py::object key) -> Array {
             return Array(self.getPyArray().attr("__getitem__")(key));
         })

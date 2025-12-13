@@ -20,6 +20,7 @@ void bindNavigation(py::module_ &m) {
         .def("by_type_pattern",
           py::overload_cast<const std::string&, const int&>(&Navigation::byTypePattern),
           "get node by regex-pattern type recursively",
-          py::arg("type_pattern"), py::arg("depth")=100);
+          py::arg("type_pattern"), py::arg("depth")=100)
+        .def("child_by_data", &Navigation::childByData, "Get child node by data");
 
 }

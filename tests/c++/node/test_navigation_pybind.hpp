@@ -12,9 +12,12 @@ void bindTestsOfNavigation(py::module_ &m) {
     sm.def("childByName", &test_childByName);
     sm.def("byName", &test_byName);
     sm.def("byNamePattern", &test_byNamePattern);
+    
     sm.def("childByType", &test_childByType);
     sm.def("byType", &test_byType);
     sm.def("byTypePattern", &test_byTypePattern);
+    
+    sm.def("childByData", &test_childByData);
 }
 
 # endif

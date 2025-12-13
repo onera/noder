@@ -20,4 +20,6 @@ void test_byType();
 
 void test_byTypePattern();
 
+void test_childByData();
+
 #endif // TEST_NAVIGATION_H

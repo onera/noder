@@ -22,6 +22,39 @@ class Array(Data):
     @typing.overload
     def __init__(self, arg0: Array) -> None:
         ...
+    @typing.overload
+    def __init__(self, arg0: int) -> None:
+        ...
+    @typing.overload
+    def __init__(self, arg0: int) -> None:
+        ...
+    @typing.overload
+    def __init__(self, arg0: int) -> None:
+        ...
+    @typing.overload
+    def __init__(self, arg0: int) -> None:
+        ...
+    @typing.overload
+    def __init__(self, arg0: int) -> None:
+        ...
+    @typing.overload
+    def __init__(self, arg0: int) -> None:
+        ...
+    @typing.overload
+    def __init__(self, arg0: int) -> None:
+        ...
+    @typing.overload
+    def __init__(self, arg0: int) -> None:
+        ...
+    @typing.overload
+    def __init__(self, arg0: float) -> None:
+        ...
+    @typing.overload
+    def __init__(self, arg0: float) -> None:
+        ...
+    @typing.overload
+    def __init__(self, arg0: bool) -> None:
+        ...
     def __repr__(self) -> str:
         ...
     def __setitem__(self, arg0: typing.Any, arg1: typing.Any) -> None:
@@ -85,6 +118,10 @@ class Navigation:
     def by_type_pattern(self, type_pattern: str, depth: int = 100) -> Node:
         """
         get node by regex-pattern type recursively
+        """
+    def child_by_data(self, arg0: str) -> Node:
+        """
+        Get child node by data
         """
     def child_by_name(self, arg0: str) -> Node:
         """
