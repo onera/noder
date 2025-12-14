@@ -79,6 +79,7 @@ bool Array::operator==(const float& scalar) const { return this->hasAllItemsEqua
 bool Array::operator==(const double& scalar) const { return this->hasAllItemsEqualTo<double>(scalar);}
 bool Array::operator==(const bool& scalar) const { return this->hasAllItemsEqualTo<bool>(scalar);}
 bool Array::operator==(const std::string& otherString) const { return this->hasSameStringAs(otherString);}
+bool Array::operator==(const char* otherString) const { return this->hasSameStringAs(std::string(otherString));}
 
 template <typename T>
 bool Array::hasAllItemsEqualTo(const T& other) const {
@@ -176,6 +177,7 @@ bool Array::operator!=(const float& scalar) const { return this->hasAtLeastOneIt
 bool Array::operator!=(const double& scalar) const { return this->hasAtLeastOneItemDifferentTo<double>(scalar);}
 bool Array::operator!=(const bool& scalar) const { return this->hasAtLeastOneItemDifferentTo<bool>(scalar);}
 bool Array::operator!=(const std::string& otherString) const { return this->hasDifferentStringTo(otherString);}
+bool Array::operator!=(const char* otherString) const { return this->hasDifferentStringTo(std::string(otherString));}
 
 template <typename T>
 bool Array::hasAtLeastOneItemDifferentTo(const T& other) const {

@@ -189,6 +189,7 @@ public:
     bool operator==(const double& scalar) const;
     bool operator==(const bool& scalar) const;
     bool operator==(const std::string& string) const;
+    bool operator==(const char* otherString) const;
 
     bool operator!=(const Array& other) const;
     bool operator!=(const int8_t& scalar) const;
@@ -203,6 +204,7 @@ public:
     bool operator!=(const double& scalar) const;
     bool operator!=(const bool& scalar) const;
     bool operator!=(const std::string& otherString) const;
+    bool operator!=(const char* otherString) const;
 
     /*
         TODO math operators

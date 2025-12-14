@@ -4,11 +4,30 @@
 # include "node/node.hpp"
 # include "array/array.hpp"
 
-template <typename T> [[gnu::used]]
+template <typename T> 
 std::shared_ptr<Node> newNode(
+    const std::string& name,
+    const std::string& type,
+    const T& data,
+    std::shared_ptr<Node> parent = nullptr);
+
+
+// Overload: default data = bool(false)
+inline std::shared_ptr<Node> newNode(
     const std::string& name = "",
     const std::string& type = "",
-    const T& data = false,
-    std::shared_ptr<Node> parent = nullptr);
+    std::shared_ptr<Node> parent = nullptr)
+{
+    return newNode<bool>(name, type, false, parent);
+}
+
+inline std::shared_ptr<Node> newNode(
+    const std::string& name,
+    const std::string& type,
+    const char* data,
+    std::shared_ptr<Node> parent = nullptr)
+{
+    return newNode<std::string>(name, type, std::string(data), parent);
+}
 
 #endif

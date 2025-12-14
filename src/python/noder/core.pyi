@@ -3,7 +3,7 @@ import numpy
 import typing
 from . import factory
 from . import io
-__all__: list[str] = ['Array', 'Data', 'Navigation', 'Node', 'factory', 'io', 'nodeToPyCGNS', 'pyCGNSToNode', 'registerDefaultFactory']
+__all__: list[str] = ['Array', 'Data', 'Navigation', 'Node', 'factory', 'io', 'new_node', 'nodeToPyCGNS', 'pyCGNSToNode', 'registerDefaultFactory']
 class Array(Data):
     def __getitem__(self, arg0: typing.Any) -> Array:
         ...
@@ -180,6 +180,8 @@ class Node:
         ...
     def write(self, arg0: str) -> None:
         ...
+def new_node(name: str = '', type: str = '', data: typing.Any = False, parent: Node = None) -> Node:
+    ...
 def nodeToPyCGNS(arg0: Node) -> list:
     """
     Convert a Node to a Python CGNS-like list.
