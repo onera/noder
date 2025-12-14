@@ -128,7 +128,6 @@ std::shared_ptr<Data> Node::dataPtr() const {
     return this->_data;
 }
 
-
 void Node::setData(std::shared_ptr<Data> d) {
     this->_data = std::move(d);
 }

@@ -6,6 +6,7 @@
 
 # include "array/test_array_pybind.hpp"
 # include "node/test_node_pybind.hpp"
+# include "node/test_node_factory_pybind.hpp"
 # include "data/data_factory.hpp"
 # include "node/test_data_pybind.hpp"
 # include "node/test_navigation_pybind.hpp"
@@ -27,6 +28,7 @@ PYBIND11_MODULE(tests, m) {
 
     bindTestsOfArray(m);
     bindTestsOfNode(m);
+    bindTestsOfNodeFactory(m);
     bindTestsOfData(m);
     bindTestsOfNavigation(m);
     

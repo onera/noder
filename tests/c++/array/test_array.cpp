@@ -140,11 +140,11 @@ void test_isScalar() {
         throw py::value_error("should have been detected as scalar");
     }
 
-    Array directScalarArray = Array(12);
+    T scalar(1);
+    Array directScalarArray = Array(scalar);
     if (!directScalarArray.isScalar()) {
         throw py::value_error("should have been detected as scalar");
     }
-
 
     Array vectorArray = arrayfactory::zeros<T>({2});
     if (vectorArray.isScalar()) {

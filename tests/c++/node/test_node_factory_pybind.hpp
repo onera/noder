@@ -1,0 +1,21 @@
+# ifndef TEST_NODE_FACTORY_PYBIND_HPP
+# define TEST_NODE_FACTORY_PYBIND_HPP
+
+# include <pybind11/pybind11.h>
+
+# include "test_node_factory.hpp"
+
+void bindTestsOfNodeFactory(py::module_ &m) {
+
+    py::module_ sm = m.def_submodule("node_factory");
+    
+    sm.def("test_newNodeNoArgs", &test_newNodeNoArgs);
+    sm.def("test_newNodeOnlyName", &test_newNodeOnlyName);
+    sm.def("test_newNodeNameAndType", &test_newNodeNameAndType);
+    sm.def("test_newNodeNameTypeAndData", &test_newNodeNameTypeAndData);
+
+
+
+}
+
+# endif
