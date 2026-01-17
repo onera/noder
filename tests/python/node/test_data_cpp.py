@@ -8,5 +8,7 @@ def test_isScalar(): return test_in_cpp.isScalar()
 
 def test_expectedString(): return test_in_cpp.expectedString()
 
+def test_isEqualToInteger(): return test_in_cpp.isEqualToInteger()
+
 if __name__ == '__main__':
     test_isNone()

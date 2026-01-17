@@ -26,4 +26,13 @@ void test_expectedString() {
     if (!a.data().hasString()) throw py::value_error("expected string");
 }
 
+void test_isEqualToInteger() {
+    int scalar = 5;
+    Array array(scalar);
+    Node n;
+    n.setData(array);
+
+    // TODO continue here check if data is equal to int
+}
+
 }

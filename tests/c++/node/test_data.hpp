@@ -13,6 +13,8 @@ void test_isScalar();
 
 void test_expectedString();
 
+void test_isEqualToInteger();
+
 }
 
 #endif 
