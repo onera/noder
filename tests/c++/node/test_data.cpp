@@ -32,7 +32,7 @@ void test_isEqualToInteger() {
     Node n;
     n.setData(array);
 
-    // TODO continue here check if data is equal to int
+    if (n.data() != scalar) throw py::value_error("expected data equal to int");
 }
 
 }
