@@ -5,31 +5,31 @@
 # include <array/factory/c_to_py.hpp>
 # include <array/factory/vectors.hpp>
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_scalarSlicingProducesScalar();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_getItemAsArrayAtIndex();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_scalarSlicingDoesNotMakeCopy();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_getItemAtIndex();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_getPointerOfDataSafely();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_getPointerOfModifiableDataFast();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_getPointerOfReadOnlyDataFast();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_getAccessorOfReadOnlyData();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_getAccessorOfModifiableData();
 
 void test_getFlatIndexOfArrayInStyleC();

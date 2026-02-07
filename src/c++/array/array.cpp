@@ -231,25 +231,6 @@ bool Array::isContiguousInStyleFortran() const {
 }
 
 
-template <typename T>
-bool Array::hasDataOfType() const {
-    auto dtype = this->pyArray.dtype();
-    return dtype.is(py::dtype::of<T>());
-}
-
-
-template <typename T, ssize_t DIMS>
-py::detail::unchecked_reference<T, DIMS> Array::getAccessorOfReadOnlyData() const {
-    this->must().haveDataOfTypeAndDimensions<T,DIMS>();
-    return this->pyArray.unchecked<T,static_cast<size_t>(DIMS)>();
-}
-
-template <typename T, ssize_t DIMS>
-py::detail::unchecked_mutable_reference<T, DIMS> Array::getAccessorOfModifiableData() {
-    this->must().haveDataOfTypeAndDimensions<T,DIMS>();
-    return this->pyArray.mutable_unchecked<T,DIMS>();
-}
-
 std::string Array::info() const {
 
     std::string txt;
@@ -327,10 +308,8 @@ std::string Array::shortInfo() const {
 
 template <typename ArrayType, typename T, size_t... DIMS>
 void instantiateAccessors(std::index_sequence<DIMS...>) {
-    ArrayType array;
-    const ArrayType constArray;
-    (static_cast<void>(constArray.template getAccessorOfReadOnlyData<T, static_cast<ssize_t>(DIMS)>()), ...);
-    (static_cast<void>(array.template getAccessorOfModifiableData<T, static_cast<ssize_t>(DIMS)>()), ...);
+    (utils::forceSymbol(&ArrayType::template getAccessorOfReadOnlyData<T, static_cast<ssize_t>(DIMS)>), ...);
+    (utils::forceSymbol(&ArrayType::template getAccessorOfModifiableData<T, static_cast<ssize_t>(DIMS)>), ...);
 }
 
 template <typename... T>
@@ -349,13 +328,10 @@ template void utils::instantiateFromTypeList<Instantiator, utils::ScalarTypes>()
 
 template <typename... T>
 struct InstantiatorMethodScalar {
-    const Array constArray;
     template <typename... U>
     void operator()() const {
-        (static_cast<void>(constArray.template hasDataOfType<U>()), ...);
+        (utils::forceSymbol(&Array::template hasDataOfType<U>), ...);
     }
 };
 
 template void utils::instantiateFromTypeList<InstantiatorMethodScalar, utils::ScalarTypes>();
-
-

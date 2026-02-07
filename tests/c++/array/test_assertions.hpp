@@ -11,17 +11,17 @@ void test_assertSameSizeAsVector();
 void test_assertSameSizeAsArray();
 void test_assertSameSizeAsPyArray();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_mustHaveDataOfTypeAndDimensions();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_mustHaveDataOfType();
 void test_mustHaveDataOfTypeCatchExpectedError();
 
 void test_mustHaveDataOfDimensions();
 void test_mustHaveDataOfDimensionsCatchExpectedError();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_mustHaveValidDataTypeForSettingScalar();
 void test_mustHaveValidDataTypeForSettingScalarCatchExpectedError();
 

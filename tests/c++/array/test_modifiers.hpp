@@ -6,43 +6,43 @@
 # include <array/factory/matrices.hpp>
 # include <array/factory/c_to_py.hpp>
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_setArrayToScalar();
 void test_catchErrorWhenAssigningWrongScalarType();
 
 void test_catchErrorWhenAssigningScalarToStringArray();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_setFromArrayConsideringAllTypes();
 void test_setFromArrayToRange();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_addScalarConsideringAllTypes();
 
 void test_addScalarToRange();
 void test_substractScalarToRange();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_multiplyScalarConsideringAllTypes();
 
 void test_multiplyScalarToRange();
 void test_divideScalarToRangeOfIntegers();
 void test_divideScalarToRangeOfFloats();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_addFromArrayConsideringAllTypes();
 void test_addFromArrayToRange();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_substractFromArrayConsideringAllTypes();
 void test_substractFromArrayToRange();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_multiplyFromArrayConsideringAllTypes();
 void test_multiplyFromArrayToRange();
 
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_divideFromArrayConsideringAllTypes();
 void test_divideFromArrayToRange();
 

@@ -2,18 +2,6 @@
 
 Array::Assertions::Assertions(const Array& inputArray) : array(inputArray) {}
 
-template <typename T>
-void Array::Assertions::haveValidDataTypeForSettingScalar() const {
-    try {
-        this->haveDataOfType<T>();
-    } catch (const py::type_error& e) {
-        if (array.hasString()) {
-            throw py::type_error("cannot assign a scalar to an array containing a string");
-        }
-        throw e;
-    }
-}
-
 /*
     template instantiations
 */

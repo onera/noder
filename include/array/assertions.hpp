@@ -12,7 +12,7 @@ private:
 public:
     explicit Assertions(const Array& array);
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     void haveSameSizeAs(const T& other) const {
         size_t arraySize = array.size();
         size_t otherSize = static_cast<size_t>(other.size());
@@ -29,7 +29,7 @@ public:
         this->haveDataOfDimensions<N>();
     }
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     void haveDataOfType() const {
         if (!array.hasDataOfType<T>()) {
             throw py::type_error(
@@ -47,8 +47,17 @@ public:
         }
     }
 
-    template <typename T> [[gnu::used]]
-    void haveValidDataTypeForSettingScalar() const;
+    template <typename T>
+    void haveValidDataTypeForSettingScalar() const {
+        try {
+            this->haveDataOfType<T>();
+        } catch (const py::type_error& e) {
+            if (array.hasString()) {
+                throw py::type_error("cannot assign a scalar to an array containing a string");
+            }
+            throw e;
+        }
+    }
     
 };
 

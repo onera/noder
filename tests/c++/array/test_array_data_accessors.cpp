@@ -248,7 +248,10 @@ struct InstantiatorAccessors {
     void operator()() const {
         (static_cast<void>(test_getAccessorOfReadOnlyData<U>()), ...);
         (static_cast<void>(test_getAccessorOfModifiableData<U>()), ...);
+        (utils::forceSymbol(&Array::template getAccessorOfReadOnlyData<U, 2>), ...);
+        (utils::forceSymbol(&Array::template getAccessorOfModifiableData<U, 2>), ...);
     }
 };
 
-template void utils::instantiateFromTypeList<InstantiatorAccessors, utils::FloatingAndIntegralTypes>();
+template void utils::instantiateFromTypeList<InstantiatorAccessors,
+                                             utils::FloatingAndIntegralTypes>();

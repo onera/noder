@@ -62,20 +62,19 @@ template <typename... T>
 struct InstantiatorFloatingAndIntegralTypes {
     template <typename... U>
     void operator()() const {
-        (static_cast<void>(arrayfactory::uniformFromStep<U>(T{}, T{}, T{})), ...);
+        (utils::forceSymbol(&arrayfactory::uniformFromStep<U>), ...);
     }
 };
 
 template void utils::instantiateFromTypeList<InstantiatorFloatingAndIntegralTypes,
-                                                  utils::FloatingAndIntegralTypes>();
+                                             utils::FloatingAndIntegralTypes>();
 
 template <typename... T>
 struct InstantiatorFloatingTypes {
     template <typename... U>
     void operator()() const {
-        (static_cast<void>(arrayfactory::uniformFromCount<U>(T{}, T{}, size_t{}, bool{})), ...);
+        (utils::forceSymbol(&arrayfactory::uniformFromCount<U>), ...);
     }
 };
 
-template void utils::instantiateFromTypeList<InstantiatorFloatingTypes,
-                                                  utils::FloatingTypes>();
+template void utils::instantiateFromTypeList<InstantiatorFloatingTypes, utils::FloatingTypes>();

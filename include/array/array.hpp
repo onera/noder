@@ -74,7 +74,7 @@ public:
     bool isContiguousInStyleC() const;
     bool isContiguousInStyleFortran() const;
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     bool hasDataOfType() const;
 
     void print(const size_t& maxChars=80) const;
@@ -94,19 +94,19 @@ public:
         return *this;
     }
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& operator=(const T& scalar);
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& operator+=(const T& scalar);
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& operator-=(const T& scalar);
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& operator*=(const T& scalar);
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& operator/=(const T& scalar);
 
     // TODO implement basic math operations
@@ -120,25 +120,27 @@ public:
    
     Array operator[](const size_t flatIndex);
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     T& getItemAtIndex(const size_t& index);
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     const T& getItemAtIndex(const size_t& index) const;
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     T* getPointerOfDataSafely() ;
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     T* getPointerOfModifiableDataFast();
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     const T* getPointerOfReadOnlyDataFast() const;
 
-    template <typename T, ssize_t DIMS> [[gnu::used]]
+    template <typename T, ssize_t DIMS>
+    PYBIND11_EXPORT
     py::detail::unchecked_reference<T, DIMS> getAccessorOfReadOnlyData() const;
 
-    template <typename T, ssize_t DIMS> [[gnu::used]]
+    template <typename T, ssize_t DIMS>
+    PYBIND11_EXPORT
     py::detail::unchecked_mutable_reference<T, DIMS> getAccessorOfModifiableData();
 
     size_t getFlatIndex(const std::vector<size_t>& indices) const;
@@ -246,7 +248,7 @@ private:
 
     std::string getNumericalArrayPrintDispatchingByType() const;
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     std::string getNumericalArrayPrint() const;
 
     /*
@@ -256,75 +258,75 @@ private:
     void setArrayMembersAsNull();
     void setArrayMembersUsing(const py::array& pyarray);
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& setElementsAs(const T& scalar);
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& setElementsFrom(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& setElementsOfThisContiguousUsingContiguous(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& setElementsOfThisContiguousUsingNonContiguous(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& setElementsOfThisNonContiguousUsingContiguous(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& setElementsOfThisNonContiguousUsingNonContiguous(const Array& other);
 
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& increaseElementsBy(const T& scalar);
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& increaseElementsFrom(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& increaseElementsOfThisContiguousUsingContiguous(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& increaseElementsOfThisContiguousUsingNonContiguous(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& increaseElementsOfThisNonContiguousUsingContiguous(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& increaseElementsOfThisNonContiguousUsingNonContiguous(const Array& other);
 
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& decreaseElementsFrom(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& decreaseElementsOfThisContiguousUsingContiguous(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& decreaseElementsOfThisContiguousUsingNonContiguous(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& decreaseElementsOfThisNonContiguousUsingContiguous(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& decreaseElementsOfThisNonContiguousUsingNonContiguous(const Array& other);
 
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& multiplyElementsBy(const T& scalar);
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& multiplyElementsFrom(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& multiplyElementsOfThisContiguousUsingContiguous(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& multiplyElementsOfThisContiguousUsingNonContiguous(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& multiplyElementsOfThisNonContiguousUsingContiguous(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& multiplyElementsOfThisNonContiguousUsingNonContiguous(const Array& other);
 
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& divideElementsBy(const T& scalar);
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& divideElementsFrom(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& divideElementsOfThisContiguousUsingContiguous(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& divideElementsOfThisContiguousUsingNonContiguous(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& divideElementsOfThisNonContiguousUsingContiguous(const Array& other);
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array& divideElementsOfThisNonContiguousUsingNonContiguous(const Array& other);
 
 
@@ -332,10 +334,10 @@ private:
         accessors
     */
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array getItemAsArrayAtIndex(const size_t& flatIndex);
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     size_t getOffsetFromFlatIndex(size_t flatIndex) const;
 
     size_t getFlatIndexOfArrayInStyleC(const std::vector<size_t>& indices) const;
@@ -349,16 +351,16 @@ private:
         comparisons
     */
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     bool hasAllItemsEqualToThoseIn(const Array& other) const;
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     bool hasAllItemsEqualTo(const T& scalar) const;
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     bool hasAtLeastOneItemDifferentToThoseIn(const Array& other) const;
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     bool hasAtLeastOneItemDifferentTo(const T& scalar) const;
 
     bool hasSameStringAsThatIn(const Array& other) const;
@@ -374,5 +376,35 @@ private:
 # include "array/factory/matrices.hpp"
 # include "array/factory/strings.hpp"
 # include "array/assertions.hpp"
+
+template <typename T>
+inline bool Array::hasDataOfType() const {
+    auto dtype = this->pyArray.dtype();
+    return dtype.is(py::dtype::of<T>());
+}
+
+template <typename T, ssize_t DIMS>
+inline py::detail::unchecked_reference<T, DIMS> Array::getAccessorOfReadOnlyData() const {
+    if (!this->hasDataOfType<T>()) {
+        throw py::type_error("Wrong requested type " + utils::getTypeName<T>());
+    }
+    if (static_cast<size_t>(DIMS) != this->dimensions()) {
+        throw py::type_error("Expected dimensions: " + std::to_string(DIMS) +
+                             ", but got: " + std::to_string(this->dimensions()));
+    }
+    return this->pyArray.unchecked<T, static_cast<size_t>(DIMS)>();
+}
+
+template <typename T, ssize_t DIMS>
+inline py::detail::unchecked_mutable_reference<T, DIMS> Array::getAccessorOfModifiableData() {
+    if (!this->hasDataOfType<T>()) {
+        throw py::type_error("Wrong requested type " + utils::getTypeName<T>());
+    }
+    if (static_cast<size_t>(DIMS) != this->dimensions()) {
+        throw py::type_error("Expected dimensions: " + std::to_string(DIMS) +
+                             ", but got: " + std::to_string(this->dimensions()));
+    }
+    return this->pyArray.mutable_unchecked<T, DIMS>();
+}
 
 # endif

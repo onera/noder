@@ -35,7 +35,7 @@ else()
             -Wuseless-cast -Wzero-as-null-pointer-constant -Wunsafe-loop-optimizations
             -Wstrict-null-sentinel -Wfloat-equal -Wstrict-overflow=5 -Wundef -Wcast-qual
             -Wredundant-decls -Wnoexcept -Wstrict-aliasing=2 -fanalyzer -Wsign-compare -Wvla
-            -Wpessimizing-move -Wredundant-move -Wunused-parameter -Winline -Wstack-protector
+            -Wpessimizing-move -Wredundant-move -Wunused-parameter -Wstack-protector
             -Wformat-overflow -Wformat-truncation
         )
     endif()

@@ -30,22 +30,11 @@ std::shared_ptr<Node> newNode(
 // };
 
 
-// TODO validate on Windows and MacOS then propagate this approach
-template <typename T>
-using NewNodeFn = std::shared_ptr<Node>(*)(
-    const std::string&, const std::string&, const T&, std::shared_ptr<Node>);
-
 template <typename... Ts>
 struct Instantiator {
     template <typename... Us>
     void operator()() const {
-        (force<Us>(), ...);
-    }
-
-    template <typename U>
-    static void force() {
-        volatile NewNodeFn<U> fp = &newNode<U>;
-        (void)fp;
+        (utils::forceSymbol(&newNode<Us>), ...);
     }
 };
 

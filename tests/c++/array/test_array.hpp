@@ -25,13 +25,13 @@ void test_arrayWithNumbersIsNotNone();
 void test_arrayWithStringIsNotNone();
 void test_arrayWithNumberOfSizeZeroIsNone();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_isScalar();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_contiguity();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_hasDataOfType();
 
 void test_doNotHaveDataOfType();

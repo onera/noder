@@ -7,7 +7,7 @@
 namespace utils {
 
     // Helper to get human-readable type names
-    template <typename T> [[gnu::used]]
+    template <typename T>
     constexpr std::string getTypeName() {
         if constexpr (std::is_same_v<T, bool>) return "bool";
         else if constexpr (std::is_same_v<T, int8_t>) return "int8";

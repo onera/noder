@@ -12,12 +12,12 @@
 
 namespace arrayfactory {
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array uniformFromStep(const double& start,
                  const double& stop,
                  const double& step = 1);
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array uniformFromCount(const double& start,
                    const double& stop,
                    const size_t& num,

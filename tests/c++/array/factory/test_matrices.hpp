@@ -6,28 +6,28 @@
 # include <utils/comparator.hpp>
 
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_zeros_c_order();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_zeros_f_order();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_ones_c_order();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_ones_f_order();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_full_c_order();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_full_f_order();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_empty_c_order();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_empty_f_order();
 
 

@@ -9,6 +9,14 @@
 
 namespace utils {
 
+    // Force ODR-use of function/member-function pointers in a portable way.
+    // This prevents optimized builds from discarding template instantiations.
+    template <typename SymbolPtr>
+    inline void forceSymbol(SymbolPtr symbol) {
+        volatile SymbolPtr sink = symbol;
+        (void)sink;
+    }
+
     // General instantiation function for an instantiator and a TypeList
     template <template <typename...> class Instantiator, typename... T>
     void instantiate(utils::TypeList<T...>) {

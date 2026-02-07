@@ -5,36 +5,36 @@
 # include <array/factory/vectors.hpp>
 # include <array/factory/matrices.hpp>
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_twoIdenticalArraysAreEqual();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_twoIdenticalArraysButWithDifferentMemoryLayoutAreEqual();
 
 void test_twoIdenticalArraysButWithDifferentDataTypesAreEqual();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_twoArraysWithDifferentItemsAreNotEqual();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_twoArraysWithDifferentSizesAreNotEqual();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_twoArraysWithDifferentShapesButSameSizeAreEqual();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_arrayOfZerosIsEqualToScalarZero();
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void test_arrayOfZerosIsDifferentToScalarOne();
 
 void assertEqualArraysAndNotDifferent(const Array& array1, const Array& array2);
 void assertDifferentArraysAndNotEqual(const Array& array1, const Array& array2);
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void assertArrayEqualAndNotDifferentToScalar(const Array& array1, const T& scalar);
 
-template <typename T> [[gnu::used]]
+template <typename T>
 void assertArrayDifferentAndNotEqualToScalar(const Array& array1, const T& scalar);
 
 void test_rangeIsNeverEqualToScalar();

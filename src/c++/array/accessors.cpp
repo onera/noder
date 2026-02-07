@@ -222,14 +222,29 @@ template <typename... T>
 struct Instantiator {
     template <typename... U>
     void operator()() const {
-        Array array;
-        const Array constArray;
-        (static_cast<void>(constArray.getPointerOfReadOnlyDataFast<U>()), ...);
-        (static_cast<void>(array.getPointerOfModifiableDataFast<U>()), ...);
-        (static_cast<void>(array.getPointerOfDataSafely<U>()), ...);
-        (static_cast<void>(array.getItemAtIndex<U>(size_t{})), ...);
-        (static_cast<void>(constArray.getItemAtIndex<U>(size_t{})), ...);
+        (utils::forceSymbol(&Array::template getPointerOfReadOnlyDataFast<U>), ...);
+        (utils::forceSymbol(&Array::template getPointerOfModifiableDataFast<U>), ...);
+        (utils::forceSymbol(&Array::template getPointerOfDataSafely<U>), ...);
+        (forceGetItemSymbols<U>(), ...);
+    }
+
+    template <typename U>
+    static void forceGetItemSymbols() {
+        utils::forceSymbol(static_cast<U& (Array::*)(const size_t&)>(&Array::template getItemAtIndex<U>));
+        utils::forceSymbol(static_cast<const U& (Array::*)(const size_t&) const>(&Array::template getItemAtIndex<U>));
     }
 };
 
 template void utils::instantiateFromTypeList<Instantiator, utils::ScalarTypes>();
+
+template size_t Array::getOffsetFromFlatIndex<bool>(size_t) const;
+template size_t Array::getOffsetFromFlatIndex<float>(size_t) const;
+template size_t Array::getOffsetFromFlatIndex<double>(size_t) const;
+template size_t Array::getOffsetFromFlatIndex<int8_t>(size_t) const;
+template size_t Array::getOffsetFromFlatIndex<int16_t>(size_t) const;
+template size_t Array::getOffsetFromFlatIndex<int32_t>(size_t) const;
+template size_t Array::getOffsetFromFlatIndex<int64_t>(size_t) const;
+template size_t Array::getOffsetFromFlatIndex<uint8_t>(size_t) const;
+template size_t Array::getOffsetFromFlatIndex<uint16_t>(size_t) const;
+template size_t Array::getOffsetFromFlatIndex<uint32_t>(size_t) const;
+template size_t Array::getOffsetFromFlatIndex<uint64_t>(size_t) const;

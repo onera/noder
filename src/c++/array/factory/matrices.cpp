@@ -94,12 +94,12 @@ template <typename... T>
 struct Instantiator {
     template <typename... U>
     void operator()() const {
-        (static_cast<void>(arrayfactory::zeros<U>(std::vector<size_t>{}, char{})), ...);
-        (static_cast<void>(arrayfactory::ones<U>(std::vector<size_t>{}, char{})), ...);
-        (static_cast<void>(arrayfactory::empty<U>(std::vector<size_t>{}, char{})), ...);
-        (static_cast<void>(arrayfactory::full<U>(std::vector<size_t>{}, double{}, char{})), ...);
-        (static_cast<void>(arrayfactory::computeStridesInOrderC<U>(std::vector<size_t>{})), ...);
-        (static_cast<void>(arrayfactory::computeStridesInOrderF<U>(std::vector<size_t>{})), ...);
+        (utils::forceSymbol(&arrayfactory::zeros<U>), ...);
+        (utils::forceSymbol(&arrayfactory::ones<U>), ...);
+        (utils::forceSymbol(&arrayfactory::empty<U>), ...);
+        (utils::forceSymbol(&arrayfactory::full<U>), ...);
+        (utils::forceSymbol(&arrayfactory::computeStridesInOrderC<U>), ...);
+        (utils::forceSymbol(&arrayfactory::computeStridesInOrderF<U>), ...);
     }
 };
 

@@ -29,22 +29,22 @@ namespace arrayfactory {
 
     namespace py = pybind11;
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array full(const std::vector<size_t>& shape, T fill_value, const char order = 'C');
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array empty(const std::vector<size_t>& shape, const char order = 'C');
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     std::vector<size_t> computeStridesInOrderC(const std::vector<size_t>& shape);
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     std::vector<size_t> computeStridesInOrderF(const std::vector<size_t>& shape);
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array zeros(const std::vector<size_t>& shape, const char order = 'C');
 
-    template <typename T> [[gnu::used]]
+    template <typename T>
     Array ones(const std::vector<size_t>& shape, const char order = 'C');
 
 
