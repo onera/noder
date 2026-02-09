@@ -34,11 +34,17 @@ void bindTestsOfArray(py::module_ &m) {
     sm.def("arrayWithStringIsNotNone", &test_arrayWithStringIsNotNone);
     sm.def("arrayWithNumberOfSizeZeroIsNone", &test_arrayWithNumberOfSizeZeroIsNone);
 
-    utils::bindForScalarTypes(sm, "isScalar", []<typename T>() { return &test_isScalar<T>; });
+    utils::bindForScalarTypes(sm, "isScalar", 
+        []<typename T>(utils::TypeTag<T>) { return &test_isScalar<T>; }
+    );
 
-    utils::bindForScalarTypes(sm, "contiguity", []<typename T>() { return &test_contiguity<T>; });
+    utils::bindForScalarTypes(sm, "contiguity", 
+        []<typename T>(utils::TypeTag<T>) { return &test_contiguity<T>; }
+    );
 
-    utils::bindForScalarTypes(sm, "hasDataOfType", []<typename T>() { return &test_hasDataOfType<T>; });
+    utils::bindForScalarTypes(sm, "hasDataOfType", 
+        []<typename T>(utils::TypeTag<T>) { return &test_hasDataOfType<T>; }
+    );
 
     sm.def("doNotHaveDataOfType", &test_doNotHaveDataOfType);
 

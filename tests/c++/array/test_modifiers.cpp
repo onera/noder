@@ -284,8 +284,8 @@ template <typename... T>
 struct InstantiatorScalars {
     template <typename... U>
     void operator()() const {
-        (static_cast<void>(test_setArrayToScalar<U>()), ...);
-        (static_cast<void>(test_setFromArrayConsideringAllTypes<U>()), ...);
+        (utils::forceSymbol(&test_setArrayToScalar<U>), ...);
+        (utils::forceSymbol(&test_setFromArrayConsideringAllTypes<U>), ...);
     }
 };
 
@@ -295,14 +295,13 @@ template <typename... T>
 struct InstantiatorFloatingAndIntegrals {
     template <typename... U>
     void operator()() const {
-        (static_cast<void>(test_addScalarConsideringAllTypes<U>()), ...);
-        (static_cast<void>(test_multiplyScalarConsideringAllTypes<U>()), ...);
-        (static_cast<void>(test_addFromArrayConsideringAllTypes<U>()), ...);
-        (static_cast<void>(test_substractFromArrayConsideringAllTypes<U>()), ...);
-        (static_cast<void>(test_multiplyFromArrayConsideringAllTypes<U>()), ...);
-        (static_cast<void>(test_divideFromArrayConsideringAllTypes<U>()), ...);
+        (utils::forceSymbol(&test_addScalarConsideringAllTypes<U>), ...);
+        (utils::forceSymbol(&test_multiplyScalarConsideringAllTypes<U>), ...);
+        (utils::forceSymbol(&test_addFromArrayConsideringAllTypes<U>), ...);
+        (utils::forceSymbol(&test_substractFromArrayConsideringAllTypes<U>), ...);
+        (utils::forceSymbol(&test_multiplyFromArrayConsideringAllTypes<U>), ...);
+        (utils::forceSymbol(&test_divideFromArrayConsideringAllTypes<U>), ...);
     }
 };
 
 template void utils::instantiateFromTypeList<InstantiatorFloatingAndIntegrals, utils::FloatingAndIntegralTypes>();
-

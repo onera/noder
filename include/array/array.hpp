@@ -386,7 +386,9 @@ inline bool Array::hasDataOfType() const {
 template <typename T, ssize_t DIMS>
 inline py::detail::unchecked_reference<T, DIMS> Array::getAccessorOfReadOnlyData() const {
     if (!this->hasDataOfType<T>()) {
-        throw py::type_error("Wrong requested type " + utils::getTypeName<T>());
+        std::string msg = "Wrong requested type ";
+        msg += utils::getTypeName<T>();
+        throw py::type_error(msg);
     }
     if (static_cast<size_t>(DIMS) != this->dimensions()) {
         throw py::type_error("Expected dimensions: " + std::to_string(DIMS) +
@@ -398,7 +400,9 @@ inline py::detail::unchecked_reference<T, DIMS> Array::getAccessorOfReadOnlyData
 template <typename T, ssize_t DIMS>
 inline py::detail::unchecked_mutable_reference<T, DIMS> Array::getAccessorOfModifiableData() {
     if (!this->hasDataOfType<T>()) {
-        throw py::type_error("Wrong requested type " + utils::getTypeName<T>());
+        std::string msg = "Wrong requested type ";
+        msg += utils::getTypeName<T>();
+        throw py::type_error(msg);
     }
     if (static_cast<size_t>(DIMS) != this->dimensions()) {
         throw py::type_error("Expected dimensions: " + std::to_string(DIMS) +

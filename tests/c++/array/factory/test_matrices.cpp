@@ -186,14 +186,14 @@ template <typename... T>
 struct Instantiator {
     template <typename... U>
     void operator()() const {
-        (static_cast<void>(test_zeros_c_order<U>()), ...);
-        (static_cast<void>(test_zeros_f_order<U>()), ...);
-        (static_cast<void>(test_ones_c_order<U>()), ...);
-        (static_cast<void>(test_ones_f_order<U>()), ...);
-        (static_cast<void>(test_full_c_order<U>()), ...);
-        (static_cast<void>(test_full_f_order<U>()), ...);
-        (static_cast<void>(test_empty_c_order<U>()), ...);
-        (static_cast<void>(test_empty_f_order<U>()), ...);
+        (utils::forceSymbol(&test_zeros_c_order<U>), ...);
+        (utils::forceSymbol(&test_zeros_f_order<U>), ...);
+        (utils::forceSymbol(&test_ones_c_order<U>), ...);
+        (utils::forceSymbol(&test_ones_f_order<U>), ...);
+        (utils::forceSymbol(&test_full_c_order<U>), ...);
+        (utils::forceSymbol(&test_full_f_order<U>), ...);
+        (utils::forceSymbol(&test_empty_c_order<U>), ...);
+        (utils::forceSymbol(&test_empty_f_order<U>), ...);
     }
 };
 

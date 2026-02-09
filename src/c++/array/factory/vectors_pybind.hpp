@@ -8,15 +8,13 @@ using namespace arrayfactory;
 
 void bindFactoryOfVectorArrays(py::module_ &m) {
 
-    utils::bindForFloatingAndIntegralTypes(m,
-        "uniformFromStep", []<typename T>() {
-            return &uniformFromStep<T>;
-    });
+    utils::bindForFloatingAndIntegralTypes(m, "uniformFromStep", 
+        []<typename T>(utils::TypeTag<T>) { return &uniformFromStep<T>; }
+    );
 
-    utils::bindForFloatingTypes(m,
-        "uniformFromCount", []<typename T>() {
-            return &uniformFromCount<T>;
-    });
+    utils::bindForFloatingTypes(m, "uniformFromCount", 
+        []<typename T>(utils::TypeTag<T>) { return &uniformFromCount<T>; }
+    );
 }
 
 # endif

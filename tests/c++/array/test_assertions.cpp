@@ -8,9 +8,9 @@ template <typename... T>
 struct Instantiator {
     template <typename... U>
     void operator()() const {
-        (static_cast<void>(test_mustHaveDataOfTypeAndDimensions<U>()), ...);
-        (static_cast<void>(test_mustHaveDataOfType<U>()), ...);
-        (static_cast<void>(test_mustHaveValidDataTypeForSettingScalar<U>()), ...);
+        (utils::forceSymbol(&test_mustHaveDataOfTypeAndDimensions<U>), ...);
+        (utils::forceSymbol(&test_mustHaveDataOfType<U>), ...);
+        (utils::forceSymbol(&test_mustHaveValidDataTypeForSettingScalar<U>), ...);
     }
 };
 
@@ -170,5 +170,4 @@ void test_mustHaveValidDataTypeForSettingScalarCatchExpectedError() {
         }
     }
 }
-
 

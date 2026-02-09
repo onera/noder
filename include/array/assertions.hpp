@@ -32,8 +32,9 @@ public:
     template <typename T>
     void haveDataOfType() const {
         if (!array.hasDataOfType<T>()) {
-            throw py::type_error(
-                "Wrong requested type " + utils::getTypeName<T>());
+            std::string msg = "Wrong requested type ";
+            msg += utils::getTypeName<T>();
+            throw py::type_error(msg);    
         }
     }
 

@@ -8,13 +8,13 @@ template <typename... T>
 struct Instantiator {
     template <typename... U>
     void operator()() const {
-        (static_cast<void>(test_twoIdenticalArraysAreEqual<U>()), ...);
-        (static_cast<void>(test_twoIdenticalArraysButWithDifferentMemoryLayoutAreEqual<U>()), ...);
-        (static_cast<void>(test_twoArraysWithDifferentItemsAreNotEqual<U>()), ...);
-        (static_cast<void>(test_twoArraysWithDifferentSizesAreNotEqual<U>()), ...);
-        (static_cast<void>(test_twoArraysWithDifferentShapesButSameSizeAreEqual<U>()), ...);
-        (static_cast<void>(test_arrayOfZerosIsEqualToScalarZero<U>()), ...);
-        (static_cast<void>(test_arrayOfZerosIsDifferentToScalarOne<U>()), ...);
+        (utils::forceSymbol(&test_twoIdenticalArraysAreEqual<U>), ...);
+        (utils::forceSymbol(&test_twoIdenticalArraysButWithDifferentMemoryLayoutAreEqual<U>), ...);
+        (utils::forceSymbol(&test_twoArraysWithDifferentItemsAreNotEqual<U>), ...);
+        (utils::forceSymbol(&test_twoArraysWithDifferentSizesAreNotEqual<U>), ...);
+        (utils::forceSymbol(&test_twoArraysWithDifferentShapesButSameSizeAreEqual<U>), ...);
+        (utils::forceSymbol(&test_arrayOfZerosIsEqualToScalarZero<U>), ...);
+        (utils::forceSymbol(&test_arrayOfZerosIsDifferentToScalarOne<U>), ...);
     }
 };
 
@@ -212,5 +212,4 @@ void assertArrayDifferentAndNotEqualToScalar(const Array& array1, const T& scala
         throw py::value_error("expected array different to scalar: failed operator!=");
     }
 }
-
 

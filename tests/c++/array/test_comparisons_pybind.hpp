@@ -5,21 +5,35 @@
 
 void bindTestsOfArrayComparisons(py::module_ &m) {
 
-    utils::bindForScalarTypes(m, "twoIdenticalArraysAreEqual", []<typename T>() { return &test_twoIdenticalArraysAreEqual<T>; });
+    utils::bindForScalarTypes(m, "twoIdenticalArraysAreEqual",
+        []<typename T>(utils::TypeTag<T>) { return &test_twoIdenticalArraysAreEqual<T>; }
+    );
 
-    utils::bindForScalarTypes(m, "twoIdenticalArraysButWithDifferentMemoryLayoutAreEqual", []<typename T>() { return &test_twoIdenticalArraysButWithDifferentMemoryLayoutAreEqual<T>; });
+    utils::bindForScalarTypes(m, "twoIdenticalArraysButWithDifferentMemoryLayoutAreEqual",
+        []<typename T>(utils::TypeTag<T>) { return &test_twoIdenticalArraysButWithDifferentMemoryLayoutAreEqual<T>; }
+    );
 
-    utils::bindForScalarTypes(m, "twoArraysWithDifferentItemsAreNotEqual", []<typename T>() { return &test_twoArraysWithDifferentItemsAreNotEqual<T>; });
+    utils::bindForScalarTypes(m, "twoArraysWithDifferentItemsAreNotEqual",
+        []<typename T>(utils::TypeTag<T>) { return &test_twoArraysWithDifferentItemsAreNotEqual<T>; }
+    );
 
     m.def("twoIdenticalArraysButWithDifferentDataTypesAreEqual", &test_twoIdenticalArraysButWithDifferentDataTypesAreEqual);
 
-    utils::bindForScalarTypes(m, "twoArraysWithDifferentSizesAreNotEqual", []<typename T>() { return &test_twoArraysWithDifferentSizesAreNotEqual<T>; });
+    utils::bindForScalarTypes(m, "twoArraysWithDifferentSizesAreNotEqual",
+        []<typename T>(utils::TypeTag<T>) { return &test_twoArraysWithDifferentSizesAreNotEqual<T>; }
+    );
 
-    utils::bindForScalarTypes(m, "twoArraysWithDifferentShapesButSameSizeAreEqual", []<typename T>() { return &test_twoArraysWithDifferentShapesButSameSizeAreEqual<T>; });
+    utils::bindForScalarTypes(m, "twoArraysWithDifferentShapesButSameSizeAreEqual",
+        []<typename T>(utils::TypeTag<T>) { return &test_twoArraysWithDifferentShapesButSameSizeAreEqual<T>; }
+    );
 
-    utils::bindForScalarTypes(m, "arrayOfZerosIsEqualToScalarZero", []<typename T>() { return &test_arrayOfZerosIsEqualToScalarZero<T>; });
+    utils::bindForScalarTypes(m, "arrayOfZerosIsEqualToScalarZero",
+        []<typename T>(utils::TypeTag<T>) { return &test_arrayOfZerosIsEqualToScalarZero<T>; }
+    );
 
-    utils::bindForScalarTypes(m, "arrayOfZerosIsDifferentToScalarOne", []<typename T>() { return &test_arrayOfZerosIsDifferentToScalarOne<T>; });
+    utils::bindForScalarTypes(m, "arrayOfZerosIsDifferentToScalarOne",
+        []<typename T>(utils::TypeTag<T>) { return &test_arrayOfZerosIsDifferentToScalarOne<T>; }
+    );
 
     m.def("rangeIsNeverEqualToScalar", &test_rangeIsNeverEqualToScalar);
 

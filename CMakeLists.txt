@@ -26,7 +26,7 @@ if(MSVC)
     endif()
 else()
     set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g") 
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto=auto")
+    
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         add_compile_options(
             -Wall -Wextra -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align
@@ -39,6 +39,13 @@ else()
             -Wformat-overflow -Wformat-truncation
         )
     endif()
+    
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Intel")
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
+    else()
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto=auto")
+    endif()
+  
 endif()
 
 if (APPLE)
@@ -269,13 +276,41 @@ install(FILES README.md LICENSE DESTINATION ${SKBUILD_PROJECT_NAME})
 install(DIRECTORY src/python/noder/ DESTINATION ${SKBUILD_PROJECT_NAME} FILES_MATCHING PATTERN "*.py*")
 install(DIRECTORY include DESTINATION ${SKBUILD_PROJECT_NAME})
 
+# option(ENABLE_TESTS "Enable test compilation" ON)
+# if(ENABLE_TESTS)
+#     file(GLOB_RECURSE TEST_FILES "tests/*.cpp" "tests/*.hpp")
+#     pybind11_add_module(tests MODULE ${TEST_FILES})
+#     target_link_libraries(tests PRIVATE core_shared)
+#     target_include_directories(tests PRIVATE ${CMAKE_INSTALL_INCLUDEDIR} ${CMAKE_SOURCE_DIR}/tests)
+#     add_dependencies(tests core_shared)
+#     if(APPLE)
+#         target_link_options(tests PRIVATE "-Wl,-force_load,$<TARGET_FILE:core_shared>")
+#     endif()
+
+#     install(TARGETS tests DESTINATION ${SKBUILD_PROJECT_NAME})
+#     install(DIRECTORY tests DESTINATION ${SKBUILD_PROJECT_NAME})
+# endif()
+
+
 option(ENABLE_TESTS "Enable test compilation" ON)
 if(ENABLE_TESTS)
-    file(GLOB_RECURSE TEST_FILES "tests/*.cpp" "tests/*.hpp")
-    pybind11_add_module(tests MODULE ${TEST_FILES})
+    file(GLOB_RECURSE TEST_CPP CONFIGURE_DEPENDS
+        "${CMAKE_SOURCE_DIR}/tests/*.cpp")
+
+    pybind11_add_module(tests MODULE ${TEST_CPP})
+    # tests module binds functions implemented across many translation units;
+    # keep default visibility so symbols are resolvable at import time.
+    set_target_properties(tests PROPERTIES
+        CXX_VISIBILITY_PRESET default
+        VISIBILITY_INLINES_HIDDEN OFF
+    )
     target_link_libraries(tests PRIVATE core_shared)
-    target_include_directories(tests PRIVATE ${CMAKE_INSTALL_INCLUDEDIR} ${CMAKE_SOURCE_DIR}/tests)
+    target_include_directories(tests PRIVATE
+        ${CMAKE_INSTALL_INCLUDEDIR}
+        ${CMAKE_SOURCE_DIR}/tests
+    )
     add_dependencies(tests core_shared)
+
     if(APPLE)
         target_link_options(tests PRIVATE "-Wl,-force_load,$<TARGET_FILE:core_shared>")
     endif()

@@ -274,9 +274,9 @@ template <typename... T>
 struct Instantiator {
     template <typename... U>
     void operator()() const {
-        (static_cast<void>(test_contiguity<U>()), ...);
-        (static_cast<void>(test_isScalar<U>()), ...);
-        (static_cast<void>(test_hasDataOfType<U>()), ...);
+        (utils::forceSymbol(&test_contiguity<U>), ...);
+        (utils::forceSymbol(&test_isScalar<U>), ...);
+        (utils::forceSymbol(&test_hasDataOfType<U>), ...);
     }
 };
 

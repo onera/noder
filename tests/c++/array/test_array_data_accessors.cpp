@@ -231,12 +231,12 @@ template <typename... T>
 struct Instantiator {
     template <typename... U>
     void operator()() const {
-        (static_cast<void>(test_scalarSlicingProducesScalar<U>()), ...);
-        (static_cast<void>(test_scalarSlicingDoesNotMakeCopy<U>()), ...);
-        (static_cast<void>(test_getItemAtIndex<U>()), ...);
-        (static_cast<void>(test_getPointerOfDataSafely<U>()), ...);
-        (static_cast<void>(test_getPointerOfModifiableDataFast<U>()), ...);
-        (static_cast<void>(test_getPointerOfReadOnlyDataFast<U>()), ...);
+        (utils::forceSymbol(&test_scalarSlicingProducesScalar<U>), ...);
+        (utils::forceSymbol(&test_scalarSlicingDoesNotMakeCopy<U>), ...);
+        (utils::forceSymbol(&test_getItemAtIndex<U>), ...);
+        (utils::forceSymbol(&test_getPointerOfDataSafely<U>), ...);
+        (utils::forceSymbol(&test_getPointerOfModifiableDataFast<U>), ...);
+        (utils::forceSymbol(&test_getPointerOfReadOnlyDataFast<U>), ...);
     }
 };
 
@@ -246,8 +246,8 @@ template <typename... T>
 struct InstantiatorAccessors {
     template <typename... U>
     void operator()() const {
-        (static_cast<void>(test_getAccessorOfReadOnlyData<U>()), ...);
-        (static_cast<void>(test_getAccessorOfModifiableData<U>()), ...);
+        (utils::forceSymbol(&test_getAccessorOfReadOnlyData<U>), ...);
+        (utils::forceSymbol(&test_getAccessorOfModifiableData<U>), ...);
         (utils::forceSymbol(&Array::template getAccessorOfReadOnlyData<U, 2>), ...);
         (utils::forceSymbol(&Array::template getAccessorOfModifiableData<U, 2>), ...);
     }

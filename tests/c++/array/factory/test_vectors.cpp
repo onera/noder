@@ -144,8 +144,8 @@ template <typename... T>
 struct Instantiator {
     template <typename... U>
     void operator()() const {
-        (static_cast<void>(test_uniformFromCount_positive_step<U>()), ...);
-        (static_cast<void>(test_uniformFromCount_negative_step<U>()), ...);
+        (utils::forceSymbol(&test_uniformFromCount_positive_step<U>), ...);
+        (utils::forceSymbol(&test_uniformFromCount_negative_step<U>), ...);
     }
 };
 
@@ -153,11 +153,11 @@ template <typename... T>
 struct InstantiatorLinspace {
     template <typename... U>
     void operator()() const {
-        (static_cast<void>(test_uniformFromCount_endpoint_true<U>()), ...);
-        (static_cast<void>(test_uniformFromCount_endpoint_false<U>()), ...);
-        (static_cast<void>(test_uniformFromCount_num_zero<U>()), ...);
-        (static_cast<void>(test_uniformFromCount_num_one<U>()), ...);
-        (static_cast<void>(test_uniformFromCount_floating_point_values<U>()), ...);
+        (utils::forceSymbol(&test_uniformFromCount_endpoint_true<U>), ...);
+        (utils::forceSymbol(&test_uniformFromCount_endpoint_false<U>), ...);
+        (utils::forceSymbol(&test_uniformFromCount_num_zero<U>), ...);
+        (utils::forceSymbol(&test_uniformFromCount_num_one<U>), ...);
+        (utils::forceSymbol(&test_uniformFromCount_floating_point_values<U>), ...);
     }
 };
 
@@ -165,4 +165,3 @@ template void utils::instantiateFromTypeList<Instantiator, utils::FloatingAndInt
 
 // Explicit instantiation for test_uniformFromCount
 template void utils::instantiate<InstantiatorLinspace, float, double>();
-

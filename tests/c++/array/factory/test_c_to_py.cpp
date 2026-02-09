@@ -11,19 +11,19 @@ template <typename... T>
 struct Instantiator {
     template <typename... U>
     void operator()() const {
-        (static_cast<void>(test_from_carray_toArray1D<U>(bool{})), ...);
-        (static_cast<void>(test_from_stdarray_toArray1D<U>(bool{})), ...);
-        (static_cast<void>(test_from_vector_toArray1D<U>(bool{})), ...);
-        (static_cast<void>(test_from_carray_toArray2D<U>(bool{})), ...);
-        (static_cast<void>(test_from_stdarray_toArray2D<U>(bool{})), ...);
-        (static_cast<void>(test_from_vector_toArray2D<U>(bool{})), ...);
-        (static_cast<void>(test_from_carray_toArray3D<U>(bool{})), ...);
-        (static_cast<void>(test_from_stdarray_toArray3D<U>(bool{})), ...);
-        (static_cast<void>(test_from_vector_toArray3D<U>(bool{})), ...);
+        (utils::forceSymbol(&test_from_carray_toArray1D<U>), ...);
+        (utils::forceSymbol(&test_from_stdarray_toArray1D<U>), ...);
+        (utils::forceSymbol(&test_from_vector_toArray1D<U>), ...);
+        (utils::forceSymbol(&test_from_carray_toArray2D<U>), ...);
+        (utils::forceSymbol(&test_from_stdarray_toArray2D<U>), ...);
+        (utils::forceSymbol(&test_from_vector_toArray2D<U>), ...);
+        (utils::forceSymbol(&test_from_carray_toArray3D<U>), ...);
+        (utils::forceSymbol(&test_from_stdarray_toArray3D<U>), ...);
+        (utils::forceSymbol(&test_from_vector_toArray3D<U>), ...);
     }
 };
 
-template void utils::instantiateFromTypeList<Instantiator, utils::ScalarTypes>();
+
 
 // code
 
@@ -257,3 +257,5 @@ void test_from_vector_toArray3D( bool copy ) {
     }
 }
 
+
+template void utils::instantiateFromTypeList<Instantiator, utils::ScalarTypes>();

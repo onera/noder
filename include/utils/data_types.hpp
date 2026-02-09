@@ -3,12 +3,14 @@
 
 # include <cstdint>
 # include <string>
+#include <string_view>
+#include <type_traits>
 
 namespace utils {
 
     // Helper to get human-readable type names
     template <typename T>
-    constexpr std::string getTypeName() {
+    constexpr std::string_view getTypeName() {
         if constexpr (std::is_same_v<T, bool>) return "bool";
         else if constexpr (std::is_same_v<T, int8_t>) return "int8";
         else if constexpr (std::is_same_v<T, int16_t>) return "int16";
@@ -24,6 +26,10 @@ namespace utils {
     }
 
     // TypeList for managing variadic type packs
+
+    template <typename T>
+    struct TypeTag { using type = T; };
+
     template <typename... T>
     struct TypeList {};
 
