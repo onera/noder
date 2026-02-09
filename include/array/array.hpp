@@ -179,32 +179,32 @@ public:
     */
 
     bool operator==(const Array& other) const;
-    bool operator==(const int8_t& scalar) const;
-    bool operator==(const int16_t& scalar) const;
-    bool operator==(const int32_t& scalar) const;
-    bool operator==(const int64_t& scalar) const;
-    bool operator==(const uint8_t& scalar) const;
-    bool operator==(const uint16_t& scalar) const;
-    bool operator==(const uint32_t& scalar) const;
-    bool operator==(const uint64_t& scalar) const;
-    bool operator==(const float& scalar) const;
-    bool operator==(const double& scalar) const;
-    bool operator==(const bool& scalar) const;
+    bool operator==(const int8_t& scalar) const override;
+    bool operator==(const int16_t& scalar) const override;
+    bool operator==(const int32_t& scalar) const override;
+    bool operator==(const int64_t& scalar) const override;
+    bool operator==(const uint8_t& scalar) const override;
+    bool operator==(const uint16_t& scalar) const override;
+    bool operator==(const uint32_t& scalar) const override;
+    bool operator==(const uint64_t& scalar) const override;
+    bool operator==(const float& scalar) const override;
+    bool operator==(const double& scalar) const override;
+    bool operator==(const bool& scalar) const override;
     bool operator==(const std::string& string) const;
     bool operator==(const char* otherString) const;
 
     bool operator!=(const Array& other) const;
-    bool operator!=(const int8_t& scalar) const;
-    bool operator!=(const int16_t& scalar) const;
-    bool operator!=(const int32_t& scalar) const;
-    bool operator!=(const int64_t& scalar) const;
-    bool operator!=(const uint8_t& scalar) const;
-    bool operator!=(const uint16_t& scalar) const;
-    bool operator!=(const uint32_t& scalar) const;
-    bool operator!=(const uint64_t& scalar) const;
-    bool operator!=(const float& scalar) const;
-    bool operator!=(const double& scalar) const;
-    bool operator!=(const bool& scalar) const;
+    bool operator!=(const int8_t& scalar) const override;
+    bool operator!=(const int16_t& scalar) const override;
+    bool operator!=(const int32_t& scalar) const override;
+    bool operator!=(const int64_t& scalar) const override;
+    bool operator!=(const uint8_t& scalar) const override;
+    bool operator!=(const uint16_t& scalar) const override;
+    bool operator!=(const uint32_t& scalar) const override;
+    bool operator!=(const uint64_t& scalar) const override;
+    bool operator!=(const float& scalar) const override;
+    bool operator!=(const double& scalar) const override;
+    bool operator!=(const bool& scalar) const override;
     bool operator!=(const std::string& otherString) const;
     bool operator!=(const char* otherString) const;
 
