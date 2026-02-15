@@ -1,4 +1,5 @@
 #include "utils/compat.hpp"
+#include "data/data_factory.hpp"
 #include "node/node.hpp"
 
 
@@ -51,10 +52,15 @@ Node::Node(const std::string& name, const std::string& type) :
     _name(name),
     _children(),
     _type(type),
-    _data(Node::dataFactory ? Node::dataFactory() : nullptr),
+    _data(nullptr),
     _navigator(nullptr) {
+    ensureFactoryInitialized();
     if (Node::dataFactory) {
         this->_data = Node::dataFactory();
+    }
+
+    if (!this->_data) {
+        throw std::runtime_error("Node constructor: data factory is not initialized");
     }
 }
 

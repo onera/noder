@@ -11,25 +11,14 @@ void registerDefaultFactory() {
     Node::setDefaultFactory([]() { return std::make_shared<Array>(); });
 }
 
-// One-time initialization
+// One-time initialization on first use (thread-safe since C++11 local static initialization)
 void ensureFactoryInitialized() {
-    static bool initialized = false;
-    if (!initialized) {
+    static const bool initialized = []() {
         registerDefaultFactory();
-        initialized = true;
-    }
+        return true;
+    }();
+    (void)initialized;
 }
-
-// GUARANTEE initialization at library load-time using global static initialization
-struct AutoInitializer {
-    AutoInitializer() {
-        ensureFactoryInitialized();
-    }
-};
-
-// This global object forces initialization at shared library load
-static AutoInitializer autoInit;
-extern "C" volatile auto* force_auto_init = &autoInit; // ensures no dead-stripping
 
 
 template <typename T>
