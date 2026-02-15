@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from noder.core import Node, Array
 
 def test_get_child_by_name():
@@ -111,3 +112,81 @@ def test_get_child_by_data():
 
     none = a.pick().child_by_data("d")
     assert none is None
+
+
+def test_get_child_by_data_dispatcher_scalar():
+    a = Node("a")
+
+    b = Node("b")
+    b.set_data(Array(np.array([7], dtype=np.int32)))
+    b.attach_to(a)
+
+    c = Node("c")
+    c.set_data(Array(np.array([3.5], dtype=np.float32)))
+    c.attach_to(a)
+
+    d = Node("d")
+    d.set_data(Array(np.array([True], dtype=np.bool_)))
+    d.attach_to(a)
+
+    n_int_builtin = a.pick().child_by_data(7)
+    assert n_int_builtin.name() == "b"
+    assert n_int_builtin is b
+
+    n_int_numpy = a.pick().child_by_data(np.int32(7))
+    assert n_int_numpy.name() == "b"
+    assert n_int_numpy is b
+
+    n_float_builtin = a.pick().child_by_data(3.5)
+    assert n_float_builtin.name() == "c"
+    assert n_float_builtin is c
+
+    n_float_numpy = a.pick().child_by_data(np.float32(3.5))
+    assert n_float_numpy.name() == "c"
+    assert n_float_numpy is c
+
+    n_bool = a.pick().child_by_data(np.bool_(True))
+    assert n_bool.name() == "d"
+    assert n_bool is d
+
+    with pytest.raises(TypeError):
+        a.pick().child_by_data({"unexpected": "type"})
+
+
+def test_get_child_by_data_dispatcher_scalar_direct():
+    a = Node("a")
+
+    b = Node("b")
+    b.set_data(7)
+    b.attach_to(a)
+
+    c = Node("c")
+    c.set_data(3.5)
+    c.attach_to(a)
+
+    d = Node("d")
+    d.set_data(True)
+    d.attach_to(a)
+
+    n_int_builtin = a.pick().child_by_data(7)
+    assert n_int_builtin.name() == "b"
+    assert n_int_builtin is b
+
+    n_int_numpy = a.pick().child_by_data(7)
+    assert n_int_numpy.name() == "b"
+    assert n_int_numpy is b
+
+    n_float_builtin = a.pick().child_by_data(3.5)
+    assert n_float_builtin.name() == "c"
+    assert n_float_builtin is c
+
+    n_float_numpy = a.pick().child_by_data(3.5)
+    assert n_float_numpy.name() == "c"
+    assert n_float_numpy is c
+
+    n_bool = a.pick().child_by_data(True)
+    assert n_bool.name() == "d"
+    assert n_bool is d
+
+    with pytest.raises(TypeError):
+        a.pick().child_by_data({"unexpected": "type"})

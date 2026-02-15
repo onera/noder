@@ -80,6 +80,19 @@ public:
 
     void setData(std::shared_ptr<Data> d);
     void setData(const Data& d);
+    void setData(const std::string& d);
+    void setData(const char* d);
+    void setData(const bool& d);
+    void setData(const int8_t& d);
+    void setData(const int16_t& d);
+    void setData(const int32_t& d);
+    void setData(const int64_t& d);
+    void setData(const uint8_t& d);
+    void setData(const uint16_t& d);
+    void setData(const uint32_t& d);
+    void setData(const uint64_t& d);
+    void setData(const float& d);
+    void setData(const double& d);
 
     std::string getInfo() const;
 

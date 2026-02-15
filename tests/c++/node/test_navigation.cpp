@@ -140,3 +140,66 @@ void test_childByData() {
     auto unexpected = a->pick().childByData("d"s);
     if (unexpected) throw std::runtime_error("failed null test_childByData");
 }
+
+
+void test_childByDataUsingChar() {
+    auto a = std::make_shared<Node>("a"s);
+    auto b = std::make_shared<Node>("b"s);
+    Array bData("test"s);
+    b->setData(bData);
+    b->attachTo(a);
+
+    auto c = std::make_shared<Node>("c"s);
+    Array cData = arrayfactory::zeros<double>({1});
+    c->setData(cData);
+    c->attachTo(a);
+    
+    auto d = std::make_shared<Node>("d"s);
+    Array dData = arrayfactory::zeros<int8_t>({3,3});
+    d->setData(dData);
+    d->attachTo(c);
+
+    auto e = std::make_shared<Node>("e"s);
+    Array eData("requested"s);
+    e->setData(eData);
+    e->attachTo(a);
+
+
+    auto n = a->pick().childByData("requested");
+    if (n->name()!="e") throw std::runtime_error("failed test_childByDataUsingChar");
+
+    auto unexpected = a->pick().childByData("d");
+    if (unexpected) throw std::runtime_error("failed null test_childByDataUsingChar");
+}
+
+
+void test_childByDataScalarDirect() {
+    auto a = std::make_shared<Node>("a"s);
+
+    auto b = std::make_shared<Node>("b"s);
+    b->setData(7);
+    b->attachTo(a);
+
+    auto c = std::make_shared<Node>("c"s);
+    c->setData(3.5);
+    c->attachTo(a);
+
+    auto d = std::make_shared<Node>("d"s);
+    d->setData(true);
+    d->attachTo(a);
+
+    auto nInt = a->pick().childByData(7);
+    if (!nInt || nInt->name() != "b") throw std::runtime_error("failed test_childByDataScalarDirect int");
+    if (nInt.get() != b.get()) throw std::runtime_error("expected node b without copy");
+
+    auto nFloat = a->pick().childByData(3.5);
+    if (!nFloat || nFloat->name() != "c") throw std::runtime_error("failed test_childByDataScalarDirect float");
+    if (nFloat.get() != c.get()) throw std::runtime_error("expected node c without copy");
+
+    auto nBool = a->pick().childByData(true);
+    if (!nBool || nBool->name() != "d") throw std::runtime_error("failed test_childByDataScalarDirect bool");
+    if (nBool.get() != d.get()) throw std::runtime_error("expected node d without copy");
+
+    auto unexpected = a->pick().childByData(9);
+    if (unexpected) throw std::runtime_error("failed null test_childByDataScalarDirect");
+}

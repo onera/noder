@@ -2,11 +2,62 @@
 # define NODE_PYBIND_HPP
 
 # include <pybind11/pybind11.h>
+# include <pybind11/numpy.h>
 
+# include "array/array.hpp"
 # include "node/node.hpp"
 # include "node/node_factory.hpp"
 
-// node_factory_pybind.hpp (or inside bindNode)
+namespace {
+
+std::shared_ptr<Data> dataFromPyObject(const py::object& data, const char* context) {
+    if (data.is_none()) {
+        return std::make_shared<Array>();
+    }
+
+    if (py::isinstance<Data>(data)) {
+        return data.cast<std::shared_ptr<Data>>();
+    }
+
+    if (py::isinstance<py::str>(data)) {
+        return std::make_shared<Array>(data.cast<std::string>());
+    }
+
+    // bool before int because bool is an int subclass in Python
+    if (py::isinstance<py::bool_>(data)) {
+        return std::make_shared<Array>(data.cast<bool>());
+    }
+
+    if (py::isinstance<py::int_>(data)) {
+        return std::make_shared<Array>(data.cast<int64_t>());
+    }
+
+    if (py::isinstance<py::float_>(data)) {
+        return std::make_shared<Array>(data.cast<double>());
+    }
+
+    if (py::isinstance<py::array>(data)) {
+        return std::make_shared<Array>(data.cast<py::array>());
+    }
+
+    // NumPy scalars (and 0d/size-1 arrays) can often be converted through item()
+    if (py::hasattr(data, "item")) {
+        try {
+            py::object scalar = data.attr("item")();
+            if (scalar.ptr() != data.ptr()) {
+                return dataFromPyObject(scalar, context);
+            }
+        } catch (const py::error_already_set&) {
+            // Fall through to final type error.
+        }
+    }
+
+    throw py::type_error(
+        std::string(context) +
+        ": unsupported data type: " + py::str(data.get_type()).cast<std::string>());
+}
+
+} // namespace
 
 static std::shared_ptr<Node> new_node(
     const std::string& name,
@@ -14,43 +65,12 @@ static std::shared_ptr<Node> new_node(
     py::object data = py::bool_(false),
     std::shared_ptr<Node> parent = nullptr)
 {
-    if (data.is_none()) {
-        return newNode<bool>(name, type, false, parent);
+    auto node = std::make_shared<Node>(name, type);
+    node->setData(dataFromPyObject(data, "new_node"));
+    if (parent) {
+        node->attachTo(parent);
     }
-
-    // Python str -> std::string
-    if (py::isinstance<py::str>(data)) {
-        return newNode<std::string>(name, type, data.cast<std::string>(), parent);
-    }
-
-    // bool (must be checked before int, because bool is an int subclass in Python)
-    if (py::isinstance<py::bool_>(data)) {
-        return newNode<bool>(name, type, data.cast<bool>(), parent);
-    }
-
-    // integers
-    if (py::isinstance<py::int_>(data)) {
-        // pick one canonical integer type for your API
-        return newNode<int64_t>(name, type, data.cast<int64_t>(), parent);
-    }
-
-    // floats
-    if (py::isinstance<py::float_>(data)) {
-        return newNode<double>(name, type, data.cast<double>(), parent);
-    }
-
-    // numpy array -> your Array (assuming you have Array(py::array) ctor)
-    if (py::isinstance<py::array>(data)) {
-        Array a(data.cast<py::array>());
-        return newNode<Array>(name, type, a, parent);
-    }
-
-    // already an Array object (if Array is bound)
-    if (py::isinstance<Array>(data)) {
-        return newNode<Array>(name, type, data.cast<Array>(), parent);
-    }
-
-    throw py::type_error("newNode: unsupported data type: " + py::str(data.get_type()).cast<std::string>());
+    return node;
 }
 
 
@@ -74,8 +94,8 @@ void bindNode(py::module_ &m) {
             return py::cast(data);  // Cast to correct type (`Array`, `ParallelArray`)
         })
         
-        .def("set_data", [](Node &node, std::shared_ptr<Data> d) {
-            node.setData(std::move(d));  // Forward the shared_ptr<Data> correctly
+        .def("set_data", [](Node &node, const py::object& d) {
+            node.setData(dataFromPyObject(d, "set_data"));
         })
                 
         .def("children", &Node::children)

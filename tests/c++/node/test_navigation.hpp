@@ -22,4 +22,8 @@ void test_byTypePattern();
 
 void test_childByData();
 
+void test_childByDataUsingChar();
+
+void test_childByDataScalarDirect();
+
 #endif // TEST_NAVIGATION_H

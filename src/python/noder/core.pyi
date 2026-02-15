@@ -119,9 +119,53 @@ class Navigation:
         """
         get node by regex-pattern type recursively
         """
-    def child_by_data(self, arg0: str) -> Node:
+    def child_by_data(self, data: typing.Any) -> Node:
         """
-        Get child node by data
+        Get child node by data (string or scalar)
+        """
+    def child_by_data_bool(self, data: bool) -> Node:
+        """
+        Get child node by scalar data (typed overload)
+        """
+    def child_by_data_double(self, data: float) -> Node:
+        """
+        Get child node by scalar data (typed overload)
+        """
+    def child_by_data_float(self, data: float) -> Node:
+        """
+        Get child node by scalar data (typed overload)
+        """
+    def child_by_data_int16(self, data: int) -> Node:
+        """
+        Get child node by scalar data (typed overload)
+        """
+    def child_by_data_int32(self, data: int) -> Node:
+        """
+        Get child node by scalar data (typed overload)
+        """
+    def child_by_data_int64(self, data: int) -> Node:
+        """
+        Get child node by scalar data (typed overload)
+        """
+    def child_by_data_int8(self, data: int) -> Node:
+        """
+        Get child node by scalar data (typed overload)
+        """
+    def child_by_data_uint16(self, data: int) -> Node:
+        """
+        Get child node by scalar data (typed overload)
+        """
+    def child_by_data_uint32(self, data: int) -> Node:
+        """
+        Get child node by scalar data (typed overload)
+        """
+    def child_by_data_uint64(self, data: int) -> Node:
+        """
+        Get child node by scalar data (typed overload)
+        """
+    def child_by_data_uint8(self, data: int) -> Node:
+        """
+        Get child node by scalar data (typed overload)
         """
     def child_by_name(self, arg0: str) -> Node:
         """
@@ -170,7 +214,7 @@ class Node:
         """
     def root(self) -> Node:
         ...
-    def set_data(self, arg0: Data) -> None:
+    def set_data(self, arg0: typing.Any) -> None:
         ...
     def set_name(self, arg0: str) -> None:
         ...

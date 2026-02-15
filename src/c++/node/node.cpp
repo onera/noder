@@ -1,13 +1,6 @@
 #include "utils/compat.hpp"
 #include "node/node.hpp"
-
-
-// required for macOS, since cannot statically initialize
-// dataFactory
-// TODO find an alternative, since this breaks DIP
-#ifdef __APPLE__
 #include "array/array.hpp"
-#endif
 
 
 using namespace std::string_literals;
@@ -134,6 +127,58 @@ void Node::setData(std::shared_ptr<Data> d) {
 
 void Node::setData(const Data& d) {
     this->_data = d.clone();
+}
+
+void Node::setData(const std::string& d) {
+    this->_data = std::make_shared<Array>(d);
+}
+
+void Node::setData(const char* d) {
+    this->_data = std::make_shared<Array>(d);
+}
+
+void Node::setData(const bool& d) {
+    this->_data = std::make_shared<Array>(d);
+}
+
+void Node::setData(const int8_t& d) {
+    this->_data = std::make_shared<Array>(d);
+}
+
+void Node::setData(const int16_t& d) {
+    this->_data = std::make_shared<Array>(d);
+}
+
+void Node::setData(const int32_t& d) {
+    this->_data = std::make_shared<Array>(d);
+}
+
+void Node::setData(const int64_t& d) {
+    this->_data = std::make_shared<Array>(d);
+}
+
+void Node::setData(const uint8_t& d) {
+    this->_data = std::make_shared<Array>(d);
+}
+
+void Node::setData(const uint16_t& d) {
+    this->_data = std::make_shared<Array>(d);
+}
+
+void Node::setData(const uint32_t& d) {
+    this->_data = std::make_shared<Array>(d);
+}
+
+void Node::setData(const uint64_t& d) {
+    this->_data = std::make_shared<Array>(d);
+}
+
+void Node::setData(const float& d) {
+    this->_data = std::make_shared<Array>(d);
+}
+
+void Node::setData(const double& d) {
+    this->_data = std::make_shared<Array>(d);
 }
 
 std::string Node::type() const {
@@ -370,4 +415,3 @@ void Node::write(const std::string& filename) {
     io::write_node(filename, shared_from_this());
 }
 #endif // ENABLE_HDF5_IO
-

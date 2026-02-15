@@ -93,3 +93,42 @@ std::shared_ptr<Node> Navigation::childByData(const std::string& data) {
     }
     return nullptr;
 }
+
+std::shared_ptr<Node> Navigation::childByData(const char* data) {
+    std::string data_str = std::string(data);
+    return this->childByData(data_str);
+}
+
+template <typename T>
+std::shared_ptr<Node> Navigation::childByData(T data) {
+
+    for (auto child: _node.children()) {
+        if (child) {
+
+            bool isScalar = child->data().isScalar();
+            
+            if (isScalar) {
+                if (child->data() == data) return child;
+            }
+        }
+    }
+    return nullptr;
+}
+
+
+/*
+    template instantiations
+*/
+
+template <typename... T>
+struct InstantiatorMethodScalar {
+    template <typename... U>
+    void operator()() const {
+        (utils::forceSymbol(&Navigation::template childByData<U>), ...);
+    }
+};
+
+template void utils::instantiateFromTypeList<InstantiatorMethodScalar, utils::ScalarTypes>();
+template std::shared_ptr<Node> Navigation::childByData<bool>(bool);
+template std::shared_ptr<Node> Navigation::childByData<double>(double);
+template std::shared_ptr<Node> Navigation::childByData<int>(int);

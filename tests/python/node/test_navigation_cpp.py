@@ -14,5 +14,9 @@ def test_cpp_get_byTypePattern(): return test_in_cpp.byTypePattern()
 
 def test_cpp_get_childByData(): return test_in_cpp.childByData()
 
+def test_cpp_get_childByDataUsingChar(): return test_in_cpp.childByDataUsingChar()
+
+def test_cpp_get_childByDataScalarDirect(): return test_in_cpp.childByDataScalarDirect()
+
 if __name__ == '__main__':
     test_cpp_get_childByName()

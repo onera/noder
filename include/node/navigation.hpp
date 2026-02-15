@@ -5,6 +5,9 @@
 # include <memory>
 # include <regex>
 
+# include "utils/template_instantiator.hpp"
+
+
 class Node;
 
 class Navigation {
@@ -29,6 +32,12 @@ public:
     std::shared_ptr<Node> byTypePattern(const std::string& name_pattern, const int& depth=100);
 
     std::shared_ptr<Node> childByData(const std::string& data);
+
+    std::shared_ptr<Node> childByData(const char* data);
+
+    template <typename T>
+    std::shared_ptr<Node> childByData(T data);
+    
 
 };
 

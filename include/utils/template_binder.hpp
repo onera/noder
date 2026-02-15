@@ -20,9 +20,27 @@ void bindForSpecifiedTypeList(
     const std::string &baseName,
     TypeList<T...>,
     FunctionTemplate&& functionTemplate) {
+    auto&& ft = functionTemplate;
     (m.def(
         (baseName + "_" + std::string(getTypeName<T>())).c_str(),
-        std::forward<FunctionTemplate>(functionTemplate).template operator()<T>(TypeTag<T>{})
+        ft.template operator()<T>(TypeTag<T>{})
+     ),
+     ...);
+}
+
+// Generic class-method binder for all types in a TypeList
+template <typename ClassBinding, typename MethodTemplate, typename... T, typename... DefArgs>
+void bindClassMethodForSpecifiedTypeList(
+    ClassBinding &cls,
+    const std::string &baseName,
+    TypeList<T...>,
+    MethodTemplate&& methodTemplate,
+    DefArgs&&... defArgs) {
+    auto&& mt = methodTemplate;
+    (cls.def(
+        (baseName + "_" + std::string(getTypeName<T>())).c_str(),
+        mt.template operator()<T>(TypeTag<T>{}),
+        std::forward<DefArgs>(defArgs)...
      ),
      ...);
 }
@@ -61,6 +79,77 @@ void bindForScalarTypes(py::module_ &m, const std::string &baseName, FunctionTem
 template <typename FunctionTemplate>
 void bindForStringAndScalarTypes(py::module_ &m, const std::string &baseName, FunctionTemplate&& ft) {
     bindForSpecifiedTypeList(m, baseName, StringAndScalarTypes{}, std::forward<FunctionTemplate>(ft));
+}
+
+// Helpers to bind class methods for predefined TypeList (see data_types.hpp)
+template <typename ClassBinding, typename MethodTemplate, typename... DefArgs>
+void bindClassMethodForFloatingTypes(
+    ClassBinding &cls,
+    const std::string &baseName,
+    MethodTemplate&& mt,
+    DefArgs&&... defArgs) {
+    bindClassMethodForSpecifiedTypeList(
+        cls, baseName, FloatingTypes{}, std::forward<MethodTemplate>(mt), std::forward<DefArgs>(defArgs)...);
+}
+
+template <typename ClassBinding, typename MethodTemplate, typename... DefArgs>
+void bindClassMethodForPositiveIntegralTypes(
+    ClassBinding &cls,
+    const std::string &baseName,
+    MethodTemplate&& mt,
+    DefArgs&&... defArgs) {
+    bindClassMethodForSpecifiedTypeList(
+        cls, baseName, PositiveIntegralTypes{}, std::forward<MethodTemplate>(mt), std::forward<DefArgs>(defArgs)...);
+}
+
+template <typename ClassBinding, typename MethodTemplate, typename... DefArgs>
+void bindClassMethodForSignedIntegralTypes(
+    ClassBinding &cls,
+    const std::string &baseName,
+    MethodTemplate&& mt,
+    DefArgs&&... defArgs) {
+    bindClassMethodForSpecifiedTypeList(
+        cls, baseName, SignedIntegralTypes{}, std::forward<MethodTemplate>(mt), std::forward<DefArgs>(defArgs)...);
+}
+
+template <typename ClassBinding, typename MethodTemplate, typename... DefArgs>
+void bindClassMethodForIntegralTypes(
+    ClassBinding &cls,
+    const std::string &baseName,
+    MethodTemplate&& mt,
+    DefArgs&&... defArgs) {
+    bindClassMethodForSpecifiedTypeList(
+        cls, baseName, IntegralTypes{}, std::forward<MethodTemplate>(mt), std::forward<DefArgs>(defArgs)...);
+}
+
+template <typename ClassBinding, typename MethodTemplate, typename... DefArgs>
+void bindClassMethodForFloatingAndIntegralTypes(
+    ClassBinding &cls,
+    const std::string &baseName,
+    MethodTemplate&& mt,
+    DefArgs&&... defArgs) {
+    bindClassMethodForSpecifiedTypeList(
+        cls, baseName, FloatingAndIntegralTypes{}, std::forward<MethodTemplate>(mt), std::forward<DefArgs>(defArgs)...);
+}
+
+template <typename ClassBinding, typename MethodTemplate, typename... DefArgs>
+void bindClassMethodForScalarTypes(
+    ClassBinding &cls,
+    const std::string &baseName,
+    MethodTemplate&& mt,
+    DefArgs&&... defArgs) {
+    bindClassMethodForSpecifiedTypeList(
+        cls, baseName, ScalarTypes{}, std::forward<MethodTemplate>(mt), std::forward<DefArgs>(defArgs)...);
+}
+
+template <typename ClassBinding, typename MethodTemplate, typename... DefArgs>
+void bindClassMethodForStringAndScalarTypes(
+    ClassBinding &cls,
+    const std::string &baseName,
+    MethodTemplate&& mt,
+    DefArgs&&... defArgs) {
+    bindClassMethodForSpecifiedTypeList(
+        cls, baseName, StringAndScalarTypes{}, std::forward<MethodTemplate>(mt), std::forward<DefArgs>(defArgs)...);
 }
 
 } 
