@@ -38,6 +38,10 @@ public:
     template <typename T>
     std::shared_ptr<Node> childByData(T data);
     
+    std::shared_ptr<Node> byData(const std::string& data, const int& depth=100);
+
+    std::shared_ptr<Node> byData(const char* data, const int& depth=100);
+
 
 };
 

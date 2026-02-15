@@ -18,5 +18,7 @@ def test_cpp_get_childByDataUsingChar(): return test_in_cpp.childByDataUsingChar
 
 def test_cpp_get_childByDataScalarDirect(): return test_in_cpp.childByDataScalarDirect()
 
+def test_cpp_get_byData(): return test_in_cpp.byData()
+
 if __name__ == '__main__':
     test_cpp_get_childByName()

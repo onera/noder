@@ -20,6 +20,8 @@ void bindTestsOfNavigation(py::module_ &m) {
     sm.def("childByData", &test_childByData);
     sm.def("childByDataUsingChar", &test_childByDataUsingChar);
     sm.def("childByDataScalarDirect", &test_childByDataScalarDirect);
+
+    sm.def("byData", &test_byData);
 }
 
 # endif

@@ -6,6 +6,8 @@
 # include <pybind11/numpy.h>
 # include <pybind11/pybind11.h>
 
+# include <node/node_factory.hpp>
+
 namespace py = pybind11;
 
 void test_childByName();
@@ -25,5 +27,7 @@ void test_childByData();
 void test_childByDataUsingChar();
 
 void test_childByDataScalarDirect();
+
+void test_byData();
 
 #endif // TEST_NAVIGATION_H

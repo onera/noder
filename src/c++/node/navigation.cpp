@@ -115,6 +115,32 @@ std::shared_ptr<Node> Navigation::childByData(T data) {
     return nullptr;
 }
 
+std::shared_ptr<Node> Navigation::byData(const std::string& data, const int& depth) {
+
+    if ( depth > 0 ) {
+
+        bool thisHasDataString = _node.data().hasString();
+
+        if (thisHasDataString) {
+            if (_node.data().extractString() == data ) {
+                return _node.shared_from_this();
+            }
+        }
+
+        for (auto child: _node.children()) {
+            auto foundNode = child->pick().byData(data, depth-1);
+            if (foundNode) return foundNode;
+        }
+    }
+    return nullptr;
+}
+
+std::shared_ptr<Node> Navigation::byData(const char* data, const int& depth) {
+    std::string data_str = std::string(data);
+    return this->byData(data_str, depth);
+}
+
+
 
 /*
     template instantiations

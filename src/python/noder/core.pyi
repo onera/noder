@@ -103,6 +103,10 @@ class Data:
     def isScalar(self) -> bool:
         ...
 class Navigation:
+    def by_data(self, data: str, depth: int = 100) -> Node:
+        """
+        get node by exact data recursively
+        """
     def by_name(self, name: str, depth: int = 100) -> Node:
         """
         get node by exact name recursively

@@ -190,3 +190,24 @@ def test_get_child_by_data_dispatcher_scalar_direct():
 
     with pytest.raises(TypeError):
         a.pick().child_by_data({"unexpected": "type"})
+
+
+def test_get_by_data():
+    a = Node("a","a_t")
+    a.set_data("a_d")
+    b = Node("b","b_t")
+    b.set_data("b_d")
+    b.attach_to(a)
+    c = Node("c","c_t")
+    c.set_data("c_d")
+    c.attach_to(a)
+    d = Node("d","d_t")
+    d.set_data("d_d")
+    d.attach_to(c)
+
+    n = a.pick().by_data("d_d")
+    assert n.data().extractString() == "d_d"
+    assert n is d
+
+    none = a.pick().by_data("e_d")
+    assert none is None

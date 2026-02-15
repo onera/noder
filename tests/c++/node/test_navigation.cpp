@@ -203,3 +203,29 @@ void test_childByDataScalarDirect() {
     auto unexpected = a->pick().childByData(9);
     if (unexpected) throw std::runtime_error("failed null test_childByDataScalarDirect");
 }
+
+
+void test_byData() {
+    auto a = newNode("a");
+    a->setData("a_d");
+
+    auto b = newNode("b");
+    b->setData("b_d");
+    b->attachTo(a);
+    
+    auto c = newNode("c");
+    c->setData("c_d");
+    c->attachTo(a);
+    
+    auto d = newNode("d");
+    d->setData("d_d");
+    d->attachTo(c);
+
+    auto n = a->pick().byData("d_d");
+    if (n->data().extractString()!="d_d") throw py::value_error("expected data 'd_d'");
+    if (n.get() != d.get()) throw py::value_error("expected to recover node d without copy");
+
+    auto unexpected = a->pick().byData("e_d");
+    if (unexpected != nullptr) throw py::value_error("expected nullptr");
+
+}

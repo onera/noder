@@ -101,7 +101,11 @@ void bindNavigation(py::module_ &m) {
                  return dispatchChildByData(self, data);
              },
              "Get child node by data (string or scalar)",
-             py::arg("data"));
+             py::arg("data"))
+        .def("by_data",
+             py::overload_cast<const std::string&, const int&>(&Navigation::byData),
+             "get node by exact data recursively",
+             py::arg("data"), py::arg("depth")=100);
 
     utils::bindClassMethodForScalarTypes(
         navigation,
