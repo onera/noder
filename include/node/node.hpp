@@ -31,9 +31,19 @@
 
 # include "data/data.hpp"
 # include "node/navigation.hpp"
+# include "utils/data_types.hpp"
 # include "utils/compat.hpp"
 
 class Navigation;
+
+# ifndef DATA_FACTORY_HPP
+namespace datafactory {
+    template <typename T>
+    std::shared_ptr<Data> makeDataFrom(const T& value);
+
+    std::shared_ptr<Data> makeDataFrom(const char* value);
+}
+# endif
 
 class NODE_EXPORT Node : public std::enable_shared_from_this<Node> {
 
@@ -80,19 +90,21 @@ public:
 
     void setData(std::shared_ptr<Data> d);
     void setData(const Data& d);
-    void setData(const std::string& d);
-    void setData(const char* d);
-    void setData(const bool& d);
-    void setData(const int8_t& d);
-    void setData(const int16_t& d);
-    void setData(const int32_t& d);
-    void setData(const int64_t& d);
-    void setData(const uint8_t& d);
-    void setData(const uint16_t& d);
-    void setData(const uint32_t& d);
-    void setData(const uint64_t& d);
-    void setData(const float& d);
-    void setData(const double& d);
+
+    template <typename T, typename std::enable_if_t<utils::ContainsType_v<T, utils::ScalarTypes>, int> = 0>
+    void setData(const T& d) {
+        using CanonicalType = utils::CanonicalScalar_t<T>;
+        this->setData(datafactory::makeDataFrom<CanonicalType>(static_cast<CanonicalType>(d)));
+    }
+
+    template <typename T, typename std::enable_if_t<std::is_same_v<utils::DecayCvRef_t<T>, std::string>, int> = 0>
+    void setData(const T& d) {
+        this->setData(datafactory::makeDataFrom<std::string>(d));
+    }
+
+    void setData(const char* d) {
+        this->setData(datafactory::makeDataFrom(d));
+    }
 
     std::string getInfo() const;
 

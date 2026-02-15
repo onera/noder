@@ -1,6 +1,5 @@
 #include "utils/compat.hpp"
 #include "node/node.hpp"
-#include "array/array.hpp"
 
 
 using namespace std::string_literals;
@@ -54,11 +53,9 @@ Node::Node(const std::string& name, const std::string& type) :
     _type(type),
     _data(Node::dataFactory ? Node::dataFactory() : nullptr),
     _navigator(nullptr) {
-#ifdef __APPLE__
-    this->_data = std::make_shared<Array>();
-#else
-    this->_data = Node::dataFactory();
-#endif
+    if (Node::dataFactory) {
+        this->_data = Node::dataFactory();
+    }
 }
 
 
@@ -127,58 +124,6 @@ void Node::setData(std::shared_ptr<Data> d) {
 
 void Node::setData(const Data& d) {
     this->_data = d.clone();
-}
-
-void Node::setData(const std::string& d) {
-    this->_data = std::make_shared<Array>(d);
-}
-
-void Node::setData(const char* d) {
-    this->_data = std::make_shared<Array>(d);
-}
-
-void Node::setData(const bool& d) {
-    this->_data = std::make_shared<Array>(d);
-}
-
-void Node::setData(const int8_t& d) {
-    this->_data = std::make_shared<Array>(d);
-}
-
-void Node::setData(const int16_t& d) {
-    this->_data = std::make_shared<Array>(d);
-}
-
-void Node::setData(const int32_t& d) {
-    this->_data = std::make_shared<Array>(d);
-}
-
-void Node::setData(const int64_t& d) {
-    this->_data = std::make_shared<Array>(d);
-}
-
-void Node::setData(const uint8_t& d) {
-    this->_data = std::make_shared<Array>(d);
-}
-
-void Node::setData(const uint16_t& d) {
-    this->_data = std::make_shared<Array>(d);
-}
-
-void Node::setData(const uint32_t& d) {
-    this->_data = std::make_shared<Array>(d);
-}
-
-void Node::setData(const uint64_t& d) {
-    this->_data = std::make_shared<Array>(d);
-}
-
-void Node::setData(const float& d) {
-    this->_data = std::make_shared<Array>(d);
-}
-
-void Node::setData(const double& d) {
-    this->_data = std::make_shared<Array>(d);
 }
 
 std::string Node::type() const {

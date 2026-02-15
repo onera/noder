@@ -33,6 +33,9 @@ namespace utils {
     template <typename... T>
     struct TypeList {};
 
+    template <typename T>
+    using DecayCvRef_t = std::remove_cv_t<std::remove_reference_t<T>>;
+
     // Concatenation utility
     template <typename List1, typename List2>
     struct Concat;
@@ -60,6 +63,64 @@ namespace utils {
     using ScalarTypes = Concat_t<TypeList<bool>, FloatingAndIntegralTypes>;
 
     using StringAndScalarTypes = Concat_t<TypeList<std::string>, ScalarTypes>;
+
+    template <typename T, typename TL>
+    struct ContainsType;
+
+    template <typename T, typename... U>
+    struct ContainsType<T, TypeList<U...>> :
+        std::bool_constant<(std::is_same_v<DecayCvRef_t<T>, U> || ...)> {};
+
+    template <typename T, typename TL>
+    inline constexpr bool ContainsType_v = ContainsType<T, TL>::value;
+
+    template <typename T, typename Enable = void>
+    struct CanonicalScalarType;
+
+    template <typename T>
+    struct CanonicalScalarType<T, std::enable_if_t<std::is_arithmetic_v<DecayCvRef_t<T>>>> {
+        using U = DecayCvRef_t<T>;
+        using type = std::conditional_t<
+            std::is_same_v<U, bool>,
+            bool,
+            std::conditional_t<
+                std::is_floating_point_v<U>,
+                std::conditional_t<(sizeof(U) <= sizeof(float)), float, double>,
+                std::conditional_t<
+                    std::is_signed_v<U>,
+                    std::conditional_t<
+                        (sizeof(U) <= sizeof(int8_t)),
+                        int8_t,
+                        std::conditional_t<
+                            (sizeof(U) <= sizeof(int16_t)),
+                            int16_t,
+                            std::conditional_t<
+                                (sizeof(U) <= sizeof(int32_t)),
+                                int32_t,
+                                int64_t
+                            >
+                        >
+                    >,
+                    std::conditional_t<
+                        (sizeof(U) <= sizeof(uint8_t)),
+                        uint8_t,
+                        std::conditional_t<
+                            (sizeof(U) <= sizeof(uint16_t)),
+                            uint16_t,
+                            std::conditional_t<
+                                (sizeof(U) <= sizeof(uint32_t)),
+                                uint32_t,
+                                uint64_t
+                            >
+                        >
+                    >
+                >
+            >
+        >;
+    };
+
+    template <typename T>
+    using CanonicalScalar_t = typename CanonicalScalarType<T>::type;
 } 
 
-# endif 
+# endif
