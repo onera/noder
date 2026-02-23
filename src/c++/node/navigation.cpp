@@ -427,6 +427,90 @@ std::vector<std::shared_ptr<Node>> Navigation::allByData(const T& data, const si
     return matches;
 }
 
+std::shared_ptr<Node> Navigation::byAnd(
+    const std::string& name,
+    const std::string& type,
+    const std::string& data,
+    const size_t& depth) {
+
+    if ( depth > 0 ) {
+
+        bool matchName(false);
+        bool matchType(false);
+        bool matchData(false);
+
+        if ( name.empty() || _node.name() == name ) {
+            matchName = true;
+            
+            if ( type.empty() || _node.type() == type ) {
+                matchType = true;
+
+                if ( data.empty() ) {
+                    matchData = true;
+                } else if (_node.data().hasString()) {
+                    std::string data_str = _node.data().extractString();
+                    matchData = data_str == data;
+                }
+            }
+        }
+
+        if ( matchName && matchType && matchData ) return _node.shared_from_this();
+
+
+        for (auto child: _node.children()) {
+            auto foundNode = child->pick().byAnd(name, type, data, depth-1);
+            if (foundNode) return foundNode;
+        }
+    }
+    return nullptr;
+}
+
+std::shared_ptr<Node> Navigation::byAnd(
+    const char* name,
+    const char* type,
+    const char* data,
+    const size_t& depth) {
+        return Navigation::byAnd(std::string(name),
+                                 std::string(type),
+                                 std::string(data), depth);
+}
+
+
+template <typename T>
+std::shared_ptr<Node> Navigation::byAnd(
+    const std::string& name,
+    const std::string& type,
+    const T& data,
+    const size_t& depth) {
+
+    if ( depth > 0 ) {
+
+        bool matchName(false);
+        bool matchType(false);
+        bool matchData(false);
+
+        if ( name.empty() || _node.name() == name ) {
+            matchName = true;
+            
+            if ( type.empty() || _node.type() == type ) {
+                matchType = true;
+
+                if ( _node.data().isScalar() && _node.data() == data ) {
+                    matchData = true;
+                }
+            }
+        }
+
+        if ( matchName && matchType && matchData ) return _node.shared_from_this();
+
+
+        for (auto child: _node.children()) {
+            auto foundNode = child->pick().byAnd(name, type, data, depth-1);
+            if (foundNode) return foundNode;
+        }
+    }
+    return nullptr;
+}
 
 
 /*
@@ -440,6 +524,7 @@ struct InstantiatorMethodScalar {
         (utils::forceSymbol(&Navigation::template childByData<U>), ...);
         (utils::forceSymbol(&Navigation::template byData<U>), ...);
         (utils::forceSymbol(&Navigation::template allByData<U>), ...);
+        (utils::forceSymbol(&Navigation::template byAnd<U>), ...);
     }
 };
 
@@ -453,3 +538,6 @@ template std::shared_ptr<Node> Navigation::byData<int>(const int&, const size_t&
 template std::vector<std::shared_ptr<Node>> Navigation::allByData<bool>(const bool&, const size_t&);
 template std::vector<std::shared_ptr<Node>> Navigation::allByData<double>(const double&, const size_t&);
 template std::vector<std::shared_ptr<Node>> Navigation::allByData<int>(const int&, const size_t&);
+template std::shared_ptr<Node> Navigation::byAnd<bool>(const std::string&, const std::string&, const bool&, const size_t&);
+template std::shared_ptr<Node> Navigation::byAnd<double>(const std::string&, const std::string&, const double&, const size_t&);
+template std::shared_ptr<Node> Navigation::byAnd<int>(const std::string&, const std::string&, const int&, const size_t&);

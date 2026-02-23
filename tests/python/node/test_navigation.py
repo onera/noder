@@ -519,3 +519,17 @@ def test_get_all_by_data_dispatcher_scalar_direct():
 
     with pytest.raises(TypeError):
         a.pick().all_by_data({"unexpected": "type"})
+
+def test_by_and():
+    a = Node("a")
+    b = Node("b")
+    b.attach_to(a)
+    c = Node("c","TypeT")
+    c.set_data("value")
+    c.attach_to(b)
+    d = Node("d")
+    d.attach_to(c)
+
+    n = a.pick().by_and("c","TypeT","value")
+    assert n.name() == "c"
+    assert n is c

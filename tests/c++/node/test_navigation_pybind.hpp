@@ -35,6 +35,9 @@ void bindTestsOfNavigation(py::module_ &m) {
     sm.def("allByDataGlob", &test_allByDataGlob);
     sm.def("byDataScalarDirect", &test_byDataScalarDirect);
     sm.def("allByDataScalarDirect", &test_allByDataScalarDirect);
+
+    sm.def("byAnd", &test_byAnd);
+    sm.def("byAndScalar", &test_byAndScalar);
 }
 
 # endif

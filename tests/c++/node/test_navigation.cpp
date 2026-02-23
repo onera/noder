@@ -519,3 +519,32 @@ void test_allByDataScalarDirect() {
     auto none = a->pick().allByData(999);
     if (!none.empty()) throw py::value_error("expected empty vector");
 }
+
+void test_byAnd() {
+    auto a = newNode("a");
+    auto b = newNode("b");
+    b->attachTo(a);
+    auto c = newNode("c","typeT","value");
+    c->attachTo(b);
+    auto d = newNode("d");
+    d->attachTo(c);
+
+    auto n = a->pick().byAnd("c","typeT","value");
+    if (!n || n->name() != "c") throw py::value_error("expected extraction of node named c");
+    if (n.get() != c.get()) throw py::value_error("expected to recover node c without copy");
+}
+
+
+void test_byAndScalar() {
+    auto a = newNode("a");
+    auto b = newNode("b");
+    b->attachTo(a);
+    auto c = newNode("c","typeT",3.14);
+    c->attachTo(b);
+    auto d = newNode("d");
+    d->attachTo(c);
+
+    auto n = a->pick().byAnd("c","typeT",3.14);
+    if (!n || n->name() != "c") throw py::value_error("expected extraction of node named c");
+    if (n.get() != c.get()) throw py::value_error("expected to recover node c without copy");
+}

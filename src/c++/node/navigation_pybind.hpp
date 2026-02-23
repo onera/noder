@@ -67,6 +67,29 @@ bool tryAllByDataMethod(
     }
 }
 
+std::shared_ptr<Node> tryByAndMethod(
+    py::object& selfObject,
+    const char* methodName,
+    const std::string& name,
+    const std::string& type,
+    const py::object& data,
+    const size_t& depth) {
+    try {
+        py::object result = selfObject.attr(methodName)(name, type, data, depth);
+        if (!result.is_none()) {
+            return result.cast<std::shared_ptr<Node>>();
+        }
+    } catch (const py::error_already_set& e) {
+        if (!e.matches(PyExc_TypeError) &&
+            !e.matches(PyExc_OverflowError) &&
+            !e.matches(PyExc_ValueError)) {
+            throw;
+        }
+        return nullptr;
+    }
+    return nullptr;
+}
+
 std::shared_ptr<Node> dispatchChildByData(Navigation& self, const py::object& data) {
     py::object selfObject = py::cast(&self, py::return_value_policy::reference);
 
@@ -163,6 +186,60 @@ std::shared_ptr<Node> dispatchByData(
         "by_data: unsupported data type; expected str or scalar "
         "(bool/int/float, including NumPy scalar types).");
 }
+
+
+std::shared_ptr<Node> dispatchByAnd(
+    Navigation& self,
+    const std::string& name,
+    const std::string& type,
+    const py::object& data,
+    const size_t& depth) {
+    py::object selfObject = py::cast(&self, py::return_value_policy::reference);
+
+    if (py::isinstance<py::str>(data)) {
+        return self.byAnd(name, type, data.cast<std::string>(), depth);
+    }
+
+    // bool must be checked before int (Python bool is an int subclass)
+    if (py::isinstance<py::bool_>(data)) {
+        return tryByAndMethod(selfObject, "by_and_bool",name,type,data, depth);
+    }
+
+    if (py::isinstance<py::int_>(data)) {
+        if (auto n = tryByAndMethod(selfObject, "by_and_int64", name,type,data, depth)) return n;
+        if (auto n = tryByAndMethod(selfObject, "by_and_uint64", name, type, data, depth)) return n;
+        if (auto n = tryByAndMethod(selfObject, "by_and_int32", name, type, data, depth)) return n;
+        if (auto n = tryByAndMethod(selfObject, "by_and_uint32", name, type, data, depth)) return n;
+        if (auto n = tryByAndMethod(selfObject, "by_and_int16", name, type, data, depth)) return n;
+        if (auto n = tryByAndMethod(selfObject, "by_and_uint16", name, type, data, depth)) return n;
+        if (auto n = tryByAndMethod(selfObject, "by_and_int8", name, type, data, depth)) return n;
+        if (auto n = tryByAndMethod(selfObject, "by_and_uint8", name, type, data, depth)) return n;
+        return nullptr;
+    }
+
+    if (py::isinstance<py::float_>(data)) {
+        if (auto n = tryByAndMethod(selfObject, "by_and_double", name, type, data, depth)) return n;
+        if (auto n = tryByAndMethod(selfObject, "by_and_float", name, type, data, depth)) return n;
+        return nullptr;
+    }
+
+    // NumPy scalars (and size-1 arrays) can usually be unwrapped through item().
+    if (py::hasattr(data, "item")) {
+        try {
+            py::object scalar = data.attr("item")();
+            if (scalar.ptr() != data.ptr()) {
+                return dispatchByAnd(self, name, type, scalar, depth);
+            }
+        } catch (const py::error_already_set&) {
+            // Fall through to unified type error below.
+        }
+    }
+
+    throw py::type_error(
+        "by_and: unsupported data type; expected str or scalar "
+        "(bool/int/float, including NumPy scalar types).");
+}
+
 
 std::vector<std::shared_ptr<Node>> dispatchAllByData(
     Navigation& self,
@@ -298,7 +375,17 @@ void bindNavigation(py::module_ &m) {
         .def("all_by_data_glob",
              py::overload_cast<const std::string&, const size_t&>(&Navigation::allByDataGlob),
              "get all nodes by glob-pattern data recursively",
-             py::arg("data_pattern"), py::arg("depth")=100);
+             py::arg("data_pattern"), py::arg("depth")=100)
+        .def("by_and",
+             [](Navigation& self, const std::string& name, const std::string& type,
+                    const py::object& data, const size_t& depth) {
+                 return dispatchByAnd(self, name, type, data, depth);
+             },
+             "get node by and condition using name, type and data recursively (string or scalar)",
+             py::arg("name")=std::string(""),
+             py::arg("type")=std::string(""),
+             py::arg("data")=std::string(""),
+             py::arg("depth")=100);
 
     utils::bindClassMethodForScalarTypes(
         navigation,
@@ -334,5 +421,23 @@ void bindNavigation(py::module_ &m) {
         py::arg("data"),
         py::arg("depth")=100,
         "Get all nodes by scalar data recursively (typed overload)");
+
+    utils::bindClassMethodForScalarTypes(
+        navigation,
+        "by_and",
+        []<typename T>(utils::TypeTag<T>) {
+            return [](Navigation& self,
+                      const std::string& name,
+                      const std::string& type,
+                      T data,
+                      const size_t& depth) {
+                return self.template byAnd<T>(name, type, data, depth);
+            };
+        },
+        py::arg("name")=std::string(""),
+        py::arg("type")=std::string(""),
+        py::arg("data"),
+        py::arg("depth")=100,
+        "Get node by name/type and scalar data recursively (typed overload)");
 
 }

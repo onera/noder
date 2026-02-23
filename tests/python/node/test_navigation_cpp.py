@@ -37,5 +37,8 @@ def test_cpp_get_allByDataGlob(): return test_in_cpp.allByDataGlob()
 def test_cpp_get_byDataScalarDirect(): return test_in_cpp.byDataScalarDirect()
 def test_cpp_get_allByDataScalarDirect(): return test_in_cpp.allByDataScalarDirect()
 
+def test_cpp_get_byAnd(): return test_in_cpp.byAnd()
+def test_cpp_get_byAndScalar(): return test_in_cpp.byAndScalar()
+
 if __name__ == '__main__':
     test_cpp_get_childByName()

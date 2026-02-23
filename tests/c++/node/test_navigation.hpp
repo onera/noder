@@ -56,4 +56,8 @@ void test_byDataScalarDirect();
 
 void test_allByDataScalarDirect();
 
+void test_byAnd();
+
+void test_byAndScalar();
+
 #endif // TEST_NAVIGATION_H
