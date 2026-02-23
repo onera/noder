@@ -548,3 +548,19 @@ void test_byAndScalar() {
     if (!n || n->name() != "c") throw py::value_error("expected extraction of node named c");
     if (n.get() != c.get()) throw py::value_error("expected to recover node c without copy");
 }
+
+void test_allByAnd() {
+    auto a = newNode("a");
+    auto b = newNode("b");
+    b->attachTo(a);
+    auto c = newNode("c","typeT","value");
+    c->attachTo(b);
+    auto d = newNode("d","typeT","value");
+    d->attachTo(c);
+
+    auto matches = a->pick().allByAnd("", "typeT", "value");
+    if (matches.size() != 2) throw py::value_error("expected 2 matches");
+
+    if (matches[0].get() != c.get()) throw py::value_error("expected to recover node c without copy");
+    if (matches[1].get() != d.get()) throw py::value_error("expected to recover node d without copy");
+}

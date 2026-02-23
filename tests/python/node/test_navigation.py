@@ -533,3 +533,41 @@ def test_by_and():
     n = a.pick().by_and("c","TypeT","value")
     assert n.name() == "c"
     assert n is c
+
+def test_all_by_and():
+    a = Node("a")
+    b = Node("b")
+    b.attach_to(a)
+    c = Node("c", "TypeT")
+    c.set_data("value")
+    c.attach_to(b)
+    d = Node("d", "TypeT")
+    d.set_data("value")
+    d.attach_to(c)
+
+    matches = a.pick().all_by_and(type="TypeT", data="value")
+    assert len(matches) == 2
+    assert matches[0] is c
+    assert matches[1] is d
+
+    none = a.pick().all_by_and(type="TypeT", data="missing")
+    assert len(none) == 0
+
+def test_all_by_and_dispatcher_scalar():
+    a = Node("a")
+    b = Node("b")
+    b.attach_to(a)
+    c = Node("c", "TypeT")
+    c.set_data(3.5)
+    c.attach_to(b)
+    d = Node("d", "TypeT")
+    d.set_data(3.5)
+    d.attach_to(c)
+
+    matches = a.pick().all_by_and("", "TypeT", np.float32(3.5))
+    assert len(matches) == 2
+    assert matches[0] is c
+    assert matches[1] is d
+
+    with pytest.raises(TypeError):
+        a.pick().all_by_and("", "TypeT", {"unexpected": "type"})

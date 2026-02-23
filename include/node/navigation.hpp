@@ -93,6 +93,25 @@ public:
         const T& data = std::string(""),
         const size_t& depth=100);
 
+    std::vector<std::shared_ptr<Node>> allByAnd(
+        const std::string& name = std::string(""),
+        const std::string& type = std::string(""),
+        const std::string& data = std::string(""),
+        const size_t& depth=100);
+
+    std::vector<std::shared_ptr<Node>> allByAnd(
+        const char* name = "",
+        const char* type = "",
+        const char* data = "",
+        const size_t& depth=100);
+
+    template <typename T>
+    std::vector<std::shared_ptr<Node>> allByAnd(
+        const std::string& name = std::string(""),
+        const std::string& type = std::string(""),
+        const T& data = std::string(""),
+        const size_t& depth=100);
+
 };
 
 # endif 

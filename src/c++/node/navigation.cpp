@@ -512,6 +512,71 @@ std::shared_ptr<Node> Navigation::byAnd(
     return nullptr;
 }
 
+std::vector<std::shared_ptr<Node>> Navigation::allByAnd(
+    const std::string& name,
+    const std::string& type,
+    const std::string& data,
+    const size_t& depth) {
+    return this->allByAnd<std::string>(name, type, data, depth);
+}
+
+std::vector<std::shared_ptr<Node>> Navigation::allByAnd(
+    const char* name,
+    const char* type,
+    const char* data,
+    const size_t& depth) {
+    return this->allByAnd(std::string(name),
+                          std::string(type),
+                          std::string(data),
+                          depth);
+}
+
+template <typename T>
+std::vector<std::shared_ptr<Node>> Navigation::allByAnd(
+    const std::string& name,
+    const std::string& type,
+    const T& data,
+    const size_t& depth) {
+
+    std::vector<std::shared_ptr<Node>> matches;
+
+    if ( depth > 0 ) {
+
+        bool matchName(false);
+        bool matchType(false);
+        bool matchData(false);
+
+        if ( name.empty() || _node.name() == name ) {
+            matchName = true;
+            
+            if ( type.empty() || _node.type() == type ) {
+                matchType = true;
+
+                if constexpr (std::is_same_v<T, std::string>) {
+                    if ( data.empty() ) {
+                        matchData = true;
+                    } else if (_node.data().hasString()) {
+                        std::string data_str = _node.data().extractString();
+                        matchData = data_str == data;
+                    }
+                }  else if (_node.data().isScalar()) {
+                    matchData = _node.data() == data;
+                }
+            }
+        }
+
+        if ( matchName && matchType && matchData ) {
+            matches.push_back(_node.shared_from_this());
+        };
+
+
+        for (auto child: _node.children()) {
+            auto childMatches = child->pick().allByAnd(name, type, data, depth-1);
+            matches.insert(matches.end(), childMatches.begin(), childMatches.end());
+        }
+    }
+    return matches;
+}
 
 /*
     template instantiations
@@ -525,6 +590,7 @@ struct InstantiatorMethodScalar {
         (utils::forceSymbol(&Navigation::template byData<U>), ...);
         (utils::forceSymbol(&Navigation::template allByData<U>), ...);
         (utils::forceSymbol(&Navigation::template byAnd<U>), ...);
+        (utils::forceSymbol(&Navigation::template allByAnd<U>), ...);
     }
 };
 
@@ -541,3 +607,6 @@ template std::vector<std::shared_ptr<Node>> Navigation::allByData<int>(const int
 template std::shared_ptr<Node> Navigation::byAnd<bool>(const std::string&, const std::string&, const bool&, const size_t&);
 template std::shared_ptr<Node> Navigation::byAnd<double>(const std::string&, const std::string&, const double&, const size_t&);
 template std::shared_ptr<Node> Navigation::byAnd<int>(const std::string&, const std::string&, const int&, const size_t&);
+template std::vector<std::shared_ptr<Node>> Navigation::allByAnd<bool>(const std::string&, const std::string&, const bool&, const size_t&);
+template std::vector<std::shared_ptr<Node>> Navigation::allByAnd<double>(const std::string&, const std::string&, const double&, const size_t&);
+template std::vector<std::shared_ptr<Node>> Navigation::allByAnd<int>(const std::string&, const std::string&, const int&, const size_t&);

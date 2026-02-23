@@ -103,6 +103,54 @@ class Data:
     def isScalar(self) -> bool:
         ...
 class Navigation:
+    def all_by_and(self, name: str = '', type: str = '', data: typing.Any = '', depth: int = 100) -> list[Node]:
+        """
+        get all nodes by and condition using name, type and data recursively (string or scalar)
+        """
+    def all_by_and_bool(self, name: str = '', type: str = '', data: bool, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by name/type and scalar data recursively (typed overload)
+        """
+    def all_by_and_double(self, name: str = '', type: str = '', data: float, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by name/type and scalar data recursively (typed overload)
+        """
+    def all_by_and_float(self, name: str = '', type: str = '', data: float, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by name/type and scalar data recursively (typed overload)
+        """
+    def all_by_and_int16(self, name: str = '', type: str = '', data: int, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by name/type and scalar data recursively (typed overload)
+        """
+    def all_by_and_int32(self, name: str = '', type: str = '', data: int, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by name/type and scalar data recursively (typed overload)
+        """
+    def all_by_and_int64(self, name: str = '', type: str = '', data: int, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by name/type and scalar data recursively (typed overload)
+        """
+    def all_by_and_int8(self, name: str = '', type: str = '', data: int, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by name/type and scalar data recursively (typed overload)
+        """
+    def all_by_and_uint16(self, name: str = '', type: str = '', data: int, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by name/type and scalar data recursively (typed overload)
+        """
+    def all_by_and_uint32(self, name: str = '', type: str = '', data: int, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by name/type and scalar data recursively (typed overload)
+        """
+    def all_by_and_uint64(self, name: str = '', type: str = '', data: int, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by name/type and scalar data recursively (typed overload)
+        """
+    def all_by_and_uint8(self, name: str = '', type: str = '', data: int, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by name/type and scalar data recursively (typed overload)
+        """
     def all_by_data(self, data: typing.Any, depth: int = 100) -> list[Node]:
         """
         get all nodes by exact data recursively (string or scalar)

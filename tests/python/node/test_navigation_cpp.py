@@ -39,6 +39,7 @@ def test_cpp_get_allByDataScalarDirect(): return test_in_cpp.allByDataScalarDire
 
 def test_cpp_get_byAnd(): return test_in_cpp.byAnd()
 def test_cpp_get_byAndScalar(): return test_in_cpp.byAndScalar()
+def test_cpp_get_allByAnd(): return test_in_cpp.allByAnd()
 
 if __name__ == '__main__':
     test_cpp_get_childByName()

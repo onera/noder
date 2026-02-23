@@ -60,4 +60,6 @@ void test_byAnd();
 
 void test_byAndScalar();
 
+void test_allByAnd();
+
 #endif // TEST_NAVIGATION_H

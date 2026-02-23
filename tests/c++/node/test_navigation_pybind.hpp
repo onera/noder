@@ -38,6 +38,7 @@ void bindTestsOfNavigation(py::module_ &m) {
 
     sm.def("byAnd", &test_byAnd);
     sm.def("byAndScalar", &test_byAndScalar);
+    sm.def("allByAnd", &test_allByAnd);
 }
 
 # endif
