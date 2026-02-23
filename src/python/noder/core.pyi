@@ -408,11 +408,23 @@ class Navigation:
         Get child node by type
         """
 class Node:
+    @typing.overload
+    def __add__(self, arg0: Node) -> _NodeGroup:
+        ...
+    @typing.overload
+    def __add__(self, arg0: _NodeGroup) -> _NodeGroup:
+        ...
     def __init__(self, name: str, type: str = 'DataArray_t') -> None:
         """
         Node constructor
         """
     def __str__(self) -> str:
+        ...
+    @typing.overload
+    def __truediv__(self, arg0: Node) -> Node:
+        ...
+    @typing.overload
+    def __truediv__(self, arg0: _NodeGroup) -> Node:
         ...
     def add_child(self, arg0: Node) -> None:
         ...
@@ -455,6 +467,15 @@ class Node:
     def type(self) -> str:
         ...
     def write(self, arg0: str) -> None:
+        ...
+class _NodeGroup:
+    @typing.overload
+    def __add__(self, arg0: Node) -> _NodeGroup:
+        ...
+    @typing.overload
+    def __add__(self, arg0: _NodeGroup) -> _NodeGroup:
+        ...
+    def nodes(self) -> list[Node]:
         ...
 def new_node(name: str = '', type: str = '', data: typing.Any = False, parent: Node = None) -> Node:
     ...

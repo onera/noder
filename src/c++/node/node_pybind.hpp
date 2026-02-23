@@ -3,9 +3,11 @@
 
 # include <pybind11/pybind11.h>
 # include <pybind11/numpy.h>
+# include <pybind11/stl.h>
 
 # include "array/array.hpp"
 # include "node/node.hpp"
+# include "node/node_group_pybind.hpp"
 # include "node/node_factory.hpp"
 
 namespace {
@@ -76,7 +78,7 @@ static std::shared_ptr<Node> new_node(
 
 void bindNode(py::module_ &m) {
 
-    py::class_<Node, std::shared_ptr<Node>>(m, "Node")
+    auto nodeClass = py::class_<Node, std::shared_ptr<Node>>(m, "Node")
 
         .def(py::init<const std::string&, const std::string&>(), "Node constructor",
              py::arg("name"), py::arg("type")="DataArray_t")
@@ -111,7 +113,9 @@ void bindNode(py::module_ &m) {
         .def("attach_to", &Node::attachTo)
         .def("add_child", &Node::addChild)
         .def("path", &Node::path)
+        #ifdef ENABLE_HDF5_IO
         .def("write", &Node::write)
+        #endif
         .def("descendants", &Node::descendants)
 
 
@@ -121,6 +125,9 @@ void bindNode(py::module_ &m) {
              py::arg("depth")=0, py::arg("last_pos")=false, py::arg("markers")=std::string(""))
 
         ;
+
+    bindNodeGroup(m, nodeClass);
+
     m.def(
         "new_node",
         &new_node,

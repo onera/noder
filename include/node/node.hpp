@@ -31,6 +31,7 @@
 
 # include "data/data.hpp"
 # include "node/navigation.hpp"
+# include "node/node_group.hpp"
 # include "utils/data_types.hpp"
 # include "utils/compat.hpp"
 
@@ -53,6 +54,7 @@ private:
     std::vector<std::shared_ptr<Node>> _children;
     std::string _type;
     std::weak_ptr<Node> _parent;
+    std::weak_ptr<Node> _expressionRepresentative;
     std::shared_ptr<Data> _data;
     static std::function<std::shared_ptr<Data>()> dataFactory;
 
@@ -136,10 +138,13 @@ public:
     std::string printTree(int max_depth=9999, std::string highlighted_path=std::string(""),
         int depth=0, bool last_pos=false, std::string markers=std::string("")) const;
 
+    // Internal helpers for operator-expression semantics.
+    void setExpressionRepresentative(std::shared_ptr<Node> node);
+    std::shared_ptr<Node> expressionRepresentative() const;
+
     friend std::ostream& operator<<(std::ostream& os, const Node& node);
     friend std::ostream& operator<<(std::ostream& os, const std::shared_ptr<Node>& node);
 
 };
-
 
 #endif

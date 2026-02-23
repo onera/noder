@@ -2,7 +2,6 @@
 #include "data/data_factory.hpp"
 #include "node/node.hpp"
 
-
 using namespace std::string_literals;
 
 #include "io/io.hpp"

@@ -10,6 +10,7 @@
 # include "data/data_factory.hpp"
 # include "node/test_data_pybind.hpp"
 # include "node/test_navigation_pybind.hpp"
+# include "node/test_node_group_pybind.hpp"
 # include "learn_pybind11/test_learn_pybind11_pybind.hpp"
 
 PYBIND11_MODULE(tests, m) {
@@ -31,8 +32,8 @@ PYBIND11_MODULE(tests, m) {
     bindTestsOfNodeFactory(m);
     bindTestsOfData(m);
     bindTestsOfNavigation(m);
+    bindTestsOfNodeGroup(m);
     
     bindLearningTestsOfPyBind11(m);
 
 }
-

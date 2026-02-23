@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib
 import inspect
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -65,6 +66,82 @@ def choose_target_dir() -> Path:
     return find_installed_package_dir()
 
 
+def ensure_typing_import(stub_text: str) -> str:
+    """
+    Ensure 'import typing' exists so inserted @typing.overload decorators resolve.
+    """
+    if re.search(r"^import typing\s*$", stub_text, flags=re.MULTILINE):
+        return stub_text
+
+    lines = stub_text.splitlines(keepends=True)
+    insert_at = 0
+
+    # Keep __future__ imports at the very top.
+    while insert_at < len(lines) and lines[insert_at].startswith("from __future__ import "):
+        insert_at += 1
+
+    lines.insert(insert_at, "import typing\n")
+    return "".join(lines)
+
+
+def add_overload_decorators_for_repeated_method(
+    stub_text: str, class_name: str, method_name: str
+) -> str:
+    """
+    Some pybind11-stubgen outputs repeated methods without @typing.overload.
+    Pylance keeps only the last signature and reports false operator errors.
+    This adds @typing.overload above repeated method definitions in one class.
+    """
+    lines = stub_text.splitlines(keepends=True)
+    class_header = f"class {class_name}:"
+    method_prefix = f"    def {method_name}("
+
+    class_idx = next((i for i, line in enumerate(lines) if line.startswith(class_header)), -1)
+    if class_idx < 0:
+        return stub_text
+
+    end_idx = class_idx + 1
+    while end_idx < len(lines):
+        line = lines[end_idx]
+        if line.strip() == "":
+            end_idx += 1
+            continue
+        if not line.startswith(" "):
+            break
+        end_idx += 1
+
+    method_indices = [i for i in range(class_idx + 1, end_idx) if lines[i].startswith(method_prefix)]
+    if len(method_indices) < 2:
+        return stub_text
+
+    offset = 0
+    changed = False
+    for idx in method_indices:
+        idx += offset
+        prev = lines[idx - 1].strip() if idx - 1 >= 0 else ""
+        if prev != "@typing.overload":
+            lines.insert(idx, "    @typing.overload\n")
+            offset += 1
+            changed = True
+
+    if not changed:
+        return stub_text
+
+    return "".join(lines)
+
+
+def postprocess_core_stub(stub_text: str) -> str:
+    """
+    Apply deterministic fixes on generated stubs for better IDE typing behavior.
+    """
+    patched = add_overload_decorators_for_repeated_method(
+        stub_text, class_name="_NodeGroup", method_name="__add__"
+    )
+    if patched != stub_text:
+        patched = ensure_typing_import(patched)
+    return patched
+
+
 def main() -> None:
     env = build_stubgen_env()
     out_dir = ROOT / "_stubgen_out"
@@ -108,10 +185,20 @@ def main() -> None:
     target_dir = choose_target_dir()
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    # Flatten noder/core/__init__.pyi → noder/core.pyi
+    generated_core_text = core_init_pyi.read_text(encoding="utf-8")
+    generated_core_text = postprocess_core_stub(generated_core_text)
+
+    # Flatten noder/core/__init__.pyi -> noder/core.pyi
     target_core_pyi = target_dir / "core.pyi"
-    # Overwrite existing stub (we want the stub to match current bindings)
-    shutil.move(str(core_init_pyi), target_core_pyi)
+    # Overwrite existing stub (we want it to match current bindings + postprocess fixes)
+    target_core_pyi.write_text(generated_core_text, encoding="utf-8")
+
+    # In dev mode, optionally mirror the stub to dist/dev/noder/core.pyi when present.
+    # This keeps IDE typing consistent if the interpreter points at dist/dev.
+    if is_dev_checkout():
+        dist_core_pyi = DIST_DEV / PACKAGE_NAME / "core.pyi"
+        if dist_core_pyi.exists():
+            dist_core_pyi.write_text(generated_core_text, encoding="utf-8")
 
     # We currently ignore submodule stubs (io.pyi, factory.pyi, ...) because
     # your public Python API is 'from noder.core import Node, Array, ...'.
