@@ -103,6 +103,82 @@ class Data:
     def isScalar(self) -> bool:
         ...
 class Navigation:
+    def all_by_data(self, data: typing.Any, depth: int = 100) -> list[Node]:
+        """
+        get all nodes by exact data recursively (string or scalar)
+        """
+    def all_by_data_bool(self, data: bool, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by scalar data recursively (typed overload)
+        """
+    def all_by_data_double(self, data: float, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by scalar data recursively (typed overload)
+        """
+    def all_by_data_float(self, data: float, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by scalar data recursively (typed overload)
+        """
+    def all_by_data_glob(self, data_pattern: str, depth: int = 100) -> list[Node]:
+        """
+        get all nodes by glob-pattern data recursively
+        """
+    def all_by_data_int16(self, data: int, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by scalar data recursively (typed overload)
+        """
+    def all_by_data_int32(self, data: int, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by scalar data recursively (typed overload)
+        """
+    def all_by_data_int64(self, data: int, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by scalar data recursively (typed overload)
+        """
+    def all_by_data_int8(self, data: int, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by scalar data recursively (typed overload)
+        """
+    def all_by_data_uint16(self, data: int, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by scalar data recursively (typed overload)
+        """
+    def all_by_data_uint32(self, data: int, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by scalar data recursively (typed overload)
+        """
+    def all_by_data_uint64(self, data: int, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by scalar data recursively (typed overload)
+        """
+    def all_by_data_uint8(self, data: int, depth: int = 100) -> list[Node]:
+        """
+        Get all nodes by scalar data recursively (typed overload)
+        """
+    def all_by_name(self, name: str, depth: int = 100) -> list[Node]:
+        """
+        get all nodes by exact name recursively
+        """
+    def all_by_name_glob(self, name_pattern: str, depth: int = 100) -> list[Node]:
+        """
+        get all nodes by glob-pattern name recursively
+        """
+    def all_by_name_regex(self, name_pattern: str, depth: int = 100) -> list[Node]:
+        """
+        get all nodes by regex-pattern name recursively
+        """
+    def all_by_type(self, type: str, depth: int = 100) -> list[Node]:
+        """
+        get all nodes by exact type recursively
+        """
+    def all_by_type_glob(self, type_pattern: str, depth: int = 100) -> list[Node]:
+        """
+        get all nodes by glob-pattern type recursively
+        """
+    def all_by_type_regex(self, type_pattern: str, depth: int = 100) -> list[Node]:
+        """
+        get all nodes by regex-pattern type recursively
+        """
     def by_data(self, data: typing.Any, depth: int = 100) -> Node:
         """
         get node by exact data recursively (string or scalar)
@@ -118,6 +194,10 @@ class Navigation:
     def by_data_float(self, data: float, depth: int = 100) -> Node:
         """
         Get node by scalar data recursively (typed overload)
+        """
+    def by_data_glob(self, data_pattern: str, depth: int = 100) -> Node:
+        """
+        get node by glob-pattern data recursively
         """
     def by_data_int16(self, data: int, depth: int = 100) -> Node:
         """
@@ -155,6 +235,10 @@ class Navigation:
         """
         get node by exact name recursively
         """
+    def by_name_glob(self, name_pattern: str, depth: int = 100) -> Node:
+        """
+        get node by glob-pattern name recursively
+        """
     def by_name_regex(self, name_pattern: str, depth: int = 100) -> Node:
         """
         get node by regex-pattern name recursively
@@ -162,6 +246,10 @@ class Navigation:
     def by_type(self, type: str, depth: int = 100) -> Node:
         """
         get node by exact type recursively
+        """
+    def by_type_glob(self, type_pattern: str, depth: int = 100) -> Node:
+        """
+        get node by glob-pattern type recursively
         """
     def by_type_regex(self, type_pattern: str, depth: int = 100) -> Node:
         """
