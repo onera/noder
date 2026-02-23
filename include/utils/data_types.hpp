@@ -64,6 +64,16 @@ namespace utils {
 
     using StringAndScalarTypes = Concat_t<TypeList<std::string>, ScalarTypes>;
 
+    // Preferred dispatch order when converting Python runtime scalar types.
+    // Wider integral/floating types are attempted first.
+    using PythonIntegralDispatchTypes = TypeList<
+        int64_t, uint64_t,
+        int32_t, uint32_t,
+        int16_t, uint16_t,
+        int8_t, uint8_t>;
+
+    using PythonFloatingDispatchTypes = TypeList<double, float>;
+
     template <typename T, typename TL>
     struct ContainsType;
 
