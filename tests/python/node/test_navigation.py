@@ -19,7 +19,7 @@ def test_get_child_by_name():
     assert none is None
 
 
-def test_get_by_name_pattern():
+def test_get_by_name_regex():
     a = Node("a")
     b = Node("b")
     b.attach_to(a)
@@ -28,7 +28,7 @@ def test_get_by_name_pattern():
     d = Node("abcd")
     d.attach_to(c)
 
-    n = a.pick().by_name_pattern("ab\\B")
+    n = a.pick().by_name_regex("ab\\B")
     assert n.name() == "abcd"
     assert n is d
 
@@ -70,7 +70,7 @@ def test_get_by_type():
     assert none is None
 
 
-def test_get_by_type_pattern():
+def test_get_by_type_regex():
     a = Node("a","a_t")
     b = Node("b","b_t")
     b.attach_to(a)
@@ -79,7 +79,7 @@ def test_get_by_type_pattern():
     d = Node("d","abcd_t")
     d.attach_to(c)
 
-    n = a.pick().by_type_pattern("ab\\B")
+    n = a.pick().by_type_regex("ab\\B")
     assert n.type() == "abcd_t"
     assert n is d
 
@@ -211,3 +211,46 @@ def test_get_by_data():
 
     none = a.pick().by_data("e_d")
     assert none is None
+
+
+def test_get_by_data_dispatcher_scalar_direct():
+    a = Node("a")
+    a.set_data(123)
+
+    b = Node("b")
+    b.set_data(7)
+    b.attach_to(a)
+
+    c = Node("c")
+    c.set_data(3.5)
+    c.attach_to(a)
+
+    d = Node("d")
+    d.set_data(True)
+    d.attach_to(c)
+
+    n_int_builtin = a.pick().by_data(7)
+    assert n_int_builtin.name() == "b"
+    assert n_int_builtin is b
+
+    n_int_numpy = a.pick().by_data(np.int32(7))
+    assert n_int_numpy.name() == "b"
+    assert n_int_numpy is b
+
+    n_float_builtin = a.pick().by_data(3.5)
+    assert n_float_builtin.name() == "c"
+    assert n_float_builtin is c
+
+    n_float_numpy = a.pick().by_data(np.float32(3.5))
+    assert n_float_numpy.name() == "c"
+    assert n_float_numpy is c
+
+    n_bool = a.pick().by_data(np.bool_(True))
+    assert n_bool.name() == "d"
+    assert n_bool is d
+
+    none = a.pick().by_data(999)
+    assert none is None
+
+    with pytest.raises(TypeError):
+        a.pick().by_data({"unexpected": "type"})

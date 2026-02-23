@@ -6,6 +6,15 @@ void test_newNodeNoArgs() {
     auto node = newNode();
 }
 
+void test_newNodeNoArgsHasNoneData() {
+    auto node = newNode();
+    std::cout << node << std::endl;
+    if (node->noData() == false) {
+        throw py::value_error("expected no data in default node construction");
+    }
+}
+
+
 void test_newNodeOnlyName() {
     auto node = newNode("TheName"s);
 

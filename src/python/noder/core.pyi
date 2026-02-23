@@ -103,15 +103,59 @@ class Data:
     def isScalar(self) -> bool:
         ...
 class Navigation:
-    def by_data(self, data: str, depth: int = 100) -> Node:
+    def by_data(self, data: typing.Any, depth: int = 100) -> Node:
         """
-        get node by exact data recursively
+        get node by exact data recursively (string or scalar)
+        """
+    def by_data_bool(self, data: bool, depth: int = 100) -> Node:
+        """
+        Get node by scalar data recursively (typed overload)
+        """
+    def by_data_double(self, data: float, depth: int = 100) -> Node:
+        """
+        Get node by scalar data recursively (typed overload)
+        """
+    def by_data_float(self, data: float, depth: int = 100) -> Node:
+        """
+        Get node by scalar data recursively (typed overload)
+        """
+    def by_data_int16(self, data: int, depth: int = 100) -> Node:
+        """
+        Get node by scalar data recursively (typed overload)
+        """
+    def by_data_int32(self, data: int, depth: int = 100) -> Node:
+        """
+        Get node by scalar data recursively (typed overload)
+        """
+    def by_data_int64(self, data: int, depth: int = 100) -> Node:
+        """
+        Get node by scalar data recursively (typed overload)
+        """
+    def by_data_int8(self, data: int, depth: int = 100) -> Node:
+        """
+        Get node by scalar data recursively (typed overload)
+        """
+    def by_data_uint16(self, data: int, depth: int = 100) -> Node:
+        """
+        Get node by scalar data recursively (typed overload)
+        """
+    def by_data_uint32(self, data: int, depth: int = 100) -> Node:
+        """
+        Get node by scalar data recursively (typed overload)
+        """
+    def by_data_uint64(self, data: int, depth: int = 100) -> Node:
+        """
+        Get node by scalar data recursively (typed overload)
+        """
+    def by_data_uint8(self, data: int, depth: int = 100) -> Node:
+        """
+        Get node by scalar data recursively (typed overload)
         """
     def by_name(self, name: str, depth: int = 100) -> Node:
         """
         get node by exact name recursively
         """
-    def by_name_pattern(self, name_pattern: str, depth: int = 100) -> Node:
+    def by_name_regex(self, name_pattern: str, depth: int = 100) -> Node:
         """
         get node by regex-pattern name recursively
         """
@@ -119,7 +163,7 @@ class Navigation:
         """
         get node by exact type recursively
         """
-    def by_type_pattern(self, type_pattern: str, depth: int = 100) -> Node:
+    def by_type_regex(self, type_pattern: str, depth: int = 100) -> Node:
         """
         get node by regex-pattern type recursively
         """

@@ -12,7 +12,7 @@ std::shared_ptr<Node> Navigation::childByName(const std::string& name) {
 }
 
 
-std::shared_ptr<Node> Navigation::byName(const std::string& name, const int& depth) {
+std::shared_ptr<Node> Navigation::byName(const std::string& name, const size_t& depth) {
 
     if ( depth > 0 ) {
         if ( _node.name() == name ) return _node.shared_from_this();
@@ -25,14 +25,14 @@ std::shared_ptr<Node> Navigation::byName(const std::string& name, const int& dep
     return nullptr;
 }
 
-std::shared_ptr<Node> Navigation::byNamePattern(const std::string& namePattern, const int& depth) {
+std::shared_ptr<Node> Navigation::byNameRegex(const std::string& namePattern, const size_t& depth) {
 
     if ( depth > 0 ) {
         std::regex regexPattern(namePattern);
         if (std::regex_search(_node.name(), regexPattern)) return _node.shared_from_this();
 
         for (auto child: _node.children()) {
-            auto foundNode = child->pick().byNamePattern(namePattern, depth-1);
+            auto foundNode = child->pick().byNameRegex(namePattern, depth-1);
             if (foundNode) return foundNode;
         }
     }
@@ -49,7 +49,7 @@ std::shared_ptr<Node> Navigation::childByType(const std::string& type) {
 }
 
 
-std::shared_ptr<Node> Navigation::byType(const std::string& type, const int& depth) {
+std::shared_ptr<Node> Navigation::byType(const std::string& type, const size_t& depth) {
 
     if ( depth > 0 ) {
         if ( _node.type() == type ) return _node.shared_from_this();
@@ -63,14 +63,14 @@ std::shared_ptr<Node> Navigation::byType(const std::string& type, const int& dep
 }
 
 
-std::shared_ptr<Node> Navigation::byTypePattern(const std::string& typePattern,
-                                                const int& depth) {
+std::shared_ptr<Node> Navigation::byTypeRegex(const std::string& typePattern,
+                                                const size_t& depth) {
     if ( depth > 0 ) {
         std::regex regexPattern(typePattern);
         if (std::regex_search(_node.type(), regexPattern)) return _node.shared_from_this();
 
         for (auto child: _node.children()) {
-            auto foundNode = child->pick().byTypePattern(typePattern, depth-1);
+            auto foundNode = child->pick().byTypeRegex(typePattern, depth-1);
             if (foundNode) return foundNode;
         }
     }
@@ -100,7 +100,7 @@ std::shared_ptr<Node> Navigation::childByData(const char* data) {
 }
 
 template <typename T>
-std::shared_ptr<Node> Navigation::childByData(T data) {
+std::shared_ptr<Node> Navigation::childByData(const T& data) {
 
     for (auto child: _node.children()) {
         if (child) {
@@ -115,7 +115,7 @@ std::shared_ptr<Node> Navigation::childByData(T data) {
     return nullptr;
 }
 
-std::shared_ptr<Node> Navigation::byData(const std::string& data, const int& depth) {
+std::shared_ptr<Node> Navigation::byData(const std::string& data, const size_t& depth) {
 
     if ( depth > 0 ) {
 
@@ -135,9 +135,28 @@ std::shared_ptr<Node> Navigation::byData(const std::string& data, const int& dep
     return nullptr;
 }
 
-std::shared_ptr<Node> Navigation::byData(const char* data, const int& depth) {
+std::shared_ptr<Node> Navigation::byData(const char* data, const size_t& depth) {
     std::string data_str = std::string(data);
     return this->byData(data_str, depth);
+}
+
+template <typename T>
+std::shared_ptr<Node> Navigation::byData(const T& data, const size_t& depth) {
+
+    if ( depth > 0 ) {
+
+        if (_node.data().isScalar()) {
+            if (_node.data() == data ) {
+                return _node.shared_from_this();
+            }
+        }
+
+        for (auto child: _node.children()) {
+            auto foundNode = child->pick().byData(data, depth-1);
+            if (foundNode) return foundNode;
+        }
+    }
+    return nullptr;
 }
 
 
@@ -151,10 +170,14 @@ struct InstantiatorMethodScalar {
     template <typename... U>
     void operator()() const {
         (utils::forceSymbol(&Navigation::template childByData<U>), ...);
+        (utils::forceSymbol(&Navigation::template byData<U>), ...);
     }
 };
 
 template void utils::instantiateFromTypeList<InstantiatorMethodScalar, utils::ScalarTypes>();
-template std::shared_ptr<Node> Navigation::childByData<bool>(bool);
-template std::shared_ptr<Node> Navigation::childByData<double>(double);
-template std::shared_ptr<Node> Navigation::childByData<int>(int);
+template std::shared_ptr<Node> Navigation::childByData<bool>(const bool&);
+template std::shared_ptr<Node> Navigation::childByData<double>(const double&);
+template std::shared_ptr<Node> Navigation::childByData<int>(const int&);
+template std::shared_ptr<Node> Navigation::byData<bool>(const bool&, const size_t&);
+template std::shared_ptr<Node> Navigation::byData<double>(const double&, const size_t&);
+template std::shared_ptr<Node> Navigation::byData<int>(const int&, const size_t&);

@@ -10,6 +10,7 @@ void bindTestsOfNodeFactory(py::module_ &m) {
     py::module_ sm = m.def_submodule("node_factory");
     
     sm.def("test_newNodeNoArgs", &test_newNodeNoArgs);
+    sm.def("test_newNodeNoArgsHasNoneData", &test_newNodeNoArgsHasNoneData);
     sm.def("test_newNodeOnlyName", &test_newNodeOnlyName);
     sm.def("test_newNodeOnlyNameChars", &test_newNodeOnlyNameChars);
     sm.def("test_newNodeNameAndType", &test_newNodeNameAndType);

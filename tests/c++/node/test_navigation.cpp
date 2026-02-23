@@ -4,12 +4,12 @@
 using namespace std::string_literals;
 
 void test_childByName() {
-    auto a = std::make_shared<Node>("a"s);
-    auto b = std::make_shared<Node>("b"s);
+    auto a = newNode("a"s);
+    auto b = newNode("b"s);
     b->attachTo(a);
-    auto c = std::make_shared<Node>("c"s);
+    auto c = newNode("c"s);
     c->attachTo(a);
-    auto d = std::make_shared<Node>("d"s);
+    auto d = newNode("d"s);
     d->attachTo(c);
 
     auto n = a->pick().childByName("c"s);
@@ -21,12 +21,12 @@ void test_childByName() {
 
 
 void test_byName() {
-    auto a = std::make_shared<Node>("a");
-    auto b = std::make_shared<Node>("b");
+    auto a = newNode("a");
+    auto b = newNode("b");
     b->attachTo(a);
-    auto c = std::make_shared<Node>("c");
+    auto c = newNode("c");
     c->attachTo(a);
-    auto d = std::make_shared<Node>("d");
+    auto d = newNode("d");
     d->attachTo(c);
 
     auto n = a->pick().byName("d"s);
@@ -39,31 +39,31 @@ void test_byName() {
 }
 
 
-void test_byNamePattern() {
-    auto a = std::make_shared<Node>("a");
-    auto b = std::make_shared<Node>("b");
+void test_byNameRegex() {
+    auto a = newNode("a");
+    auto b = newNode("b");
     b->attachTo(a);
-    auto c = std::make_shared<Node>("c");
+    auto c = newNode("c");
     c->attachTo(a);
-    auto d = std::make_shared<Node>("abcd");
+    auto d = newNode("abcd");
     d->attachTo(c);
 
-    auto n = a->pick().byNamePattern("ab\\B"); // equivalent to R"(ab\B)" 
-    if (n->name()!="abcd") throw py::value_error("failed test_byNamePattern");
+    auto n = a->pick().byNameRegex("ab\\B"); // equivalent to R"(ab\B)" 
+    if (n->name()!="abcd") throw py::value_error("failed test_byNameRegex");
     if (n.get() != d.get()) throw py::value_error("expected to recover node d without copy");
 
-    auto unexpected = a->pick().byNamePattern(R"(\Bab)");
-    if (unexpected != nullptr) throw py::value_error("failed null test_byNamePattern");
+    auto unexpected = a->pick().byNameRegex(R"(\Bab)");
+    if (unexpected != nullptr) throw py::value_error("failed null test_byNameRegex");
 }
 
 
 void test_childByType() {
-    auto a = std::make_shared<Node>("a"s,"a_t"s);
-    auto b = std::make_shared<Node>("b"s,"b_t"s);
+    auto a = newNode("a"s,"a_t"s);
+    auto b = newNode("b"s,"b_t"s);
     b->attachTo(a);
-    auto c = std::make_shared<Node>("c"s,"c_t"s);
+    auto c = newNode("c"s,"c_t"s);
     c->attachTo(a);
-    auto d = std::make_shared<Node>("d"s,"d_t"s);
+    auto d = newNode("d"s,"d_t"s);
     d->attachTo(c);
 
     auto n = a->pick().childByType("c_t"s); // important, note the "*" in order to avoid copy
@@ -75,12 +75,12 @@ void test_childByType() {
 
 
 void test_byType() {
-    auto a = std::make_shared<Node>("a","a_t");
-    auto b = std::make_shared<Node>("b","b_t");
+    auto a = newNode("a","a_t");
+    auto b = newNode("b","b_t");
     b->attachTo(a);
-    auto c = std::make_shared<Node>("c","c_t");
+    auto c = newNode("c","c_t");
     c->attachTo(a);
-    auto d = std::make_shared<Node>("d","d_t");
+    auto d = newNode("d","d_t");
     d->attachTo(c);
 
     auto n = a->pick().byType("d_t");
@@ -93,42 +93,42 @@ void test_byType() {
 }
 
 
-void test_byTypePattern() {
-    auto a = std::make_shared<Node>("a","a_t");
-    auto b = std::make_shared<Node>("b","b_t");
+void test_byTypeRegex() {
+    auto a = newNode("a","a_t");
+    auto b = newNode("b","b_t");
     b->attachTo(a);
-    auto c = std::make_shared<Node>("c","c_t");
+    auto c = newNode("c","c_t");
     c->attachTo(a);
-    auto d = std::make_shared<Node>("d","abcd_t");
+    auto d = newNode("d","abcd_t");
     d->attachTo(c);
 
-    auto n = a->pick().byTypePattern("ab\\B"); // equivalent to R"(ab\B)" 
-    if (n->type()!="abcd_t") throw py::value_error("failed test_byTypePattern");
+    auto n = a->pick().byTypeRegex("ab\\B"); // equivalent to R"(ab\B)" 
+    if (n->type()!="abcd_t") throw py::value_error("failed test_byTypeRegex");
     if (n.get() != d.get()) throw py::value_error("expected to recover node d without copy");
 
-    auto unexpected = a->pick().byTypePattern(R"(\Bab)");
-    if (unexpected != nullptr) throw py::value_error("failed null test_byTypePattern");
+    auto unexpected = a->pick().byTypeRegex(R"(\Bab)");
+    if (unexpected != nullptr) throw py::value_error("failed null test_byTypeRegex");
 }
 
 
 void test_childByData() {
-    auto a = std::make_shared<Node>("a"s);
-    auto b = std::make_shared<Node>("b"s);
+    auto a = newNode("a"s);
+    auto b = newNode("b"s);
     Array bData("test"s);
     b->setData(bData);
     b->attachTo(a);
 
-    auto c = std::make_shared<Node>("c"s);
+    auto c = newNode("c"s);
     Array cData = arrayfactory::zeros<double>({1});
     c->setData(cData);
     c->attachTo(a);
     
-    auto d = std::make_shared<Node>("d"s);
+    auto d = newNode("d"s);
     Array dData = arrayfactory::zeros<int8_t>({3,3});
     d->setData(dData);
     d->attachTo(c);
 
-    auto e = std::make_shared<Node>("e"s);
+    auto e = newNode("e"s);
     Array eData("requested"s);
     e->setData(eData);
     e->attachTo(a);
@@ -143,23 +143,23 @@ void test_childByData() {
 
 
 void test_childByDataUsingChar() {
-    auto a = std::make_shared<Node>("a"s);
-    auto b = std::make_shared<Node>("b"s);
+    auto a = newNode("a"s);
+    auto b = newNode("b"s);
     Array bData("test"s);
     b->setData(bData);
     b->attachTo(a);
 
-    auto c = std::make_shared<Node>("c"s);
+    auto c = newNode("c"s);
     Array cData = arrayfactory::zeros<double>({1});
     c->setData(cData);
     c->attachTo(a);
     
-    auto d = std::make_shared<Node>("d"s);
+    auto d = newNode("d"s);
     Array dData = arrayfactory::zeros<int8_t>({3,3});
     d->setData(dData);
     d->attachTo(c);
 
-    auto e = std::make_shared<Node>("e"s);
+    auto e = newNode("e"s);
     Array eData("requested"s);
     e->setData(eData);
     e->attachTo(a);
@@ -174,17 +174,17 @@ void test_childByDataUsingChar() {
 
 
 void test_childByDataScalarDirect() {
-    auto a = std::make_shared<Node>("a"s);
+    auto a = newNode("a"s);
 
-    auto b = std::make_shared<Node>("b"s);
+    auto b = newNode("b"s);
     b->setData(7);
     b->attachTo(a);
 
-    auto c = std::make_shared<Node>("c"s);
+    auto c = newNode("c"s);
     c->setData(3.5);
     c->attachTo(a);
 
-    auto d = std::make_shared<Node>("d"s);
+    auto d = newNode("d"s);
     d->setData(true);
     d->attachTo(a);
 
@@ -228,4 +228,36 @@ void test_byData() {
     auto unexpected = a->pick().byData("e_d");
     if (unexpected != nullptr) throw py::value_error("expected nullptr");
 
+}
+
+void test_byDataScalarDirect() {
+    auto a = newNode("a");
+    a->setData(123);
+
+    auto b = newNode("b");
+    b->setData(7);
+    b->attachTo(a);
+
+    auto c = newNode("c");
+    c->setData(3.5);
+    c->attachTo(a);
+
+    auto d = newNode("d");
+    d->setData(true);
+    d->attachTo(c);
+
+    auto nInt = a->pick().byData(7);
+    if (!nInt || nInt->name() != "b") throw py::value_error("expected data 7");
+    if (nInt.get() != b.get()) throw py::value_error("expected to recover node b without copy");
+
+    auto nFloat = a->pick().byData(3.5);
+    if (!nFloat || nFloat->name() != "c") throw py::value_error("expected data 3.5");
+    if (nFloat.get() != c.get()) throw py::value_error("expected to recover node c without copy");
+
+    auto nBool = a->pick().byData(true);
+    if (!nBool || nBool->name() != "d") throw py::value_error("expected data true");
+    if (nBool.get() != d.get()) throw py::value_error("expected to recover node d without copy");
+
+    auto unexpected = a->pick().byData(999);
+    if (unexpected != nullptr) throw py::value_error("expected nullptr");
 }

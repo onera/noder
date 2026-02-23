@@ -238,10 +238,12 @@ void write_node_rec(hid_t file, std::shared_ptr<Node> node, const std::string& p
             cgns_type = "R4";
         } else if (dtype.is(py::dtype::of<double>())) {
             cgns_type = "R8";
+        } else if (dtype.is(py::dtype::of<bool>()) || dtype.is(py::dtype::of<int8_t>())) {
+            cgns_type = "X1";
         } else if (kind == 'U' || kind == 'S') {
             cgns_type = "C1";
         } else {
-            throw std::runtime_error("Unsupported array type");
+            throw std::runtime_error("Unsupported array type at node "+node->path());
         }
         
 

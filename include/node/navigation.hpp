@@ -21,26 +21,29 @@ public:
 
     std::shared_ptr<Node> childByName(const std::string& name);
 
-    std::shared_ptr<Node> byName(const std::string& name, const int& depth=100);
+    std::shared_ptr<Node> byName(const std::string& name, const size_t& depth=100);
 
-    std::shared_ptr<Node> byNamePattern(const std::string& name_pattern, const int& depth=100);
+    std::shared_ptr<Node> byNameRegex(const std::string& name_pattern, const size_t& depth=100);
 
     std::shared_ptr<Node> childByType(const std::string& type);
 
-    std::shared_ptr<Node> byType(const std::string& type, const int& depth=100);
+    std::shared_ptr<Node> byType(const std::string& type, const size_t& depth=100);
 
-    std::shared_ptr<Node> byTypePattern(const std::string& name_pattern, const int& depth=100);
+    std::shared_ptr<Node> byTypeRegex(const std::string& name_pattern, const size_t& depth=100);
 
     std::shared_ptr<Node> childByData(const std::string& data);
 
     std::shared_ptr<Node> childByData(const char* data);
 
     template <typename T>
-    std::shared_ptr<Node> childByData(T data);
+    std::shared_ptr<Node> childByData(const T& data);
     
-    std::shared_ptr<Node> byData(const std::string& data, const int& depth=100);
+    std::shared_ptr<Node> byData(const std::string& data, const size_t& depth=100);
 
-    std::shared_ptr<Node> byData(const char* data, const int& depth=100);
+    std::shared_ptr<Node> byData(const char* data, const size_t& depth=100);
+
+    template <typename T>
+    std::shared_ptr<Node> byData(const T& data, const size_t& depth=100);
 
 
 };

@@ -18,7 +18,7 @@ inline std::shared_ptr<Node> newNode(
     const std::string& type = "",
     std::shared_ptr<Node> parent = nullptr)
 {
-    return newNode<bool>(name, type, false, parent);
+    return newNode<Array>(name, type, Array(), parent);
 }
 
 inline std::shared_ptr<Node> newNode(

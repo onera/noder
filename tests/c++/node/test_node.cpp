@@ -3,32 +3,32 @@
 using namespace std::string_literals;
 
 void test_init() {
-    auto a = std::make_shared<Node>("a");
-    auto b = std::make_shared<Node>("b", "type_t");
+    auto a = newNode("a");
+    auto b = newNode("b", "type_t");
 }
 
 void test_name() {
-    auto a = std::make_shared<Node>("a");
+    auto a = newNode("a");
     std::string name = a->name();
     if ( name != std::string("a") ) throw py::value_error("did not get name 'a' as string");
     if ( name != "a" ) throw py::value_error("did not get name 'a' as chars");
 }
 
 void test_setName() {
-    auto a = std::make_shared<Node>("a");
+    auto a = newNode("a");
     a->setName("b");
     std::string name = a->name();
     if ( name != "b" ) throw py::value_error("did not get name 'b'");
 }
 
 void test_type() {
-    auto a = std::make_shared<Node>("a", "type_t");
+    auto a = newNode("a", "type_t");
     std::string node_type = a->type();
     if ( node_type != "type_t" ) throw py::value_error("did not get type 'type_t'");
 }
 
 void test_setType() {
-    auto a = std::make_shared<Node>("a");
+    auto a = newNode("a");
     a->setType("NewType_t");
     std::string node_type = a->type();
     if ( node_type != "NewType_t" ) throw py::value_error("did not get type 'NewType_t'");
@@ -40,50 +40,50 @@ void test_binding_setNameAndTypeFromPython(Node& node) {
 }
 
 void test_noData() {
-    auto a = std::make_shared<Node>();
+    auto a = newNode();
     if (!a->noData()) throw py::value_error("expected no data");
 }
 
 void test_children_empty() {
-    auto a = std::make_shared<Node>("a");
+    auto a = newNode("a");
     auto children = a->children();
     if (children.size() != 0) throw std::runtime_error("failed C++ empty children children");
 }
 
 void test_parent_empty() {
-    auto a = std::make_shared<Node>("a");
+    auto a = newNode("a");
     auto parent = a->parent().lock();
     if ( parent ) throw py::value_error("did not get null parent");
 }
 
 void test_root_itself() {
-    auto a = std::make_shared<Node>("a");
+    auto a = newNode("a");
     auto b = a->root();
     if ( b.get() != a.get() ) throw py::value_error("single node root does not point to itself");
 }
 
 void test_level_0() {
-    auto a = std::make_shared<Node>("a");
+    auto a = newNode("a");
     size_t level = a->level();
     if ( level != 0 ) throw py::value_error("single node level is not 0");
 }
 
 void test_position_null() {
-    auto a = std::make_shared<Node>("a");
+    auto a = newNode("a");
     size_t pos = a->position();
     if ( pos != 0 ) throw py::value_error("expected 0 for single node sibling pos");
 }
 
 void test_getPath_itself() {
-    auto a = std::make_shared<Node>("a");
+    auto a = newNode("a");
     std::string path = a->path();
     if ( path != "a" ) throw py::value_error("expected single node path 'a'");
 }
 
 void test_attachTo() {
 
-    auto a = std::make_shared<Node>("a");
-    auto b = std::make_shared<Node>("b");
+    auto a = newNode("a");
+    auto b = newNode("b");
     b->attachTo(a);
     std::string expected_path_of_b = "a/b";
     if ( b->path() != expected_path_of_b ) throw py::value_error("expected path 'a/b'"+" but got "s + b->path());
@@ -93,12 +93,12 @@ void test_attachTo() {
 
 void test_attachTo_multiple_levels() {
     size_t max_levels = 20;
-    std::shared_ptr<Node> first_node = std::make_shared<Node>("0");
+    std::shared_ptr<Node> first_node = newNode("0");
     std::vector<std::shared_ptr<Node>> nodes = {first_node};
     std::vector<std::string> paths = {"0"};
     for (size_t i = 1; i < max_levels; i++)
     {
-        std::shared_ptr<Node> node = std::make_shared<Node>(std::to_string(i));
+        std::shared_ptr<Node> node = newNode(std::to_string(i));
         std::shared_ptr<Node> previous_node = nodes[nodes.size()-1];
         node->attachTo(previous_node);
         nodes.push_back(node);
@@ -118,17 +118,17 @@ void test_attachTo_multiple_levels() {
 }
 
 void test_addChild() {
-    auto a = std::make_shared<Node>("a");
-    auto b = std::make_shared<Node>("b");
+    auto a = newNode("a");
+    auto b = newNode("b");
     a->addChild(b);
     std::string expected_path_of_b = "a/b";
     if ( b->path() != expected_path_of_b ) throw py::value_error("expected path 'a/b'");
 }
 
 void test_addChildAsPointer() {
-    auto a = std::make_shared<Node>("a");
+    auto a = newNode("a");
 
-    std::shared_ptr<Node> b = std::make_shared<Node>(Node("b"));
+    std::shared_ptr<Node> b = newNode("b");
     a->addChild(b);
 
     std::string path_of_b = b->path();
@@ -139,14 +139,14 @@ void test_addChildAsPointer() {
 }
 
 void test_detach_0() {
-    auto a = std::make_shared<Node>("a");
+    auto a = newNode("a");
     a->detach();
     if ( a->parent().lock() ) throw py::value_error("expected no parent after detachment");
 }
 
 void test_detach_1() {
-    auto a = std::make_shared<Node>("a");
-    auto b = std::make_shared<Node>("b");
+    auto a = newNode("a");
+    auto b = newNode("b");
 
     b->attachTo(a);
     b->detach();
@@ -162,12 +162,12 @@ void test_detach_1() {
 
 void test_detach_2() {
     size_t nb_of_children = 5;
-    auto a = std::make_shared<Node>("a");
+    auto a = newNode("a");
 
     std::vector<std::shared_ptr<Node>> children;
     children.resize(nb_of_children);
     for (size_t i = 0; i < nb_of_children; i++) {
-        children[i] = std::make_shared<Node>(std::to_string(i));
+        children[i] = newNode(std::to_string(i));
         children[i]->attachTo(a);
     }
     auto children_of_a = a->children();
@@ -205,11 +205,11 @@ void test_detach_3() {
     size_t max_levels = 20;
     std::vector<std::shared_ptr<Node>> nodes;
     nodes.resize(max_levels);
-    nodes[0] = std::make_shared<Node>("0");
+    nodes[0] = newNode("0");
     std::stringstream expected_path;
     expected_path << 0;
     for (size_t i = 1; i < max_levels; i++) {
-        nodes[i] = std::make_shared<Node>(std::to_string(i));
+        nodes[i] = newNode(std::to_string(i));
         nodes[i]->attachTo(nodes[i-1]);
         auto children_of_parent = nodes[i-1]->children();
 
@@ -242,9 +242,9 @@ void test_delete_multiple_descendants() {
     size_t max_levels = 20;
     std::vector<std::shared_ptr<Node>> nodes;
     nodes.reserve(max_levels);
-    nodes.emplace_back(std::make_shared<Node>(std::to_string(0)));
+    nodes.emplace_back(newNode(std::to_string(0)));
     for (size_t i = 1; i < max_levels; i++) {
-        nodes.emplace_back(std::make_shared<Node>(std::to_string(i)));
+        nodes.emplace_back(newNode(std::to_string(i)));
         nodes[i]->attachTo(nodes[i-1]);
     }
     
@@ -255,9 +255,9 @@ void test_delete_multiple_descendants() {
 
 
 void test_getPath() {
-    auto a = std::make_shared<Node>("a");
-    auto b = std::make_shared<Node>("b");
-    auto c = std::make_shared<Node>("c");
+    auto a = newNode("a");
+    auto b = newNode("b");
+    auto c = newNode("c");
     b->attachTo(a);
     c->attachTo(b);
     std::string expected_path_of_c = "a/b/c";
@@ -267,11 +267,11 @@ void test_getPath() {
 }
 
 void test_root() {
-    auto a = std::make_shared<Node>("a");
-    auto b = std::make_shared<Node>("b");
-    auto c = std::make_shared<Node>("c");
-    auto d = std::make_shared<Node>("d");
-    auto e = std::make_shared<Node>("e");
+    auto a = newNode("a");
+    auto b = newNode("b");
+    auto c = newNode("c");
+    auto d = newNode("d");
+    auto e = newNode("e");
 
     a->addChild(b);
     b->addChild(c);
@@ -282,11 +282,11 @@ void test_root() {
 }
 
 void test_level() {
-    auto a = std::make_shared<Node>("a");
-    auto b = std::make_shared<Node>("b");
-    auto c = std::make_shared<Node>("c");
-    auto d = std::make_shared<Node>("d");
-    auto e = std::make_shared<Node>("e");
+    auto a = newNode("a");
+    auto b = newNode("b");
+    auto c = newNode("c");
+    auto d = newNode("d");
+    auto e = newNode("e");
 
     a->addChild(b);
     b->addChild(c);
@@ -297,15 +297,15 @@ void test_level() {
 }
 
 void test_printTree() {
-    auto a = std::make_shared<Node>("a");
-    auto b = std::make_shared<Node>("b");
-    auto c = std::make_shared<Node>("c");
-    auto d = std::make_shared<Node>("d");
-    auto e = std::make_shared<Node>("e");
-    auto f = std::make_shared<Node>("f");
-    auto g = std::make_shared<Node>("g");
-    auto h = std::make_shared<Node>("h");
-    auto i = std::make_shared<Node>("i");
+    auto a = newNode("a");
+    auto b = newNode("b");
+    auto c = newNode("c");
+    auto d = newNode("d");
+    auto e = newNode("e");
+    auto f = newNode("f");
+    auto g = newNode("g");
+    auto h = newNode("h");
+    auto i = newNode("i");
 
     a->addChild(b);
     b->addChild(c);
@@ -322,9 +322,9 @@ void test_printTree() {
 }
 
 void test_children() {
-    auto a = std::make_shared<Node>("a");
-    auto b = std::make_shared<Node>("b");
-    auto c = std::make_shared<Node>("c");
+    auto a = newNode("a");
+    auto b = newNode("b");
+    auto c = newNode("c");
     b->attachTo(a);
     c->attachTo(a);
 
@@ -345,9 +345,9 @@ void test_children() {
 
 
 void test_binding_addChildrenFromPython(std::shared_ptr<Node> node) {
-    auto b = std::make_shared<Node>("b");
-    auto c = std::make_shared<Node>("c");
-    auto d = std::make_shared<Node>("d");
+    auto b = newNode("b");
+    auto c = newNode("c");
+    auto d = newNode("d");
 
     b->attachTo(node);
     c->attachTo(b);
@@ -355,10 +355,10 @@ void test_binding_addChildrenFromPython(std::shared_ptr<Node> node) {
 }
 
 void test_position() {
-    auto a = std::make_shared<Node>("a");
-    auto b = std::make_shared<Node>("b");
-    auto c = std::make_shared<Node>("c");
-    auto d = std::make_shared<Node>("d");
+    auto a = newNode("a");
+    auto b = newNode("b");
+    auto c = newNode("c");
+    auto d = newNode("d");
 
     b->attachTo(a);
     c->attachTo(a);

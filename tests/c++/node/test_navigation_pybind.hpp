@@ -11,17 +11,18 @@ void bindTestsOfNavigation(py::module_ &m) {
     
     sm.def("childByName", &test_childByName);
     sm.def("byName", &test_byName);
-    sm.def("byNamePattern", &test_byNamePattern);
+    sm.def("byNameRegex", &test_byNameRegex);
     
     sm.def("childByType", &test_childByType);
     sm.def("byType", &test_byType);
-    sm.def("byTypePattern", &test_byTypePattern);
+    sm.def("byTypeRegex", &test_byTypeRegex);
     
     sm.def("childByData", &test_childByData);
     sm.def("childByDataUsingChar", &test_childByDataUsingChar);
     sm.def("childByDataScalarDirect", &test_childByDataScalarDirect);
 
     sm.def("byData", &test_byData);
+    sm.def("byDataScalarDirect", &test_byDataScalarDirect);
 }
 
 # endif

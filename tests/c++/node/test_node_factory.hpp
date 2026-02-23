@@ -5,6 +5,7 @@
 # include <node/node_factory.hpp>
 
 void test_newNodeNoArgs();
+void test_newNodeNoArgsHasNoneData();
 void test_newNodeOnlyName();
 void test_newNodeOnlyNameChars();
 void test_newNodeNameAndType();

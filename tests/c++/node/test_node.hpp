@@ -2,6 +2,7 @@
 #define TEST_NODE_CLASS_H
 
 # include <node/node.hpp>
+# include <node/node_factory.hpp>
 
 # include <pybind11/numpy.h>
 # include <pybind11/pybind11.h>
