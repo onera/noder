@@ -56,6 +56,8 @@ private:
     std::weak_ptr<Node> _parent;
     std::weak_ptr<Node> _expressionRepresentative;
     std::shared_ptr<Data> _data;
+    std::string _linkTargetFile;
+    std::string _linkTargetPath;
     static std::function<std::shared_ptr<Data>()> dataFactory;
 
     mutable std::shared_ptr<Navigation> _navigator;
@@ -84,6 +86,11 @@ public:
 
     std::string type() const;
     void setType(const std::string& type);
+    bool hasLinkTarget() const;
+    const std::string& linkTargetFile() const;
+    const std::string& linkTargetPath() const;
+    void setLinkTarget(const std::string& targetFile, const std::string& targetPath);
+    void clearLinkTarget();
 
     std::weak_ptr<Node> parent() const;
 
@@ -122,7 +129,7 @@ public:
 
     void detach();
 
-    void attachTo(std::shared_ptr<Node> node);
+    void attachTo(std::shared_ptr<Node> node, const int16_t& position = -1);
     
     void addChild(std::shared_ptr<Node> node);
 

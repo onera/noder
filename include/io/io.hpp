@@ -10,7 +10,7 @@ namespace py = pybind11;
 
 namespace io {
 
-void write_node(const std::string& filename, std::shared_ptr<Node> node);
+void write_node(const std::string& filename, std::shared_ptr<Node> node, const float& cgnsVersion = 3.1);
 std::shared_ptr<Node> read(const std::string& filename);
 
 void write_numpy(const py::array& array, const std::string& filename, const std::string& dataset_name);

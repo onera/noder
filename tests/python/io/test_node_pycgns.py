@@ -90,3 +90,19 @@ def test_nodeToPyCGNS_tree():
     is_empty_pycgns(a_pycgns)
     assert a_pycgns[0] == "a"
     assert a_pycgns[3] == "DataArray_t"
+
+def test_link_roundtrip_pycgns():
+    link_pycgns = [
+        "link",
+        ["target_file:other.cgns", "target_path:/CGNSTree/Base"],
+        [],
+        "DataArray_t",
+    ]
+    node = pyCGNSToNode(link_pycgns)
+    assert node.has_link_target()
+    assert node.link_target_file() == "other.cgns"
+    assert node.link_target_path() == "/CGNSTree/Base"
+
+    back = nodeToPyCGNS(node)
+    assert back[0] == "link"
+    assert back[1] == ["target_file:other.cgns", "target_path:/CGNSTree/Base"]

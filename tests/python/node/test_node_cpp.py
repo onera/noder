@@ -81,5 +81,19 @@ def test_binding_addChildrenFromPython():
 
 def test_cpp_position(): return test_in_cpp.test_position()
 
+def test_link_metadata_api():
+    node = Node("link")
+    assert not node.has_link_target()
+
+    node.set_link_target("other.cgns", "/CGNSTree/Base")
+    assert node.has_link_target()
+    assert node.link_target_file() == "other.cgns"
+    assert node.link_target_path() == "/CGNSTree/Base"
+
+    node.clear_link_target()
+    assert not node.has_link_target()
+    assert node.link_target_file() == ""
+    assert node.link_target_path() == ""
+
 if __name__ == '__main__':
     test_cpp_printTree()

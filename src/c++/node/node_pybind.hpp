@@ -64,7 +64,7 @@ std::shared_ptr<Data> dataFromPyObject(const py::object& data, const char* conte
 static std::shared_ptr<Node> new_node(
     const std::string& name,
     const std::string& type,
-    py::object data = py::bool_(false),
+    py::object data = py::none(),
     std::shared_ptr<Node> parent = nullptr)
 {
     auto node = std::make_shared<Node>(name, type);
@@ -103,6 +103,12 @@ void bindNode(py::module_ &m) {
         .def("children", &Node::children)
         .def("type", &Node::type)
         .def("set_type", py::overload_cast<const std::string&>(&Node::setType))
+        .def("has_link_target", &Node::hasLinkTarget)
+        .def("link_target_file", &Node::linkTargetFile)
+        .def("link_target_path", &Node::linkTargetPath)
+        .def("set_link_target", &Node::setLinkTarget,
+             py::arg("target_file"), py::arg("target_path"))
+        .def("clear_link_target", &Node::clearLinkTarget)
         .def("parent", [](const Node &self) -> std::shared_ptr<Node> {
             return self.parent().lock();
         }, "Returns the parent Node or None if no parent exists.")
@@ -110,7 +116,7 @@ void bindNode(py::module_ &m) {
         .def("level", &Node::level)
         .def("position", &Node::position)
         .def("detach", &Node::detach)
-        .def("attach_to", &Node::attachTo)
+        .def("attach_to", &Node::attachTo, "attach this node to another",py::arg("node"),py::arg("position")=-1)
         .def("add_child", &Node::addChild)
         .def("path", &Node::path)
         #ifdef ENABLE_HDF5_IO
@@ -133,7 +139,7 @@ void bindNode(py::module_ &m) {
         &new_node,
         py::arg("name") = "",
         py::arg("type") = "",
-        py::arg("data") = py::bool_(false),
+        py::arg("data") = py::none(),
         py::arg("parent") = nullptr
     );
 

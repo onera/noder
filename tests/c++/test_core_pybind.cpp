@@ -24,6 +24,10 @@ PYBIND11_MODULE(tests, m) {
                    py::arg("filename")=std::string("test.cgns"));
     io_m.def("test_read", &test_io::test_read, "test read a cgns file",
                    py::arg("tmp_filename")=std::string("test_read.cgns"));
+    io_m.def("test_write_link_nodes", &test_io::test_write_link_nodes, "test write cgns links",
+                   py::arg("filename")=std::string("test_links.cgns"));
+    io_m.def("test_read_links", &test_io::test_read_links, "test read cgns links",
+                   py::arg("tmp_filename")=std::string("test_read_links.cgns"));
 
     # endif 
 

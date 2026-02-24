@@ -51,6 +51,8 @@ Node::Node(const std::string& name, const std::string& type) :
     _name(name),
     _children(),
     _type(type),
+    _linkTargetFile(),
+    _linkTargetPath(),
     _data(nullptr),
     _navigator(nullptr) {
     ensureFactoryInitialized();
@@ -139,6 +141,31 @@ void Node::setType(const std::string& type) {
     this->_type = type;
 }
 
+bool Node::hasLinkTarget() const {
+    return !_linkTargetPath.empty();
+}
+
+const std::string& Node::linkTargetFile() const {
+    return _linkTargetFile;
+}
+
+const std::string& Node::linkTargetPath() const {
+    return _linkTargetPath;
+}
+
+void Node::setLinkTarget(const std::string& targetFile, const std::string& targetPath) {
+    if (targetPath.empty()) {
+        throw std::invalid_argument("setLinkTarget: targetPath cannot be empty");
+    }
+    _linkTargetFile = targetFile;
+    _linkTargetPath = targetPath;
+}
+
+void Node::clearLinkTarget() {
+    _linkTargetFile.clear();
+    _linkTargetPath.clear();
+}
+
 bool Node::noData() const {
     return _data->isNone();
 }
@@ -222,13 +249,14 @@ void Node::detach() {
     this->_parent.reset();
 }
 
-void Node::attachTo(std::shared_ptr<Node> node) {
+void Node::attachTo(std::shared_ptr<Node> node, const int16_t& position) {
     if (!node) {
         throw std::invalid_argument("attachTo: Cannot attach to a null node");
     }
 
     bool uniqueSibling = true;
     auto& siblings = node->_children;
+    size_t nbOfSiblings = siblings.size();
 
     for (const auto& sibling : siblings) {
         if (sibling->name() == this->name()) {
@@ -242,7 +270,23 @@ void Node::attachTo(std::shared_ptr<Node> node) {
         if (selfPtr()) {
             this->detach();
             this->_parent = node;
-            node->_children.push_back(selfPtr());
+            
+            int16_t emplacementIndex;
+            if (position < 0) {
+                emplacementIndex = nbOfSiblings + position + 1;
+            } else {
+                emplacementIndex = position;
+            }
+            
+            if (emplacementIndex > nbOfSiblings) {
+                throw std::runtime_error("failed attaching this node "+this->path()+
+                " into node "+node->path()+
+                " because requested position "+std::to_string(position)+
+                " produced emplacement index "+std::to_string(emplacementIndex)+
+                " which is higher than the node nb of siblings "+std::to_string(nbOfSiblings));
+            }
+            
+            node->_children.emplace(siblings.begin()+emplacementIndex, selfPtr());
         } else {
             throw std::runtime_error("attachTo: Stack-allocated nodes cannot be attached to heap-allocated nodes.");
         }
