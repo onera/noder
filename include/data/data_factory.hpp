@@ -12,6 +12,7 @@ template <typename T>
 std::shared_ptr<Data> makeDataFrom(const T& value);
 
 std::shared_ptr<Data> makeDataFrom(const char* value);
+std::shared_ptr<Data> makeDefaultData();
 
 }
 

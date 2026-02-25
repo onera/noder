@@ -408,6 +408,12 @@ class Navigation:
         Get child node by type
         """
 class Node:
+    """
+    
+    Hierarchical CGNS-like node with typed payload, children and link metadata.
+    
+    See C++ counterpart: :ref:`cpp-node-class`.
+    """
     @typing.overload
     def __add__(self, arg0: Node) -> _NodeGroup:
         ...
@@ -416,7 +422,9 @@ class Node:
         ...
     def __init__(self, name: str, type: str = 'DataArray_t') -> None:
         """
-        Node constructor
+        Construct a node with a name and type.
+        
+        See C++ counterpart: :ref:`cpp-node-ctor`.
         """
     def __str__(self) -> str:
         ...
@@ -427,87 +435,241 @@ class Node:
     def __truediv__(self, arg0: _NodeGroup) -> Node:
         ...
     def add_child(self, node: Node, override_sibling_by_name: bool = True, position: int = -1) -> None:
-        ...
+        """
+        Add one child node.
+        
+        See C++ counterpart: :ref:`cpp-node-addchild`.
+        """
     def add_children(self, nodes: list[Node], override_sibling_by_name: bool = True) -> None:
-        ...
+        """
+        Add multiple children.
+        
+        See C++ counterpart: :ref:`cpp-node-addchildren`.
+        """
     def attach_to(self, node: Node, position: int = -1, override_sibling_by_name: bool = True) -> None:
         """
-        attach this node to another
+        Attach this node to another parent.
+        
+        See C++ counterpart: :ref:`cpp-node-attachto`.
         """
     def children(self) -> list[Node]:
-        ...
+        """
+        Return direct children preserving insertion order.
+        
+        See C++ counterpart: :ref:`cpp-node-children`.
+        """
     def clear_link_target(self) -> None:
-        ...
+        """
+        Clear link target metadata.
+        
+        See C++ counterpart: :ref:`cpp-node-clearlinktarget`.
+        """
     def copy(self, deep: bool = False) -> Node:
-        ...
+        """
+        Copy subtree; deep copy clones payload arrays.
+        
+        See C++ counterpart: :ref:`cpp-node-copy`.
+        """
     def data(self) -> typing.Any:
-        ...
+        """
+        Return node payload as a Data-compatible Python object, or None when empty.
+        
+        See C++ counterpart: :ref:`cpp-node-data`.
+        """
     def descendants(self) -> list[Node]:
-        ...
+        """
+        Return this node and all descendants in depth-first order.
+        
+        See C++ counterpart: :ref:`cpp-node-descendants`.
+        """
     def detach(self) -> None:
-        ...
+        """
+        Detach from current parent.
+        
+        See C++ counterpart: :ref:`cpp-node-detach`.
+        """
     def get_at_path(self, path: str, path_is_relative: bool = False) -> Node:
-        ...
+        """
+        Resolve a node by path (absolute by default).
+        
+        See C++ counterpart: :ref:`cpp-node-getatpath`.
+        """
     def get_children_names(self) -> list[str]:
-        ...
+        """
+        Return child names in insertion order.
+        
+        See C++ counterpart: :ref:`cpp-node-getchildrennames`.
+        """
     def get_links(self) -> list[tuple[str, str, str, str, int]]:
-        ...
+        """
+        Collect all descendant link definitions in CGNS-compatible tuple format.
+        
+        See C++ counterpart: :ref:`cpp-node-getlinks`.
+        """
     def get_parameters(self, container_name: str, transform_numpy_scalars: bool = False) -> typing.Any:
-        ...
+        """
+        Read a parameter container and convert it back to Python dict/list/scalar-like objects.
+        
+        When `transform_numpy_scalars` is True, single-item NumPy arrays are converted to Python scalars.
+        
+        See C++ counterpart: :ref:`cpp-node-getparameters`.
+        """
     def has_children(self) -> bool:
-        ...
+        """
+        Whether node has children.
+        
+        See C++ counterpart: :ref:`cpp-node-haschildren`.
+        """
     def has_link_target(self) -> bool:
-        ...
+        """
+        Whether link metadata is defined for this node.
+        
+        See C++ counterpart: :ref:`cpp-node-haslinktarget`.
+        """
     def has_siblings(self) -> bool:
-        ...
+        """
+        Whether node has siblings excluding self.
+        
+        See C++ counterpart: :ref:`cpp-node-hassiblings`.
+        """
     def level(self) -> int:
-        ...
+        """
+        Return depth from root.
+        
+        See C++ counterpart: :ref:`cpp-node-level`.
+        """
     def link_target_file(self) -> str:
-        ...
+        """
+        Return link target file.
+        
+        See C++ counterpart: :ref:`cpp-node-linktargetfile`.
+        """
     def link_target_path(self) -> str:
-        ...
+        """
+        Return link target path.
+        
+        See C++ counterpart: :ref:`cpp-node-linktargetpath`.
+        """
     def merge(self, node: Node) -> None:
-        ...
+        """
+        Merge descendants from another node with the same root name.
+        
+        See C++ counterpart: :ref:`cpp-node-merge`.
+        """
     def name(self) -> str:
-        ...
+        """
+        Return node name.
+        
+        See C++ counterpart: :ref:`cpp-node-name`.
+        """
     def parent(self) -> Node:
         """
-        Returns the parent Node or None if no parent exists.
+        Return parent node or None when detached.
+        
+        See C++ counterpart: :ref:`cpp-node-parent`.
         """
     def path(self) -> str:
-        ...
+        """
+        Return full path from root.
+        
+        See C++ counterpart: :ref:`cpp-node-path`.
+        """
     def pick(self) -> Navigation:
-        ...
+        """
+        Return the Navigation helper bound to this node.
+        
+        See C++ counterpart: :ref:`cpp-node-pick`.
+        """
     def position(self) -> int:
-        ...
+        """
+        Return sibling position.
+        
+        See C++ counterpart: :ref:`cpp-node-position`.
+        """
     def print_tree(self, max_depth: int = 9999, highlighted_path: str = '', depth: int = 0, last_pos: bool = False, markers: str = '') -> str:
         """
-        print node in tree format
+        Render subtree as printable tree text.
+        
+        See C++ counterpart: :ref:`cpp-node-printtree`.
         """
     def reload_node_data(self, filename: str) -> None:
-        ...
+        """
+        Reload this node payload from file using this node path.
+        
+        See C++ counterpart: :ref:`cpp-node-reloadnodedata`.
+        """
     def root(self) -> Node:
-        ...
+        """
+        Return root ancestor.
+        
+        See C++ counterpart: :ref:`cpp-node-root`.
+        """
     def save_this_node_only(self, filename: str, backend: str = 'hdf5') -> None:
-        ...
+        """
+        Persist only this node payload/metadata into an existing file.
+        
+        See C++ counterpart: :ref:`cpp-node-savethisnodeonly`.
+        """
     def set_data(self, arg0: typing.Any) -> None:
-        ...
+        """
+        Set node payload from scalar, string, NumPy array, list/tuple (converted via numpy.asarray), or Data.
+        
+        See C++ counterpart: :ref:`cpp-node-setdata`.
+        """
     def set_link_target(self, target_file: str, target_path: str) -> None:
-        ...
+        """
+        Set link target metadata.
+        
+        See C++ counterpart: :ref:`cpp-node-setlinktarget`.
+        """
     def set_name(self, arg0: str) -> None:
-        ...
+        """
+        Set node name.
+        
+        See C++ counterpart: :ref:`cpp-node-setname`.
+        """
     def set_parameters(self, container_name: str, container_type: str = 'UserDefinedData_t', parameter_type: str = 'DataArray_t', **kwargs) -> Node:
-        ...
+        """
+        Populate a parameter container using treelab-like kwargs semantics.
+        
+        Special handling:
+        - `dict` values create nested parameter containers.
+        - `list[dict]` values create ordered `_list_.<index>` entries.
+        - `None`, callables and Node values are stored as null-like leaves.
+        - other values are stored as leaf data arrays/scalars.
+        
+        See C++ counterpart: :ref:`cpp-node-setparameters`.
+        """
     def set_type(self, arg0: str) -> None:
-        ...
+        """
+        Set node type.
+        
+        See C++ counterpart: :ref:`cpp-node-settype`.
+        """
     def siblings(self, include_myself: bool = True) -> list[Node]:
-        ...
+        """
+        Return siblings, optionally including self.
+        
+        See C++ counterpart: :ref:`cpp-node-siblings`.
+        """
     def swap(self, node: Node) -> None:
-        ...
+        """
+        Swap this node with another node.
+        
+        See C++ counterpart: :ref:`cpp-node-swap`.
+        """
     def type(self) -> str:
-        ...
+        """
+        Return node type.
+        
+        See C++ counterpart: :ref:`cpp-node-type`.
+        """
     def write(self, arg0: str) -> None:
-        ...
+        """
+        Write this subtree to file.
+        
+        See C++ counterpart: :ref:`cpp-node-write`.
+        """
 class _NodeGroup:
     @typing.overload
     def __add__(self, arg0: Node) -> _NodeGroup:
@@ -518,7 +680,11 @@ class _NodeGroup:
     def nodes(self) -> list[Node]:
         ...
 def new_node(name: str = '', type: str = '', data: typing.Any = None, parent: Node = None) -> Node:
-    ...
+    """
+    Construct a Node and optionally attach it to a parent.
+    
+    See C++ class: :ref:`cpp-node-class`.
+    """
 def nodeToPyCGNS(arg0: Node) -> list:
     """
     Convert a Node to a Python CGNS-like list.

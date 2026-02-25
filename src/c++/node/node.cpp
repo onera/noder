@@ -1,7 +1,6 @@
 #include "utils/compat.hpp"
 #include "data/data_factory.hpp"
 #include "node/node.hpp"
-#include "array/array.hpp"
 #include <limits>
 
 using namespace std::string_literals;
@@ -225,7 +224,7 @@ std::shared_ptr<Node> updateParameterOrMakeNewOne(
     if (parameterValue.kind == ParameterValue::Kind::Data && parameterValue.data) {
         parameterNode->setData(parameterValue.data);
     } else {
-        parameterNode->setData(std::make_shared<Array>());
+        parameterNode->setData(datafactory::makeDefaultData());
     }
 
     return parameterNode;
@@ -854,7 +853,7 @@ void Node::reloadNodeData(const std::string& filename) {
 
     if (updatedNode->hasLinkTarget()) {
         this->setLinkTarget(updatedNode->linkTargetFile(), updatedNode->linkTargetPath());
-        this->setData(std::make_shared<Array>());
+        this->setData(datafactory::makeDefaultData());
         return;
     }
 
@@ -903,7 +902,7 @@ void Node::saveThisNodeOnly(const std::string& filename, const std::string& back
                 persistedNode->path() + "'");
         }
         persistedNode->setLinkTarget(this->linkTargetFile(), this->linkTargetPath());
-        persistedNode->setData(std::make_shared<Array>());
+        persistedNode->setData(datafactory::makeDefaultData());
     } else {
         persistedNode->clearLinkTarget();
         persistedNode->setData(this->data());

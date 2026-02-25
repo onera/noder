@@ -200,15 +200,38 @@ static std::shared_ptr<Node> new_node(
 
 void bindNode(py::module_ &m) {
 
-    auto nodeClass = py::class_<Node, std::shared_ptr<Node>>(m, "Node")
+    auto nodeClass = py::class_<Node, std::shared_ptr<Node>>(
+        m,
+        "Node",
+        R"doc(
+Hierarchical CGNS-like node with typed payload, children and link metadata.
 
-        .def(py::init<const std::string&, const std::string&>(), "Node constructor",
+See C++ counterpart: :ref:`cpp-node-class`.
+)doc")
+
+        .def(py::init<const std::string&, const std::string&>(), R"doc(
+Construct a node with a name and type.
+
+See C++ counterpart: :ref:`cpp-node-ctor`.
+)doc",
              py::arg("name"), py::arg("type")="DataArray_t")
 
-        .def("pick", &Node::pick)  
+        .def("pick", &Node::pick, R"doc(
+Return the Navigation helper bound to this node.
 
-        .def("name", &Node::name)
-        .def("set_name", py::overload_cast<const std::string&>(&Node::setName))
+See C++ counterpart: :ref:`cpp-node-pick`.
+)doc")
+
+        .def("name", &Node::name, R"doc(
+Return node name.
+
+See C++ counterpart: :ref:`cpp-node-name`.
+)doc")
+        .def("set_name", py::overload_cast<const std::string&>(&Node::setName), R"doc(
+Set node name.
+
+See C++ counterpart: :ref:`cpp-node-setname`.
+)doc")
 
         .def("data", [](const Node &node) -> py::object {
             std::shared_ptr<Data> data = node.dataPtr();
@@ -216,11 +239,19 @@ void bindNode(py::module_ &m) {
                 return py::none();
             }
             return py::cast(data);  // Cast to correct type (`Array`, `ParallelArray`)
-        })
+        }, R"doc(
+Return node payload as a Data-compatible Python object, or None when empty.
+
+See C++ counterpart: :ref:`cpp-node-data`.
+)doc")
         
         .def("set_data", [](Node &node, const py::object& d) {
             node.setData(dataFromPyObject(d, "set_data"));
-        })
+        }, R"doc(
+Set node payload from scalar, string, NumPy array, list/tuple (converted via numpy.asarray), or Data.
+
+See C++ counterpart: :ref:`cpp-node-setdata`.
+)doc")
         .def(
             "set_parameters",
             [](Node& node,
@@ -239,6 +270,17 @@ void bindNode(py::module_ &m) {
                 }
                 return node.setParameters(containerName, entries, containerType, parameterType);
             },
+            R"doc(
+Populate a parameter container using treelab-like kwargs semantics.
+
+Special handling:
+- `dict` values create nested parameter containers.
+- `list[dict]` values create ordered `_list_.<index>` entries.
+- `None`, callables and Node values are stored as null-like leaves.
+- other values are stored as leaf data arrays/scalars.
+
+See C++ counterpart: :ref:`cpp-node-setparameters`.
+)doc",
             py::arg("container_name"),
             py::arg("container_type") = "UserDefinedData_t",
             py::arg("parameter_type") = "DataArray_t")
@@ -248,57 +290,198 @@ void bindNode(py::module_ &m) {
                 const ParameterValue parameters = node.getParameters(containerName);
                 return pyObjectFromParameterValue(parameters, transformNumpyScalars);
             },
+            R"doc(
+Read a parameter container and convert it back to Python dict/list/scalar-like objects.
+
+When `transform_numpy_scalars` is True, single-item NumPy arrays are converted to Python scalars.
+
+See C++ counterpart: :ref:`cpp-node-getparameters`.
+)doc",
             py::arg("container_name"),
             py::arg("transform_numpy_scalars") = false)
                 
-        .def("children", &Node::children)
-        .def("type", &Node::type)
-        .def("set_type", py::overload_cast<const std::string&>(&Node::setType))
-        .def("has_link_target", &Node::hasLinkTarget)
-        .def("link_target_file", &Node::linkTargetFile)
-        .def("link_target_path", &Node::linkTargetPath)
-        .def("get_links", &Node::getLinks)
+        .def("children", &Node::children, R"doc(
+Return direct children preserving insertion order.
+
+See C++ counterpart: :ref:`cpp-node-children`.
+)doc")
+        .def("type", &Node::type, R"doc(
+Return node type.
+
+See C++ counterpart: :ref:`cpp-node-type`.
+)doc")
+        .def("set_type", py::overload_cast<const std::string&>(&Node::setType), R"doc(
+Set node type.
+
+See C++ counterpart: :ref:`cpp-node-settype`.
+)doc")
+        .def("has_link_target", &Node::hasLinkTarget, R"doc(
+Whether link metadata is defined for this node.
+
+See C++ counterpart: :ref:`cpp-node-haslinktarget`.
+)doc")
+        .def("link_target_file", &Node::linkTargetFile, R"doc(
+Return link target file.
+
+See C++ counterpart: :ref:`cpp-node-linktargetfile`.
+)doc")
+        .def("link_target_path", &Node::linkTargetPath, R"doc(
+Return link target path.
+
+See C++ counterpart: :ref:`cpp-node-linktargetpath`.
+)doc")
+        .def("get_links", &Node::getLinks, R"doc(
+Collect all descendant link definitions in CGNS-compatible tuple format.
+
+See C++ counterpart: :ref:`cpp-node-getlinks`.
+)doc")
         .def("set_link_target", &Node::setLinkTarget,
+             R"doc(
+Set link target metadata.
+
+See C++ counterpart: :ref:`cpp-node-setlinktarget`.
+)doc",
              py::arg("target_file"), py::arg("target_path"))
-        .def("clear_link_target", &Node::clearLinkTarget)
-        .def("reload_node_data", &Node::reloadNodeData, py::arg("filename"))
+        .def("clear_link_target", &Node::clearLinkTarget, R"doc(
+Clear link target metadata.
+
+See C++ counterpart: :ref:`cpp-node-clearlinktarget`.
+)doc")
+        .def("reload_node_data", &Node::reloadNodeData,
+             R"doc(
+Reload this node payload from file using this node path.
+
+See C++ counterpart: :ref:`cpp-node-reloadnodedata`.
+)doc",
+             py::arg("filename"))
         .def("save_this_node_only", &Node::saveThisNodeOnly,
+             R"doc(
+Persist only this node payload/metadata into an existing file.
+
+See C++ counterpart: :ref:`cpp-node-savethisnodeonly`.
+)doc",
              py::arg("filename"), py::arg("backend")="hdf5")
         .def("parent", [](const Node &self) -> std::shared_ptr<Node> {
             return self.parent().lock();
-        }, "Returns the parent Node or None if no parent exists.")
-        .def("root", &Node::root)
-        .def("level", &Node::level)
-        .def("position", &Node::position)
-        .def("detach", &Node::detach)
-        .def("attach_to", &Node::attachTo, "attach this node to another",
+        }, R"doc(
+Return parent node or None when detached.
+
+See C++ counterpart: :ref:`cpp-node-parent`.
+)doc")
+        .def("root", &Node::root, R"doc(
+Return root ancestor.
+
+See C++ counterpart: :ref:`cpp-node-root`.
+)doc")
+        .def("level", &Node::level, R"doc(
+Return depth from root.
+
+See C++ counterpart: :ref:`cpp-node-level`.
+)doc")
+        .def("position", &Node::position, R"doc(
+Return sibling position.
+
+See C++ counterpart: :ref:`cpp-node-position`.
+)doc")
+        .def("detach", &Node::detach, R"doc(
+Detach from current parent.
+
+See C++ counterpart: :ref:`cpp-node-detach`.
+)doc")
+        .def("attach_to", &Node::attachTo, R"doc(
+Attach this node to another parent.
+
+See C++ counterpart: :ref:`cpp-node-attachto`.
+)doc",
              py::arg("node"),
              py::arg("position")=-1,
              py::arg("override_sibling_by_name")=true)
         .def("add_child", &Node::addChild,
+             R"doc(
+Add one child node.
+
+See C++ counterpart: :ref:`cpp-node-addchild`.
+)doc",
              py::arg("node"),
              py::arg("override_sibling_by_name")=true,
              py::arg("position")=-1)
-        .def("has_children", &Node::hasChildren)
-        .def("siblings", &Node::siblings, py::arg("include_myself")=true)
-        .def("has_siblings", &Node::hasSiblings)
-        .def("get_children_names", &Node::getChildrenNames)
+        .def("has_children", &Node::hasChildren, R"doc(
+Whether node has children.
+
+See C++ counterpart: :ref:`cpp-node-haschildren`.
+)doc")
+        .def("siblings", &Node::siblings,
+             R"doc(
+Return siblings, optionally including self.
+
+See C++ counterpart: :ref:`cpp-node-siblings`.
+)doc",
+             py::arg("include_myself")=true)
+        .def("has_siblings", &Node::hasSiblings, R"doc(
+Whether node has siblings excluding self.
+
+See C++ counterpart: :ref:`cpp-node-hassiblings`.
+)doc")
+        .def("get_children_names", &Node::getChildrenNames, R"doc(
+Return child names in insertion order.
+
+See C++ counterpart: :ref:`cpp-node-getchildrennames`.
+)doc")
         .def("add_children", &Node::addChildren,
+             R"doc(
+Add multiple children.
+
+See C++ counterpart: :ref:`cpp-node-addchildren`.
+)doc",
              py::arg("nodes"),
              py::arg("override_sibling_by_name")=true)
-        .def("swap", &Node::swap, py::arg("node"))
-        .def("copy", &Node::copy, py::arg("deep")=false)
-        .def("get_at_path", &Node::getAtPath, py::arg("path"), py::arg("path_is_relative")=false)
-        .def("merge", &Node::merge, py::arg("node"))
-        .def("path", &Node::path)
+        .def("swap", &Node::swap, R"doc(
+Swap this node with another node.
+
+See C++ counterpart: :ref:`cpp-node-swap`.
+)doc", py::arg("node"))
+        .def("copy", &Node::copy, R"doc(
+Copy subtree; deep copy clones payload arrays.
+
+See C++ counterpart: :ref:`cpp-node-copy`.
+)doc", py::arg("deep")=false)
+        .def("get_at_path", &Node::getAtPath,
+             R"doc(
+Resolve a node by path (absolute by default).
+
+See C++ counterpart: :ref:`cpp-node-getatpath`.
+)doc",
+             py::arg("path"), py::arg("path_is_relative")=false)
+        .def("merge", &Node::merge, R"doc(
+Merge descendants from another node with the same root name.
+
+See C++ counterpart: :ref:`cpp-node-merge`.
+)doc", py::arg("node"))
+        .def("path", &Node::path, R"doc(
+Return full path from root.
+
+See C++ counterpart: :ref:`cpp-node-path`.
+)doc")
         #ifdef ENABLE_HDF5_IO
-        .def("write", &Node::write)
+        .def("write", &Node::write, R"doc(
+Write this subtree to file.
+
+See C++ counterpart: :ref:`cpp-node-write`.
+)doc")
         #endif
-        .def("descendants", &Node::descendants)
+        .def("descendants", &Node::descendants, R"doc(
+Return this node and all descendants in depth-first order.
+
+See C++ counterpart: :ref:`cpp-node-descendants`.
+)doc")
 
 
         .def("__str__", &Node::__str__)
-        .def("print_tree", &Node::printTree, "print node in tree format",
+        .def("print_tree", &Node::printTree, R"doc(
+Render subtree as printable tree text.
+
+See C++ counterpart: :ref:`cpp-node-printtree`.
+)doc",
              py::arg("max_depth")=9999,  py::arg("highlighted_path")=std::string(""),
              py::arg("depth")=0, py::arg("last_pos")=false, py::arg("markers")=std::string(""))
 
@@ -309,6 +492,11 @@ void bindNode(py::module_ &m) {
     m.def(
         "new_node",
         &new_node,
+        R"doc(
+Construct a Node and optionally attach it to a parent.
+
+See C++ class: :ref:`cpp-node-class`.
+)doc",
         py::arg("name") = "",
         py::arg("type") = "",
         py::arg("data") = py::none(),

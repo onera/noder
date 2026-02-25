@@ -1,8 +1,3 @@
 # noder
 
-To see full cmake output during compilation pass `-v` argument to pip:
-```
-pip install . -v
-```
-
-
+NODER (Node-Oriented Data Extraction & Representation) is a hybrid C++/Python library for hierarchical scientific data handling with NumPy-backed payloads.

@@ -1,13 +1,24 @@
 # noder
 
+`noder` is a hybrid C++/Python library for hierarchical scientific data handling with CGNS-like node trees and NumPy-backed payloads.
+
+## Core features
+
+- Hierarchical `Node` graph with deterministic child ordering.
+- Typed payload support through `Data` / `Array`.
+- Fast navigation and tree querying utilities.
+- CGNS-style link metadata support.
+- HDF5 read/write support (when enabled at build time).
+- Python-friendly APIs, including parameter-container conversion:
+  - `set_parameters(...)`
+  - `get_parameters(...)`
+
+## Documentation map
+
 ```{toctree}
 :maxdepth: 2
-:hidden:
 
-```
-
-```{include} ../README.md
-:start-after: <!-- SPHINX-START -->
+api/index
 ```
 
 ## Indices and tables

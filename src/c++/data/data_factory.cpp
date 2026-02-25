@@ -30,6 +30,11 @@ std::shared_ptr<Data> datafactory::makeDataFrom(const char* value) {
     return std::make_shared<Array>(value);
 }
 
+std::shared_ptr<Data> datafactory::makeDefaultData() {
+    auto probeNode = std::make_shared<Node>();
+    return probeNode->data().clone();
+}
+
 template <typename... T>
 struct InstantiatorDataFactory {
     template <typename... U>
