@@ -1,7 +1,6 @@
 #include "utils/compat.hpp"
 #include "data/data_factory.hpp"
 #include "node/node.hpp"
-#include "array/array.hpp"
 #include <limits>
 
 using namespace std::string_literals;
@@ -518,13 +517,7 @@ std::shared_ptr<Node> Node::copy(bool deep) const {
     }
 
     if (deep) {
-        if (auto arrayData = std::dynamic_pointer_cast<Array>(_data)) {
-            py::gil_scoped_acquire acquireGil;
-            py::array copiedArray = arrayData->getPyArray().attr("copy")("K").cast<py::array>();
-            copiedNode->setData(std::make_shared<Array>(copiedArray));
-        } else {
-            copiedNode->setData(_data->clone());
-        }
+        copiedNode->setData(_data->copy(true));
     } else {
         copiedNode->setData(_data);
     }

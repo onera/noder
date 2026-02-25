@@ -12,6 +12,7 @@ public:
     virtual ~Data() = default;
 
     virtual std::shared_ptr<Data> clone() const = 0;
+    virtual std::shared_ptr<Data> copy(bool deep=false) const = 0;
     
     virtual bool hasString() const = 0;
     virtual bool isNone() const = 0;

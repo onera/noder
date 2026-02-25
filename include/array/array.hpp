@@ -66,6 +66,7 @@ public:
     */
 
     std::shared_ptr<Data> clone() const override;
+    std::shared_ptr<Data> copy(bool deep=false) const override;
 
     bool hasString() const override;
     bool isNone() const override;

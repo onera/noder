@@ -158,6 +158,16 @@ std::shared_ptr<Data> Array::clone() const {
     return std::make_shared<Array>(*this);
 }
 
+std::shared_ptr<Data> Array::copy(bool deep) const {
+    if (!deep) {
+        return this->clone();
+    }
+
+    py::gil_scoped_acquire acquireGil;
+    py::array copiedArray = this->pyArray.attr("copy")("K").cast<py::array>();
+    return std::make_shared<Array>(copiedArray);
+}
+
 
 bool Array::hasString() const {
     py::dtype dtype = pyArray.dtype();
