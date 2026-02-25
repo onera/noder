@@ -8,6 +8,7 @@
 
 namespace utils {
 
+    /** @brief Human-readable short names for scalar types used in bindings. */
     // Helper to get human-readable type names
     template <typename T>
     constexpr std::string_view getTypeName() {
@@ -25,18 +26,18 @@ namespace utils {
         else return "unknown";
     }
 
-    // TypeList for managing variadic type packs
-
+    /** @brief Tag wrapper used by generic bind/dispatch helpers. */
     template <typename T>
     struct TypeTag { using type = T; };
 
+    /** @brief Compile-time list of types. */
     template <typename... T>
     struct TypeList {};
 
     template <typename T>
     using DecayCvRef_t = std::remove_cv_t<std::remove_reference_t<T>>;
 
-    // Concatenation utility
+    /** @brief Concatenate two TypeList values. */
     template <typename List1, typename List2>
     struct Concat;
 
@@ -45,7 +46,7 @@ namespace utils {
         using type = TypeList<T1..., T2...>;
     };
 
-    // Helper alias for easier usage
+    /** @brief Alias for concatenated TypeList type. */
     template <typename List1, typename List2>
     using Concat_t = typename Concat<List1, List2>::type;
 
@@ -64,16 +65,21 @@ namespace utils {
 
     using StringAndScalarTypes = Concat_t<TypeList<std::string>, ScalarTypes>;
 
-    // Preferred dispatch order when converting Python runtime scalar types.
-    // Wider integral/floating types are attempted first.
+    /**
+     * @brief Preferred dispatch order for Python runtime integral conversions.
+     *
+     * Wider types are attempted first.
+     */
     using PythonIntegralDispatchTypes = TypeList<
         int64_t, uint64_t,
         int32_t, uint32_t,
         int16_t, uint16_t,
         int8_t, uint8_t>;
 
+    /** @brief Preferred dispatch order for Python runtime floating conversions. */
     using PythonFloatingDispatchTypes = TypeList<double, float>;
 
+    /** @brief True when T appears in TypeList TL (after cv-ref decay). */
     template <typename T, typename TL>
     struct ContainsType;
 
@@ -84,6 +90,7 @@ namespace utils {
     template <typename T, typename TL>
     inline constexpr bool ContainsType_v = ContainsType<T, TL>::value;
 
+    /** @brief Canonical scalar type used for safe runtime dispatching. */
     template <typename T, typename Enable = void>
     struct CanonicalScalarType;
 

@@ -33,8 +33,14 @@ namespace arrayfactory {
          2. manipulate arrays in-place by getting pointer.
          3. re-assign new numpy value if array shall be extended
     */
+    /**
+     * @brief Convert contiguous 1D C memory to Array.
+     * @param arrayInC Pointer to first element.
+     * @param nbOfItems Number of elements.
+     * @param copy If false, Array references caller-managed memory.
+     */
     template <typename T>
-    Array toArray1D(T arrayInC[], const size_t& nbOfItems, const bool& copy=true) {
+    Array toArray1D(T* arrayInC, const size_t& nbOfItems, const bool& copy=true) {
         ssize_t signedNbOfItems = static_cast<ssize_t>(nbOfItems);
         if ( copy ) {
             return Array(py::array_t<T>(signedNbOfItems, arrayInC));
@@ -43,6 +49,11 @@ namespace arrayfactory {
         }
     }
 
+    /**
+     * @brief Convert std::array to 1D Array.
+     * @param arrayInC Source fixed-size array.
+     * @param copy If false, returned Array references std::array storage.
+     */
     template <typename T, std::size_t N>
     Array toArray1D(const std::array<T, N>& arrayInC, const bool& copy=true) {
 
@@ -54,6 +65,11 @@ namespace arrayfactory {
     }
 
 
+    /**
+     * @brief Convert std::vector to 1D Array.
+     * @param arrayInC Source vector.
+     * @param copy If false, storage is shared when contiguous and supported.
+     */
     template <typename T>
     Array toArray1D(const std::vector<T>& arrayInC, const bool& copy = true) {
         if constexpr (std::is_same_v<T, bool>) {
@@ -79,6 +95,7 @@ namespace arrayfactory {
     }
 
 
+    /** @brief Convert contiguous pointer storage to 2D Array. */
     template <typename T>
     Array toArray2D(T* arrayInC, const size_t& rows, const size_t& cols, const bool& copy = false) {
         ssize_t sRows = static_cast<ssize_t>(rows);
@@ -95,6 +112,7 @@ namespace arrayfactory {
         }
     }
 
+    /** @brief Convert fixed-size nested std::array to 2D Array. */
     template <typename T, std::size_t ROWS, std::size_t COLS>
     Array toArray2D(const std::array<std::array<T, COLS>, ROWS>& arrayInC, const bool& copy = false) {
         if (copy) {
@@ -111,6 +129,10 @@ namespace arrayfactory {
         }
     }
 
+    /**
+     * @brief Convert vector-of-vectors to 2D Array.
+     * @note Non-copy path is unsupported because nested vectors are non-contiguous.
+     */
     template <typename T>
     Array toArray2D(const std::vector<std::vector<T>>& arrayInC, const bool& copy = false) {
         size_t rows = arrayInC.size();
@@ -131,6 +153,7 @@ namespace arrayfactory {
         }
     }
 
+    /** @brief Convert contiguous pointer storage to 3D Array. */
     template <typename T>
     Array toArray3D(T* arrayInC, size_t rows, size_t cols, size_t depth, const bool& copy = false) {
         if (copy) {
@@ -145,6 +168,7 @@ namespace arrayfactory {
         }
     }
 
+    /** @brief Convert fixed-size nested std::array to 3D Array. */
     template <typename T, size_t ROWS, size_t COLS, size_t DEPTH>
     Array toArray3D(const std::array<std::array<std::array<T, DEPTH>, COLS>, ROWS>& arrayInC,
                         const bool& copy = false) {
@@ -172,6 +196,10 @@ namespace arrayfactory {
         }
     }
 
+    /**
+     * @brief Convert vector-of-vector-of-vector to 3D Array.
+     * @note Non-copy path is unsupported because nested vectors are non-contiguous.
+     */
     template <typename T>
     Array toArray3D(const std::vector<std::vector<std::vector<T>>>& arrayInC, const bool& copy = false) {
         size_t rows = arrayInC.size();

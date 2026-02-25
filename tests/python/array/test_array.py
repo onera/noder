@@ -138,3 +138,194 @@ def test_nonContiguous():
     subarray = Array(non_contiguous_pyarray)
     assert not subarray.isContiguous()
 
+
+def test_array_init_example():
+    # docs:start array_init_example
+    from noder.core import Array
+    import numpy as np
+
+    array = Array(np.array([1, 2, 3], dtype=np.int32))
+    assert array.size() == 3
+    # docs:end array_init_example
+
+
+def test_array_getitem_example():
+    # docs:start array_getitem_example
+    from noder.core import Array
+    import numpy as np
+
+    array = Array(np.array([10, 20, 30], dtype=np.int32))
+    view = array[1]
+    assert view.getItemAtIndex(0) == 20
+    # docs:end array_getitem_example
+
+
+def test_array_setitem_example():
+    # docs:start array_setitem_example
+    from noder.core import Array
+    import numpy as np
+
+    array = Array(np.array([10, 20, 30], dtype=np.int32))
+    array[1] = 99
+    assert array.getItemAtIndex(1) == 99
+    # docs:end array_setitem_example
+
+
+def test_array_dimensions_example():
+    # docs:start array_dimensions_example
+    from noder.core import Array
+    import numpy as np
+
+    array = Array(np.array([[1, 2], [3, 4]], dtype=np.int32))
+    assert array.dimensions() == 2
+    # docs:end array_dimensions_example
+
+
+def test_array_size_example():
+    # docs:start array_size_example
+    from noder.core import Array
+    import numpy as np
+
+    array = Array(np.array([[1, 2], [3, 4]], dtype=np.int32))
+    assert array.size() == 4
+    # docs:end array_size_example
+
+
+def test_array_shape_example():
+    # docs:start array_shape_example
+    from noder.core import Array
+    import numpy as np
+
+    array = Array(np.array([[1, 2], [3, 4]], dtype=np.int32))
+    assert array.shape() == [2, 2]
+    # docs:end array_shape_example
+
+
+def test_array_strides_example():
+    # docs:start array_strides_example
+    from noder.core import Array
+    import numpy as np
+
+    array = Array(np.array([[1, 2], [3, 4]], dtype=np.int32))
+    assert len(array.strides()) == 2
+    # docs:end array_strides_example
+
+
+def test_array_get_item_at_index_example():
+    # docs:start array_get_item_at_index_example
+    from noder.core import Array
+    import numpy as np
+
+    array = Array(np.array([5, 6, 7], dtype=np.int32))
+    assert array.getItemAtIndex(2) == 7
+    # docs:end array_get_item_at_index_example
+
+
+def test_array_get_py_array_example():
+    # docs:start array_get_py_array_example
+    from noder.core import Array
+    import numpy as np
+
+    vector = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+    array = Array(vector)
+    assert np.array_equal(array.getPyArray(), vector)
+    # docs:end array_get_py_array_example
+
+
+def test_array_is_none_example():
+    # docs:start array_is_none_example
+    from noder.core import Array
+
+    array = Array()
+    assert array.isNone()
+    # docs:end array_is_none_example
+
+
+def test_array_is_scalar_example():
+    # docs:start array_is_scalar_example
+    from noder.core import Array
+
+    scalar = Array(3.14)
+    assert scalar.isScalar()
+    # docs:end array_is_scalar_example
+
+
+def test_array_is_contiguous_example():
+    # docs:start array_is_contiguous_example
+    from noder.core import factory
+
+    array = factory.zeros_int32([2, 3], "C")
+    assert array.isContiguous()
+    assert array.isContiguousInStyleC()
+    # docs:end array_is_contiguous_example
+
+
+def test_array_is_contiguous_fortran_example():
+    # docs:start array_is_contiguous_fortran_example
+    from noder.core import factory
+
+    array = factory.zeros_int32([2, 3], "F")
+    assert array.isContiguous()
+    assert array.isContiguousInStyleFortran()
+    # docs:end array_is_contiguous_fortran_example
+
+
+def test_array_has_string_example():
+    # docs:start array_has_string_example
+    from noder.core import Array
+
+    array = Array("hello")
+    assert array.hasString()
+    # docs:end array_has_string_example
+
+
+def test_array_extract_string_example():
+    # docs:start array_extract_string_example
+    from noder.core import Array
+
+    array = Array("hello")
+    assert array.extractString() == "hello"
+    # docs:end array_extract_string_example
+
+
+def test_array_get_flat_index_example():
+    # docs:start array_get_flat_index_example
+    from noder.core import Array
+    import numpy as np
+
+    array = Array(np.array([[1, 2, 3], [4, 5, 6]], dtype=np.int32))
+    assert array.getFlatIndex([1, 2]) == 5
+    # docs:end array_get_flat_index_example
+
+
+def test_array_get_print_string_example():
+    # docs:start array_get_print_string_example
+    from noder.core import Array
+    import numpy as np
+
+    array = Array(np.array([1, 2, 3], dtype=np.int32))
+    text = array.getPrintString(40)
+    assert isinstance(text, str)
+    # docs:end array_get_print_string_example
+
+
+def test_array_info_example():
+    # docs:start array_info_example
+    from noder.core import Array
+    import numpy as np
+
+    array = Array(np.array([1, 2, 3], dtype=np.int32))
+    text = array.info()
+    assert isinstance(text, str)
+    # docs:end array_info_example
+
+
+def test_array_print_example():
+    # docs:start array_print_example
+    from noder.core import Array
+    import numpy as np
+
+    array = Array(np.array([1, 2, 3], dtype=np.int32))
+    array.print(40)
+    # docs:end array_print_example
+

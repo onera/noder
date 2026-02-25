@@ -15,5 +15,7 @@ void test_operator_div_addChild_chain();
 void test_operator_div_with_plus_group();
 
 void test_operator_nested_expression_tree();
+void test_nodes_accessor();
+void test_empty_group();
 
 # endif

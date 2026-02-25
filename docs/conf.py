@@ -6,7 +6,7 @@ import os
 import sys
 
 project = "noder"
-copyright = "2024, Luis Bernardos"
+copyright = "2026, ONERA"
 author = "Luis Bernardos"
 
 DOCS_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -34,6 +34,8 @@ extensions = [
     "myst_parser",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
+    "breathe",
+    "exhale",
     "sphinx.ext.intersphinx",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
@@ -48,6 +50,8 @@ source_suffix = {
 }
 exclude_patterns = [
     "_build",
+    "html",
+    "html/**",
     "**.ipynb_checkpoints",
     "Thumbs.db",
     ".DS_Store",
@@ -80,3 +84,20 @@ nitpick_ignore = [
 ]
 
 always_document_param_types = True
+
+DOXYGEN_XML_DIR = os.path.join(DOCS_DIR, "_doxygen", "xml")
+breathe_projects = {"noder": DOXYGEN_XML_DIR}
+breathe_default_project = "noder"
+breathe_domain_by_extension = {
+    "hpp": "cpp",
+    "h": "cpp",
+}
+
+exhale_args = {
+    "containmentFolder": "./api/cpp/generated",
+    "rootFileName": "library_root.rst",
+    "rootFileTitle": "C++ API (Auto)",
+    "doxygenStripFromPath": PROJECT_ROOT,
+    "createTreeView": True,
+    "exhaleExecutesDoxygen": False,
+}

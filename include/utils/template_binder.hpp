@@ -14,16 +14,18 @@ namespace utils {
 
 
 // Generic function binder for all types in a TypeList
-template <typename FunctionTemplate, typename... T>
+template <typename FunctionTemplate, typename... T, typename... DefArgs>
 void bindForSpecifiedTypeList(
     py::module_ &m,
     const std::string &baseName,
     TypeList<T...>,
-    FunctionTemplate&& functionTemplate) {
+    FunctionTemplate&& functionTemplate,
+    DefArgs&&... defArgs) {
     auto&& ft = functionTemplate;
     (m.def(
         (baseName + "_" + std::string(getTypeName<T>())).c_str(),
-        ft.template operator()<T>(TypeTag<T>{})
+        ft.template operator()<T>(TypeTag<T>{}),
+        std::forward<DefArgs>(defArgs)...
      ),
      ...);
 }
@@ -46,39 +48,46 @@ void bindClassMethodForSpecifiedTypeList(
 }
 
 // Helpers to bind functions for predefined TypeList (see data_types.hpp)
-template <typename FunctionTemplate>
-void bindForFloatingTypes(py::module_ &m, const std::string &baseName, FunctionTemplate&& ft) {
-    bindForSpecifiedTypeList(m, baseName, FloatingTypes{}, std::forward<FunctionTemplate>(ft));
+template <typename FunctionTemplate, typename... DefArgs>
+void bindForFloatingTypes(py::module_ &m, const std::string &baseName, FunctionTemplate&& ft, DefArgs&&... defArgs) {
+    bindForSpecifiedTypeList(
+        m, baseName, FloatingTypes{}, std::forward<FunctionTemplate>(ft), std::forward<DefArgs>(defArgs)...);
 }
 
-template <typename FunctionTemplate>
-void bindForPositiveIntegralTypes(py::module_ &m, const std::string &baseName, FunctionTemplate&& ft) {
-    bindForSpecifiedTypeList(m, baseName, PositiveIntegralTypes{}, std::forward<FunctionTemplate>(ft));
+template <typename FunctionTemplate, typename... DefArgs>
+void bindForPositiveIntegralTypes(py::module_ &m, const std::string &baseName, FunctionTemplate&& ft, DefArgs&&... defArgs) {
+    bindForSpecifiedTypeList(
+        m, baseName, PositiveIntegralTypes{}, std::forward<FunctionTemplate>(ft), std::forward<DefArgs>(defArgs)...);
 }
 
-template <typename FunctionTemplate>
-void bindForSignedIntegralTypes(py::module_ &m, const std::string &baseName, FunctionTemplate&& ft) {
-    bindForSpecifiedTypeList(m, baseName, SignedIntegralTypes{}, std::forward<FunctionTemplate>(ft));
+template <typename FunctionTemplate, typename... DefArgs>
+void bindForSignedIntegralTypes(py::module_ &m, const std::string &baseName, FunctionTemplate&& ft, DefArgs&&... defArgs) {
+    bindForSpecifiedTypeList(
+        m, baseName, SignedIntegralTypes{}, std::forward<FunctionTemplate>(ft), std::forward<DefArgs>(defArgs)...);
 }
 
-template <typename FunctionTemplate>
-void bindForIntegralTypes(py::module_ &m, const std::string &baseName, FunctionTemplate&& ft) {
-    bindForSpecifiedTypeList(m, baseName, IntegralTypes{}, std::forward<FunctionTemplate>(ft));
+template <typename FunctionTemplate, typename... DefArgs>
+void bindForIntegralTypes(py::module_ &m, const std::string &baseName, FunctionTemplate&& ft, DefArgs&&... defArgs) {
+    bindForSpecifiedTypeList(
+        m, baseName, IntegralTypes{}, std::forward<FunctionTemplate>(ft), std::forward<DefArgs>(defArgs)...);
 }
 
-template <typename FunctionTemplate>
-void bindForFloatingAndIntegralTypes(py::module_ &m, const std::string &baseName, FunctionTemplate&& ft) {
-    bindForSpecifiedTypeList(m, baseName, FloatingAndIntegralTypes{}, std::forward<FunctionTemplate>(ft));
+template <typename FunctionTemplate, typename... DefArgs>
+void bindForFloatingAndIntegralTypes(py::module_ &m, const std::string &baseName, FunctionTemplate&& ft, DefArgs&&... defArgs) {
+    bindForSpecifiedTypeList(
+        m, baseName, FloatingAndIntegralTypes{}, std::forward<FunctionTemplate>(ft), std::forward<DefArgs>(defArgs)...);
 }
 
-template <typename FunctionTemplate>
-void bindForScalarTypes(py::module_ &m, const std::string &baseName, FunctionTemplate&& ft) {
-    bindForSpecifiedTypeList(m, baseName, ScalarTypes{}, std::forward<FunctionTemplate>(ft));
+template <typename FunctionTemplate, typename... DefArgs>
+void bindForScalarTypes(py::module_ &m, const std::string &baseName, FunctionTemplate&& ft, DefArgs&&... defArgs) {
+    bindForSpecifiedTypeList(
+        m, baseName, ScalarTypes{}, std::forward<FunctionTemplate>(ft), std::forward<DefArgs>(defArgs)...);
 }
 
-template <typename FunctionTemplate>
-void bindForStringAndScalarTypes(py::module_ &m, const std::string &baseName, FunctionTemplate&& ft) {
-    bindForSpecifiedTypeList(m, baseName, StringAndScalarTypes{}, std::forward<FunctionTemplate>(ft));
+template <typename FunctionTemplate, typename... DefArgs>
+void bindForStringAndScalarTypes(py::module_ &m, const std::string &baseName, FunctionTemplate&& ft, DefArgs&&... defArgs) {
+    bindForSpecifiedTypeList(
+        m, baseName, StringAndScalarTypes{}, std::forward<FunctionTemplate>(ft), std::forward<DefArgs>(defArgs)...);
 }
 
 // Helpers to bind class methods for predefined TypeList (see data_types.hpp)

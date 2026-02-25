@@ -263,7 +263,16 @@ std::vector<std::shared_ptr<Node>> dispatchAllByAnd(
 } // namespace
 
 void bindNavigation(py::module_ &m) {
-    auto navigation = py::class_<Navigation>(m, "Navigation");
+    auto navigation = py::class_<Navigation>(
+        m,
+        "Navigation",
+        R"doc(
+Tree-query helper attached to :py:class:`noder.core.Node` via :py:meth:`Node.pick`.
+
+Navigation methods search descendants by name, type, data, or combined predicates.
+
+See C++ counterpart: :ref:`cpp-navigation-class`.
+)doc");
 
     navigation
         .def("child_by_name", &Navigation::childByName, "Get child node by name")

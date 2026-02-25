@@ -46,6 +46,8 @@ def test_cpp_attachTo_multiple_levels(): test_in_cpp.test_attachTo_multiple_leve
 
 def test_cpp_addChild(): return test_in_cpp.test_addChild()
 
+def test_cpp_example_addChild(): return test_in_cpp.test_example_addChild()
+
 def test_cpp_detach_0(): return test_in_cpp.test_detach_0() 
 
 def test_cpp_detach_1(): return test_in_cpp.test_detach_1()
@@ -114,6 +116,7 @@ def test_cpp_getLinks(): return test_in_cpp.test_getLinks()
 def test_cpp_setParametersAndGetParameters(): return test_in_cpp.test_setParametersAndGetParameters()
 
 def test_cpp_getParametersMixedListAndDictFallback(): return test_in_cpp.test_getParametersMixedListAndDictFallback()
+def test_cpp_node_method_examples(): return test_in_cpp.test_node_method_examples()
 
 @pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
 def test_cpp_reloadNodeData(tmp_path):

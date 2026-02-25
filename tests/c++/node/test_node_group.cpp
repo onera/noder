@@ -95,3 +95,18 @@ void test_operator_nested_expression_tree() {
         }
     }
 }
+
+void test_nodes_accessor() {
+    auto a = newNode("a");
+    auto b = newNode("b");
+    NodeGroup group = a + b;
+    const auto& nodes = group.nodes();
+    if (nodes.size() != 2) throw py::value_error("expected 2 grouped nodes");
+    if (nodes[0].get() != a.get()) throw py::value_error("expected first node to be a");
+    if (nodes[1].get() != b.get()) throw py::value_error("expected second node to be b");
+}
+
+void test_empty_group() {
+    NodeGroup group;
+    if (!group.empty()) throw py::value_error("default group should be empty");
+}

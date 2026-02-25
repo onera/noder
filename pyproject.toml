@@ -44,6 +44,8 @@ dev = [
 docs = [
   "sphinx>=7.0",
   "myst_parser>=0.13",
+  "breathe>=4.36",
+  "exhale>=0.3.7",
   "sphinx_copybutton",
   "sphinx_autodoc_typehints",
   "furo>=2023.08.17",

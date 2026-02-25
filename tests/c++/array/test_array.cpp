@@ -33,6 +33,40 @@ void test_getArrayProperties() {
     auto strides = array.strides();
 }
 
+void test_getFlatIndex() {
+    Array array = arrayfactory::zeros<int32_t>({2, 3}, 'C');
+    size_t flatIndex = array.getFlatIndex({1, 2});
+    if (flatIndex != 5) {
+        throw py::value_error("getFlatIndex expected 5");
+    }
+}
+
+void test_getPyArray() {
+    Array array = arrayfactory::zeros<int16_t>({2, 3});
+    py::array pyArray = array.getPyArray();
+    if (pyArray.ndim() != 2) {
+        throw py::value_error("getPyArray expected 2 dimensions");
+    }
+}
+
+void test_extractString() {
+    Array array("example");
+    if (array.extractString() != "example") {
+        throw py::value_error("extractString expected 'example'");
+    }
+}
+
+void test_getPrintStringAndInfo() {
+    Array array = arrayfactory::uniformFromStep<int32_t>(0, 5);
+    array.print(40);
+    if (array.getPrintString(40).empty()) {
+        throw py::value_error("getPrintString should not be empty");
+    }
+    if (array.info().empty()) {
+        throw py::value_error("info should not be empty");
+    }
+}
+
 
 void test_sharingData() {
     int32_t carray[] = {0,0};

@@ -12,11 +12,21 @@
 
 namespace arrayfactory {
 
+    /**
+     * @brief Build a uniform 1D sequence from start/stop/step.
+     *
+     * Stop is excluded, similar to NumPy `arange`.
+     */
     template <typename T>
     Array uniformFromStep(const double& start,
                  const double& stop,
                  const double& step = 1);
 
+    /**
+     * @brief Build a uniform 1D sequence with a fixed number of points.
+     *
+     * Similar to NumPy `linspace`.
+     */
     template <typename T>
     Array uniformFromCount(const double& start,
                    const double& stop,

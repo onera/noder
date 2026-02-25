@@ -3,7 +3,7 @@
 
 #include "array/array.hpp"
 
-
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 class Array::Assertions {
 
 private:
@@ -61,5 +61,6 @@ public:
     }
     
 };
+#endif
 
 #endif 

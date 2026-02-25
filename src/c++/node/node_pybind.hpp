@@ -401,6 +401,16 @@ See C++ counterpart: :ref:`cpp-node-attachto`.
 Add one child node.
 
 See C++ counterpart: :ref:`cpp-node-addchild`.
+
+Example
+-------
+The following example is imported dynamically from the test suite:
+
+.. literalinclude:: ../../../tests/python/node/test_node.py
+   :language: python
+   :start-after: # docs:start add_child_example
+   :end-before: # docs:end add_child_example
+   :dedent: 4
 )doc",
              py::arg("node"),
              py::arg("override_sibling_by_name")=true,
@@ -494,6 +504,28 @@ See C++ counterpart: :ref:`cpp-node-printtree`.
         &new_node,
         R"doc(
 Construct a Node and optionally attach it to a parent.
+
+Parameters
+----------
+name : str, optional
+    Node name.
+type : str, optional
+    Node type.
+data : Any, optional
+    Payload convertible to :py:class:`noder.core.Data`.
+parent : Node or None, optional
+    Parent node for immediate attachment.
+
+Returns
+-------
+Node
+    Newly created node.
+
+Example
+-------
+.. literalinclude:: ../../../tests/python/node/test_node_factory.py
+   :language: python
+   :pyobject: test_new_node_parent
 
 See C++ class: :ref:`cpp-node-class`.
 )doc",

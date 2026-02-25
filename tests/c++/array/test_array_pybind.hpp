@@ -22,6 +22,10 @@ void bindTestsOfArray(py::module_ &m) {
     sm.def("constructorAnotherArray", &test_constructorAnotherArray);
 
     sm.def("getArrayProperties", &test_getArrayProperties);
+    sm.def("getFlatIndex", &test_getFlatIndex);
+    sm.def("getPyArray", &test_getPyArray);
+    sm.def("extractString", &test_extractString);
+    sm.def("getPrintStringAndInfo", &test_getPrintStringAndInfo);
 
     sm.def("sharingData", &test_sharingData);
 

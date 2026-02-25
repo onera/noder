@@ -26,6 +26,15 @@ void test_expectedString() {
     if (!a.data().hasString()) throw py::value_error("expected string");
 }
 
+void test_extractString() {
+    Node a;
+    Array array(std::string("test string"));
+    a.setData(array);
+    if (a.data().extractString() != "test string") {
+        throw py::value_error("expected string payload");
+    }
+}
+
 void test_isEqualToInteger() {
     int scalar = 5;
     Array array(scalar);

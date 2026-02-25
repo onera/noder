@@ -110,11 +110,34 @@ def test_attach_to_multiple_levels():
         assert parent is nodes[-2]        
 
 def test_add_child():
-    a = Node("a")
+    from noder.core import Node
+
+    # create nodes using default constructor
+    a = Node("a") 
     b = Node("b")
-    a.add_child(b)
+
+    a.add_child(b) # add b to a
+
+    # check if we got the expected result
     expected_path_of_b = "a/b"
     assert b.path() == expected_path_of_b 
+
+
+def test_add_child_example():
+    # docs:start add_child_example
+    from noder.core import Node
+
+    # create nodes using default constructor
+    a = Node("a")
+    b = Node("b")
+
+    a.add_child(b) # add b to a
+
+    # check if we got the expected result
+    expected_path_of_b = "a/b"
+    assert b.path() == expected_path_of_b
+    # docs:end add_child_example
+
 
 def test_override_sibling_by_name_attach_to():
     parent = Node("parent")
@@ -566,6 +589,465 @@ def test_save_this_node_only(tmp_path):
     assert persisted_stable is not None
     assert int(persisted_mutable.data().getPyArray()[0]) == 99
     assert int(persisted_stable.data().getPyArray()[0]) == 2
+
+
+def test_init_example():
+    # docs:start init_example
+    from noder.core import Node
+
+    node = Node("zone", "Zone_t")
+    assert node.name() == "zone"
+    assert node.type() == "Zone_t"
+    # docs:end init_example
+
+
+def test_pick_example():
+    # docs:start pick_example
+    from noder.core import Node
+
+    root = Node("root")
+    child = Node("child")
+    root.add_child(child)
+
+    assert root.pick().by_name("child") is child
+    # docs:end pick_example
+
+
+def test_name_example():
+    # docs:start name_example
+    from noder.core import Node
+
+    node = Node("zone")
+    assert node.name() == "zone"
+    # docs:end name_example
+
+
+def test_set_name_example():
+    # docs:start set_name_example
+    from noder.core import Node
+
+    node = Node("zone")
+    node.set_name("zone_updated")
+    assert node.name() == "zone_updated"
+    # docs:end set_name_example
+
+
+def test_type_example():
+    # docs:start type_example
+    from noder.core import Node
+
+    node = Node("zone", "Zone_t")
+    assert node.type() == "Zone_t"
+    # docs:end type_example
+
+
+def test_set_type_example():
+    # docs:start set_type_example
+    from noder.core import Node
+
+    node = Node("zone")
+    node.set_type("UserDefinedData_t")
+    assert node.type() == "UserDefinedData_t"
+    # docs:end set_type_example
+
+
+def test_data_example():
+    # docs:start data_example
+    from noder.core import Node
+    import numpy as np
+
+    node = Node("values")
+    node.set_data(np.array([1, 2, 3], dtype=np.int32))
+    assert np.array_equal(node.data().getPyArray(), np.array([1, 2, 3], dtype=np.int32))
+    # docs:end data_example
+
+
+def test_set_data_example():
+    # docs:start set_data_example
+    from noder.core import Node
+    import numpy as np
+
+    node = Node("values")
+    node.set_data([1.0, 2.0, 3.0])  # list/tuple are accepted and converted
+    assert np.array_equal(node.data().getPyArray(), np.array([1.0, 2.0, 3.0]))
+    # docs:end set_data_example
+
+
+def test_children_example():
+    # docs:start children_example
+    from noder.core import Node
+
+    root = Node("root")
+    root.add_children([Node("a"), Node("b")])
+    assert [child.name() for child in root.children()] == ["a", "b"]
+    # docs:end children_example
+
+
+def test_has_children_example():
+    # docs:start has_children_example
+    from noder.core import Node
+
+    root = Node("root")
+    assert not root.has_children()
+    root.add_child(Node("child"))
+    assert root.has_children()
+    # docs:end has_children_example
+
+
+def test_parent_example():
+    # docs:start parent_example
+    from noder.core import Node
+
+    root = Node("root")
+    child = Node("child")
+    root.add_child(child)
+    assert child.parent() is root
+    # docs:end parent_example
+
+
+def test_root_example():
+    # docs:start root_example
+    from noder.core import Node
+
+    root = Node("root")
+    child = Node("child")
+    leaf = Node("leaf")
+    root.add_child(child)
+    child.add_child(leaf)
+    assert leaf.root() is root
+    # docs:end root_example
+
+
+def test_level_example():
+    # docs:start level_example
+    from noder.core import Node
+
+    root = Node("root")
+    child = Node("child")
+    leaf = Node("leaf")
+    root.add_child(child)
+    child.add_child(leaf)
+    assert leaf.level() == 2
+    # docs:end level_example
+
+
+def test_position_example():
+    # docs:start position_example
+    from noder.core import Node
+
+    root = Node("root")
+    a = Node("a")
+    b = Node("b")
+    root.add_children([a, b])
+    assert a.position() == 0
+    assert b.position() == 1
+    # docs:end position_example
+
+
+def test_detach_example():
+    # docs:start detach_example
+    from noder.core import Node
+
+    root = Node("root")
+    child = Node("child")
+    root.add_child(child)
+    child.detach()
+    assert child.parent() is None
+    assert root.get_children_names() == []
+    # docs:end detach_example
+
+
+def test_attach_to_example():
+    # docs:start attach_to_example
+    from noder.core import Node
+
+    root = Node("root")
+    child = Node("child")
+    child.attach_to(root)
+    assert child.path() == "root/child"
+    # docs:end attach_to_example
+
+
+def test_add_children_example():
+    # docs:start add_children_example
+    from noder.core import Node
+
+    root = Node("root")
+    root.add_children([Node("a"), Node("b"), Node("c")])
+    assert root.get_children_names() == ["a", "b", "c"]
+    # docs:end add_children_example
+
+
+def test_siblings_example():
+    # docs:start siblings_example
+    from noder.core import Node
+
+    root = Node("root")
+    a = Node("a")
+    b = Node("b")
+    c = Node("c")
+    root.add_children([a, b, c])
+    assert [n.name() for n in b.siblings(include_myself=False)] == ["a", "c"]
+    # docs:end siblings_example
+
+
+def test_has_siblings_example():
+    # docs:start has_siblings_example
+    from noder.core import Node
+
+    root = Node("root")
+    a = Node("a")
+    b = Node("b")
+    root.add_children([a, b])
+    assert a.has_siblings()
+    # docs:end has_siblings_example
+
+
+def test_get_children_names_example():
+    # docs:start get_children_names_example
+    from noder.core import Node
+
+    root = Node("root")
+    root.add_children([Node("a"), Node("b")])
+    assert root.get_children_names() == ["a", "b"]
+    # docs:end get_children_names_example
+
+
+def test_swap_example():
+    # docs:start swap_example
+    from noder.core import Node
+
+    left = Node("left")
+    right = Node("right")
+    b = Node("b")
+    c = Node("c")
+    left.add_child(b)
+    right.add_child(c)
+    b.swap(c)
+    assert b.path() == "right/b"
+    assert c.path() == "left/c"
+    # docs:end swap_example
+
+
+def test_copy_example():
+    # docs:start copy_example
+    from noder.core import Node
+    import numpy as np
+
+    root = Node("root")
+    root.set_data(np.array([1.0, 2.0]))
+    shallow = root.copy()
+    deep = root.copy(deep=True)
+    assert np.shares_memory(root.data().getPyArray(), shallow.data().getPyArray())
+    assert not np.shares_memory(root.data().getPyArray(), deep.data().getPyArray())
+    # docs:end copy_example
+
+
+def test_get_at_path_example():
+    # docs:start get_at_path_example
+    from noder.core import Node
+
+    root = Node("root")
+    child = Node("child")
+    root.add_child(child)
+    assert root.get_at_path("root/child") is child
+    # docs:end get_at_path_example
+
+
+def test_path_example():
+    # docs:start path_example
+    from noder.core import Node
+
+    root = Node("root")
+    child = Node("child")
+    root.add_child(child)
+    assert child.path() == "root/child"
+    # docs:end path_example
+
+
+def test_descendants_example():
+    # docs:start descendants_example
+    from noder.core import Node
+
+    root = Node("root")
+    root.add_child(Node("a"))
+    root.add_child(Node("b"))
+    assert [n.name() for n in root.descendants()] == ["root", "a", "b"]
+    # docs:end descendants_example
+
+
+def test_merge_example():
+    # docs:start merge_example
+    from noder.core import Node
+
+    left = Node("Root")
+    left.add_child(Node("A"))
+    right = Node("Root")
+    right.add_child(Node("B"))
+    left.merge(right)
+    assert left.get_children_names() == ["A", "B"]
+    # docs:end merge_example
+
+
+def test_has_link_target_example():
+    # docs:start has_link_target_example
+    from noder.core import Node
+
+    node = Node("link")
+    assert not node.has_link_target()
+    node.set_link_target(".", "/root/target")
+    assert node.has_link_target()
+    # docs:end has_link_target_example
+
+
+def test_link_target_file_example():
+    # docs:start link_target_file_example
+    from noder.core import Node
+
+    node = Node("link")
+    node.set_link_target("external.cgns", "/CGNSTree/Base")
+    assert node.link_target_file() == "external.cgns"
+    # docs:end link_target_file_example
+
+
+def test_link_target_path_example():
+    # docs:start link_target_path_example
+    from noder.core import Node
+
+    node = Node("link")
+    node.set_link_target("external.cgns", "/CGNSTree/Base")
+    assert node.link_target_path() == "/CGNSTree/Base"
+    # docs:end link_target_path_example
+
+
+def test_set_link_target_example():
+    # docs:start set_link_target_example
+    from noder.core import Node
+
+    node = Node("link")
+    node.set_link_target(".", "/root/target")
+    assert node.has_link_target()
+    # docs:end set_link_target_example
+
+
+def test_clear_link_target_example():
+    # docs:start clear_link_target_example
+    from noder.core import Node
+
+    node = Node("link")
+    node.set_link_target(".", "/root/target")
+    node.clear_link_target()
+    assert not node.has_link_target()
+    # docs:end clear_link_target_example
+
+
+def test_get_links_example():
+    # docs:start get_links_example
+    from noder.core import Node
+
+    root = Node("root")
+    link = Node("link")
+    root.add_child(link)
+    link.set_link_target(".", "/root/target")
+    assert tuple(root.get_links()[0]) == (".", ".", "/root/link", "/root/target", 5)
+    # docs:end get_links_example
+
+
+def test_set_parameters_example():
+    # docs:start set_parameters_example
+    from noder.core import Node
+
+    root = Node("root")
+    root.set_parameters("Parameters", scalar=3.5, nested={"x": 1})
+    params = root.get_parameters("Parameters", transform_numpy_scalars=True)
+    assert params["scalar"] == 3.5
+    assert params["nested"]["x"] == 1
+    # docs:end set_parameters_example
+
+
+def test_get_parameters_example():
+    # docs:start get_parameters_example
+    from noder.core import Node
+
+    root = Node("root")
+    root.set_parameters("Parameters", values=[1, 2, 3])
+    params = root.get_parameters("Parameters")
+    assert params["values"].shape == (3,)
+    # docs:end get_parameters_example
+
+
+@pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
+def test_reload_node_data_example():
+    # docs:start reload_node_data_example
+    from noder.core import Node
+    from pathlib import Path
+    import tempfile
+    import numpy as np
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filename = str(Path(tmpdir) / "reload_node_data_example.cgns")
+        root = Node("root")
+        value = Node("value")
+        root.add_child(value)
+        value.set_data(np.array([3], dtype=np.int32))
+        root.write(filename)
+        value.set_data(np.array([9], dtype=np.int32))
+        value.reload_node_data(filename)
+        assert int(value.data().getPyArray()[0]) == 3
+    # docs:end reload_node_data_example
+
+
+@pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
+def test_save_this_node_only_example():
+    # docs:start save_this_node_only_example
+    from noder.core import Node
+    from pathlib import Path
+    import tempfile
+    import numpy as np
+    import noder.core.io as gio
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filename = str(Path(tmpdir) / "save_this_node_only_example.cgns")
+        root = Node("root")
+        mutable_node = Node("mutable")
+        mutable_node.set_data(np.array([1], dtype=np.int32))
+        root.add_child(mutable_node)
+        root.write(filename)
+        mutable_node.set_data(np.array([99], dtype=np.int32))
+        mutable_node.save_this_node_only(filename)
+        read_root = gio.read(filename)
+        assert int(read_root.get_at_path("root/mutable").data().getPyArray()[0]) == 99
+    # docs:end save_this_node_only_example
+
+
+def test_print_tree_example():
+    # docs:start print_tree_example
+    from noder.core import Node
+
+    root = Node("root")
+    root.add_children([Node("a"), Node("b")])
+    tree_text = root.print_tree()
+    assert "root" in tree_text
+    assert "a" in tree_text
+    # docs:end print_tree_example
+
+
+@pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
+def test_write_example():
+    # docs:start write_example
+    from noder.core import Node
+    from pathlib import Path
+    import tempfile
+    import noder.core.io as gio
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filename = str(Path(tmpdir) / "write_example.cgns")
+        root = Node("root")
+        root.add_child(Node("child"))
+        root.write(filename)
+        read_root = gio.read(filename)
+        assert read_root.get_at_path("root/child") is not None
+    # docs:end write_example
 
 
 def test_dangerous_extendChildren():

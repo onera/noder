@@ -12,6 +12,7 @@ void test_isNone();
 void test_isScalar();
 
 void test_expectedString();
+void test_extractString();
 
 void test_isEqualToInteger();
 

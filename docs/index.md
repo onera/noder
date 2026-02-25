@@ -1,6 +1,6 @@
 # noder
 
-`noder` is a hybrid C++/Python library for hierarchical scientific data handling with CGNS-like node trees and NumPy-backed payloads.
+`noder` (Node-Oriented Data Extraction & Representation) is a hybrid C++/Python library for hierarchical scientific data handling with CGNS-like node trees and NumPy-backed payloads.
 
 ## Core features
 

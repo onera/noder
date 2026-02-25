@@ -8,6 +8,10 @@ def test_constructorString(): return test_in_cpp.constructorString()
 def test_constructorAnotherArray(): return test_in_cpp.constructorAnotherArray()
 
 def test_getArrayProperties(): return test_in_cpp.getArrayProperties()
+def test_getFlatIndex(): return test_in_cpp.getFlatIndex()
+def test_getPyArray(): return test_in_cpp.getPyArray()
+def test_extractString(): return test_in_cpp.extractString()
+def test_getPrintStringAndInfo(): return test_in_cpp.getPrintStringAndInfo()
 
 def test_sharingData(): return test_in_cpp.sharingData()
 

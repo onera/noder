@@ -142,6 +142,23 @@ void test_addChild() {
     if ( b->path() != expected_path_of_b ) throw py::value_error("expected path 'a/b'");
 }
 
+void test_example_addChild() {
+    // docs:start add_child_cpp_example
+    # include <node/node.hpp>
+    # include <node/node_factory.hpp>
+    
+    auto a = newNode("a");
+    auto b = newNode("b");
+
+    a->addChild(b); // add b to a
+
+    const std::string expected_path_of_b = "a/b";
+    if (b->path() != expected_path_of_b) {
+        throw py::value_error("expected path 'a/b'");
+    }
+    // docs:end add_child_cpp_example
+}
+
 void test_addChildAsPointer() {
     auto a = newNode("a");
 
@@ -763,4 +780,431 @@ void test_merge() {
     if (mergedANames.size() != 2) throw py::value_error("expected A to contain X and Y after merge");
     if (mergedANames[0] != "X") throw py::value_error("expected first merged child X");
     if (mergedANames[1] != "Y") throw py::value_error("expected second merged child Y");
+}
+
+void test_Node_example() {
+    // docs:start init_cpp_example
+    auto node = newNode("zone", "Zone_t");
+    if (node->name() != "zone") throw py::value_error("expected name zone");
+    if (node->type() != "Zone_t") throw py::value_error("expected type Zone_t");
+    // docs:end init_cpp_example
+}
+
+void test_pick_example() {
+    // docs:start pick_cpp_example
+    auto root = newNode("root");
+    auto child = newNode("child");
+    root->addChild(child);
+    if (root->pick().byName("child").get() != child.get()) throw py::value_error("pick.byName failed");
+    // docs:end pick_cpp_example
+}
+
+void test_name_example() {
+    // docs:start name_cpp_example
+    auto node = newNode("zone");
+    if (node->name() != "zone") throw py::value_error("expected name zone");
+    // docs:end name_cpp_example
+}
+
+void test_setName_example() {
+    // docs:start setName_cpp_example
+    auto node = newNode("zone");
+    node->setName("zone_updated");
+    if (node->name() != "zone_updated") throw py::value_error("setName failed");
+    // docs:end setName_cpp_example
+}
+
+void test_type_example() {
+    // docs:start type_cpp_example
+    auto node = newNode("zone", "Zone_t");
+    if (node->type() != "Zone_t") throw py::value_error("expected type Zone_t");
+    // docs:end type_cpp_example
+}
+
+void test_setType_example() {
+    // docs:start setType_cpp_example
+    auto node = newNode("zone");
+    node->setType("UserDefinedData_t");
+    if (node->type() != "UserDefinedData_t") throw py::value_error("setType failed");
+    // docs:end setType_cpp_example
+}
+
+void test_data_example() {
+    // docs:start data_cpp_example
+    auto node = newNode("values");
+    node->setData(42);
+    if (!(node->data() == 42)) throw py::value_error("data accessor failed");
+    // docs:end data_cpp_example
+}
+
+void test_setData_example() {
+    // docs:start setData_cpp_example
+    auto node = newNode("values");
+    node->setData(3.14);
+    if (!(node->data() == 3.14)) throw py::value_error("setData failed");
+    // docs:end setData_cpp_example
+}
+
+void test_children_example() {
+    // docs:start children_cpp_example
+    auto root = newNode("root");
+    root->addChildren({newNode("a"), newNode("b")});
+    if (root->children().size() != 2) throw py::value_error("children size mismatch");
+    // docs:end children_cpp_example
+}
+
+void test_hasChildren_example() {
+    // docs:start hasChildren_cpp_example
+    auto root = newNode("root");
+    if (root->hasChildren()) throw py::value_error("expected no children");
+    root->addChild(newNode("child"));
+    if (!root->hasChildren()) throw py::value_error("expected children");
+    // docs:end hasChildren_cpp_example
+}
+
+void test_parent_example() {
+    // docs:start parent_cpp_example
+    auto root = newNode("root");
+    auto child = newNode("child");
+    root->addChild(child);
+    if (child->parent().lock().get() != root.get()) throw py::value_error("parent mismatch");
+    // docs:end parent_cpp_example
+}
+
+void test_root_example() {
+    // docs:start root_cpp_example
+    auto root = newNode("root");
+    auto child = newNode("child");
+    auto leaf = newNode("leaf");
+    root->addChild(child);
+    child->addChild(leaf);
+    if (leaf->root().get() != root.get()) throw py::value_error("root mismatch");
+    // docs:end root_cpp_example
+}
+
+void test_level_example() {
+    // docs:start level_cpp_example
+    auto root = newNode("root");
+    auto child = newNode("child");
+    auto leaf = newNode("leaf");
+    root->addChild(child);
+    child->addChild(leaf);
+    if (leaf->level() != 2) throw py::value_error("level mismatch");
+    // docs:end level_cpp_example
+}
+
+void test_position_example() {
+    // docs:start position_cpp_example
+    auto root = newNode("root");
+    auto a = newNode("a");
+    auto b = newNode("b");
+    root->addChildren({a, b});
+    if (a->position() != 0) throw py::value_error("expected first child at position 0");
+    if (b->position() != 1) throw py::value_error("expected second child at position 1");
+    // docs:end position_cpp_example
+}
+
+void test_detach_example() {
+    // docs:start detach_cpp_example
+    auto root = newNode("root");
+    auto child = newNode("child");
+    root->addChild(child);
+    child->detach();
+    if (child->parent().lock()) throw py::value_error("child should be detached");
+    if (!root->children().empty()) throw py::value_error("root should have no children");
+    // docs:end detach_cpp_example
+}
+
+void test_attachTo_example() {
+    // docs:start attachTo_cpp_example
+    auto root = newNode("root");
+    auto child = newNode("child");
+    child->attachTo(root);
+    if (child->path() != "root/child") throw py::value_error("attachTo path mismatch");
+    // docs:end attachTo_cpp_example
+}
+
+void test_addChild_example() {
+    // docs:start addChild_cpp_example
+    auto root = newNode("root");
+    auto child = newNode("child");
+    root->addChild(child);
+    if (child->path() != "root/child") throw py::value_error("addChild path mismatch");
+    // docs:end addChild_cpp_example
+}
+
+void test_addChildren_example() {
+    // docs:start addChildren_cpp_example
+    auto root = newNode("root");
+    root->addChildren({newNode("a"), newNode("b")});
+    if (root->getChildrenNames() != std::vector<std::string>({"a", "b"})) {
+        throw py::value_error("addChildren names mismatch");
+    }
+    // docs:end addChildren_cpp_example
+}
+
+void test_siblings_example() {
+    // docs:start siblings_cpp_example
+    auto root = newNode("root");
+    auto a = newNode("a");
+    auto b = newNode("b");
+    auto c = newNode("c");
+    root->addChildren({a, b, c});
+    auto siblings = b->siblings(false);
+    if (siblings.size() != 2) throw py::value_error("siblings(false) mismatch");
+    // docs:end siblings_cpp_example
+}
+
+void test_hasSiblings_example() {
+    // docs:start hasSiblings_cpp_example
+    auto root = newNode("root");
+    auto a = newNode("a");
+    auto b = newNode("b");
+    root->addChildren({a, b});
+    if (!a->hasSiblings()) throw py::value_error("expected siblings");
+    // docs:end hasSiblings_cpp_example
+}
+
+void test_getChildrenNames_example() {
+    // docs:start getChildrenNames_cpp_example
+    auto root = newNode("root");
+    root->addChildren({newNode("a"), newNode("b")});
+    if (root->getChildrenNames() != std::vector<std::string>({"a", "b"})) {
+        throw py::value_error("getChildrenNames mismatch");
+    }
+    // docs:end getChildrenNames_cpp_example
+}
+
+void test_swap_example() {
+    // docs:start swap_cpp_example
+    auto left = newNode("left");
+    auto right = newNode("right");
+    auto b = newNode("b");
+    auto c = newNode("c");
+    left->addChild(b);
+    right->addChild(c);
+    b->swap(c);
+    if (b->path() != "right/b") throw py::value_error("swap failed for b");
+    if (c->path() != "left/c") throw py::value_error("swap failed for c");
+    // docs:end swap_cpp_example
+}
+
+void test_copy_example() {
+    // docs:start copy_cpp_example
+    auto root = newNode("root");
+    root->setData(1.0);
+    auto shallow = root->copy();
+    auto deep = root->copy(true);
+    if (shallow->dataPtr().get() != root->dataPtr().get()) throw py::value_error("shallow copy should share data");
+    if (deep->dataPtr().get() == root->dataPtr().get()) throw py::value_error("deep copy should clone data");
+    // docs:end copy_cpp_example
+}
+
+void test_getAtPath_example() {
+    // docs:start getAtPath_cpp_example
+    auto root = newNode("root");
+    auto child = newNode("child");
+    root->addChild(child);
+    if (root->getAtPath("root/child").get() != child.get()) throw py::value_error("getAtPath failed");
+    // docs:end getAtPath_cpp_example
+}
+
+void test_path_example() {
+    // docs:start path_cpp_example
+    auto root = newNode("root");
+    auto child = newNode("child");
+    root->addChild(child);
+    if (child->path() != "root/child") throw py::value_error("path mismatch");
+    // docs:end path_cpp_example
+}
+
+void test_descendants_example() {
+    // docs:start descendants_cpp_example
+    auto root = newNode("root");
+    root->addChildren({newNode("a"), newNode("b")});
+    if (root->descendants().size() != 3) throw py::value_error("descendants size mismatch");
+    // docs:end descendants_cpp_example
+}
+
+void test_merge_example() {
+    // docs:start merge_cpp_example
+    auto left = newNode("Root");
+    left->addChild(newNode("A"));
+    auto right = newNode("Root");
+    right->addChild(newNode("B"));
+    left->merge(right);
+    if (left->getChildrenNames() != std::vector<std::string>({"A", "B"})) {
+        throw py::value_error("merge mismatch");
+    }
+    // docs:end merge_cpp_example
+}
+
+void test_hasLinkTarget_example() {
+    // docs:start hasLinkTarget_cpp_example
+    auto link = newNode("link");
+    if (link->hasLinkTarget()) throw py::value_error("link should not have target initially");
+    link->setLinkTarget(".", "/root/target");
+    if (!link->hasLinkTarget()) throw py::value_error("link target should be set");
+    // docs:end hasLinkTarget_cpp_example
+}
+
+void test_linkTargetFile_example() {
+    // docs:start linkTargetFile_cpp_example
+    auto link = newNode("link");
+    link->setLinkTarget("external.cgns", "/CGNSTree/Base");
+    if (link->linkTargetFile() != "external.cgns") throw py::value_error("linkTargetFile mismatch");
+    // docs:end linkTargetFile_cpp_example
+}
+
+void test_linkTargetPath_example() {
+    // docs:start linkTargetPath_cpp_example
+    auto link = newNode("link");
+    link->setLinkTarget("external.cgns", "/CGNSTree/Base");
+    if (link->linkTargetPath() != "/CGNSTree/Base") throw py::value_error("linkTargetPath mismatch");
+    // docs:end linkTargetPath_cpp_example
+}
+
+void test_setLinkTarget_example() {
+    // docs:start setLinkTarget_cpp_example
+    auto link = newNode("link");
+    link->setLinkTarget(".", "/root/target");
+    if (!link->hasLinkTarget()) throw py::value_error("setLinkTarget failed");
+    // docs:end setLinkTarget_cpp_example
+}
+
+void test_clearLinkTarget_example() {
+    // docs:start clearLinkTarget_cpp_example
+    auto link = newNode("link");
+    link->setLinkTarget(".", "/root/target");
+    link->clearLinkTarget();
+    if (link->hasLinkTarget()) throw py::value_error("clearLinkTarget failed");
+    // docs:end clearLinkTarget_cpp_example
+}
+
+void test_getLinks_example() {
+    // docs:start getLinks_cpp_example
+    auto root = newNode("root");
+    auto link = newNode("link");
+    root->addChild(link);
+    link->setLinkTarget(".", "/root/target");
+    if (root->getLinks().size() != 1) throw py::value_error("getLinks size mismatch");
+    // docs:end getLinks_cpp_example
+}
+
+void test_setParameters_example() {
+    // docs:start setParameters_cpp_example
+    auto root = newNode("root");
+    ParameterValue::DictEntries entries;
+    entries.emplace_back("alpha", ParameterValue::makeData(std::make_shared<Array>(double(1.5))));
+    root->setParameters("Parameters", entries);
+    auto out = root->getParameters("Parameters");
+    if (out.kind != ParameterValue::Kind::Dict) throw py::value_error("setParameters/getParameters dict mismatch");
+    // docs:end setParameters_cpp_example
+}
+
+void test_getParameters_example() {
+    // docs:start getParameters_cpp_example
+    auto root = newNode("root");
+    ParameterValue::DictEntries entries;
+    entries.emplace_back("count", ParameterValue::makeData(std::make_shared<Array>(int32_t(3))));
+    root->setParameters("Parameters", entries);
+    auto out = root->getParameters("Parameters");
+    const auto* count = findEntryByName(out.dictEntries, "count");
+    if (!count || !count->data || !(*count->data == 3)) throw py::value_error("getParameters value mismatch");
+    // docs:end getParameters_cpp_example
+}
+
+void test_printTree_example() {
+    // docs:start printTree_cpp_example
+    auto root = newNode("root");
+    root->addChildren({newNode("a"), newNode("b")});
+    auto tree = root->printTree();
+    if (tree.find("root") == std::string::npos) throw py::value_error("printTree output mismatch");
+    // docs:end printTree_cpp_example
+}
+
+#ifdef ENABLE_HDF5_IO
+void test_reloadNodeData_example() {
+    // docs:start reloadNodeData_cpp_example
+    const std::string filename = "reload_node_data_example.cgns";
+    auto root = newNode("root");
+    auto valueNode = newNode("value");
+    root->addChild(valueNode);
+    valueNode->setData(42);
+    root->write(filename);
+    valueNode->setData(-1);
+    valueNode->reloadNodeData(filename);
+    if (!(valueNode->data() == 42)) throw py::value_error("reloadNodeData example failed");
+    // docs:end reloadNodeData_cpp_example
+}
+
+void test_saveThisNodeOnly_example() {
+    // docs:start saveThisNodeOnly_cpp_example
+    const std::string filename = "save_this_node_only_example.cgns";
+    auto root = newNode("root");
+    auto mutableNode = newNode("mutable");
+    mutableNode->setData(1);
+    root->addChild(mutableNode);
+    root->write(filename);
+    mutableNode->setData(99);
+    mutableNode->saveThisNodeOnly(filename);
+    auto readRoot = io::read(filename);
+    if (!(readRoot->getAtPath("root/mutable")->data() == 99)) throw py::value_error("saveThisNodeOnly example failed");
+    // docs:end saveThisNodeOnly_cpp_example
+}
+
+void test_write_example() {
+    // docs:start write_cpp_example
+    const std::string filename = "write_example.cgns";
+    auto root = newNode("root");
+    root->addChild(newNode("child"));
+    root->write(filename);
+    auto readRoot = io::read(filename);
+    if (!readRoot->getAtPath("root/child")) throw py::value_error("write example failed");
+    // docs:end write_cpp_example
+}
+#endif
+
+void test_node_method_examples() {
+    test_Node_example();
+    test_pick_example();
+    test_name_example();
+    test_setName_example();
+    test_type_example();
+    test_setType_example();
+    test_data_example();
+    test_setData_example();
+    test_children_example();
+    test_hasChildren_example();
+    test_parent_example();
+    test_root_example();
+    test_level_example();
+    test_position_example();
+    test_detach_example();
+    test_attachTo_example();
+    test_addChild_example();
+    test_addChildren_example();
+    test_siblings_example();
+    test_hasSiblings_example();
+    test_getChildrenNames_example();
+    test_swap_example();
+    test_copy_example();
+    test_getAtPath_example();
+    test_path_example();
+    test_descendants_example();
+    test_merge_example();
+    test_hasLinkTarget_example();
+    test_linkTargetFile_example();
+    test_linkTargetPath_example();
+    test_setLinkTarget_example();
+    test_clearLinkTarget_example();
+    test_getLinks_example();
+    test_setParameters_example();
+    test_getParameters_example();
+    test_printTree_example();
+#ifdef ENABLE_HDF5_IO
+    test_reloadNodeData_example();
+    test_saveThisNodeOnly_example();
+    test_write_example();
+#endif
 }

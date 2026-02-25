@@ -12,6 +12,8 @@ void bindTestsOfNodeGroup(py::module_ &m) {
     sm.def("test_operator_div_addChild_chain", &test_operator_div_addChild_chain);
     sm.def("test_operator_div_with_plus_group", &test_operator_div_with_plus_group);
     sm.def("test_operator_nested_expression_tree", &test_operator_nested_expression_tree);
+    sm.def("test_nodes_accessor", &test_nodes_accessor);
+    sm.def("test_empty_group", &test_empty_group);
 }
 
 # endif

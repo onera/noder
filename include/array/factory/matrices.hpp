@@ -29,21 +29,27 @@ namespace arrayfactory {
 
     namespace py = pybind11;
 
+    /** @brief Allocate an array of shape @p shape filled with @p fill_value. */
     template <typename T>
     Array full(const std::vector<size_t>& shape, T fill_value, const char order = 'C');
 
+    /** @brief Allocate an uninitialized array. */
     template <typename T>
     Array empty(const std::vector<size_t>& shape, const char order = 'C');
 
+    /** @brief Compute C-order strides in bytes for @p shape. */
     template <typename T>
     std::vector<size_t> computeStridesInOrderC(const std::vector<size_t>& shape);
 
+    /** @brief Compute Fortran-order strides in bytes for @p shape. */
     template <typename T>
     std::vector<size_t> computeStridesInOrderF(const std::vector<size_t>& shape);
 
+    /** @brief Allocate a zero-initialized array. */
     template <typename T>
     Array zeros(const std::vector<size_t>& shape, const char order = 'C');
 
+    /** @brief Allocate a one-initialized array. */
     template <typename T>
     Array ones(const std::vector<size_t>& shape, const char order = 'C');
 

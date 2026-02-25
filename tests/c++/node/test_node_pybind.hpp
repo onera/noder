@@ -24,6 +24,7 @@ void bindTestsOfNode(py::module_ &m) {
     sm.def("test_attachTo", &test_attachTo);
     sm.def("test_attachTo_multiple_levels", &test_attachTo_multiple_levels);
     sm.def("test_addChild", &test_addChild);
+    sm.def("test_example_addChild", &test_example_addChild);
     sm.def("test_addChildAsPointer", &test_addChildAsPointer);
     sm.def("test_detach_0", &test_detach_0);
     sm.def("test_detach_1", &test_detach_1);
@@ -51,6 +52,7 @@ void bindTestsOfNode(py::module_ &m) {
     sm.def("test_getLinks", &test_getLinks);
     sm.def("test_setParametersAndGetParameters", &test_setParametersAndGetParameters);
     sm.def("test_getParametersMixedListAndDictFallback", &test_getParametersMixedListAndDictFallback);
+    sm.def("test_node_method_examples", &test_node_method_examples);
 #ifdef ENABLE_HDF5_IO
     sm.def("test_reloadNodeData", &test_reloadNodeData,
            py::arg("filename") = std::string("test_reload_node_data.cgns"));

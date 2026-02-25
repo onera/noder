@@ -11,6 +11,12 @@
 
 class Node;
 
+/**
+ * @brief Read-only traversal and query helper for Node trees.
+ *
+ * Navigation methods search descendants by name, type, data, glob or regex
+ * matching, and combined predicates.
+ */
 class Navigation {
 
 private:
@@ -18,8 +24,12 @@ private:
 
 public:
 
+    /** @brief Bind navigator to an owner node. */
     explicit Navigation(Node& ownerNode);
 
+    /** @name Queries by node name
+     *  @{
+     */
     std::shared_ptr<Node> childByName(const std::string& name);
 
     std::shared_ptr<Node> byName(const std::string& name, const size_t& depth=100);
@@ -33,7 +43,11 @@ public:
     std::shared_ptr<Node> byNameGlob(const std::string& name_pattern, const size_t& depth=100);
 
     std::vector<std::shared_ptr<Node>> allByNameGlob(const std::string& name_pattern, const size_t& depth=100);
+    /** @} */
 
+    /** @name Queries by node type
+     *  @{
+     */
     std::shared_ptr<Node> childByType(const std::string& type);
 
     std::shared_ptr<Node> byType(const std::string& type, const size_t& depth=100);
@@ -47,7 +61,11 @@ public:
     std::shared_ptr<Node> byTypeGlob(const std::string& name_pattern, const size_t& depth=100);
 
     std::vector<std::shared_ptr<Node>> allByTypeGlob(const std::string& name_pattern, const size_t& depth=100);
+    /** @} */
 
+    /** @name Queries by payload value
+     *  @{
+     */
     std::shared_ptr<Node> childByData(const std::string& data);
 
     std::shared_ptr<Node> childByData(const char* data);
@@ -72,7 +90,11 @@ public:
 
     template <typename T>
     std::vector<std::shared_ptr<Node>> allByData(const T& data, const size_t& depth=100);
+    /** @} */
 
+    /** @name Combined predicates (name + type + data)
+     *  @{
+     */
     std::shared_ptr<Node> byAnd(
         const std::string& name = std::string(""),
         const std::string& type = std::string(""),
@@ -111,6 +133,7 @@ public:
         const std::string& type = std::string(""),
         const T& data = std::string(""),
         const size_t& depth=100);
+    /** @} */
 
 };
 

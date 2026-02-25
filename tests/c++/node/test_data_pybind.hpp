@@ -14,6 +14,7 @@ void bindTestsOfData(py::module_ &m) {
     sm.def("isNone", &testdata::test_isNone);
     sm.def("isScalar", &testdata::test_isScalar);
     sm.def("expectedString", &testdata::test_expectedString);
+    sm.def("extractString", &testdata::test_extractString);
     sm.def("isEqualToInteger", &testdata::test_isEqualToInteger);
 }
 

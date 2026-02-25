@@ -13,6 +13,10 @@ void test_constructorString();
 void test_constructorAnotherArray();
 
 void test_getArrayProperties();
+void test_getFlatIndex();
+void test_getPyArray();
+void test_extractString();
+void test_getPrintStringAndInfo();
 
 void test_sharingData();
 

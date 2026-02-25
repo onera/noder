@@ -11,11 +11,15 @@ namespace py = pybind11;
 
 namespace utils {
 
+/**
+ * @brief Outcome flags returned by runtime cast dispatch helper.
+ */
 struct PyCastDispatchInfo {
     bool anyCast = false;
     bool stopped = false;
 };
 
+/** @brief True for recoverable Python conversion errors during probing. */
 inline bool isRecoverablePyConversionError(const py::error_already_set& e) {
     return e.matches(PyExc_TypeError) ||
            e.matches(PyExc_OverflowError) ||
@@ -23,6 +27,11 @@ inline bool isRecoverablePyConversionError(const py::error_already_set& e) {
 }
 
 template <typename... T, typename Visitor>
+/**
+ * @brief Try casting @p data to each type in a TypeList and visit successful casts.
+ *
+ * Stops early when visitor returns true.
+ */
 PyCastDispatchInfo dispatchByCastedTypeList(
     const py::object& data,
     TypeList<T...>,
@@ -52,6 +61,7 @@ PyCastDispatchInfo dispatchByCastedTypeList(
     return info;
 }
 
+/** @brief Try `data.item()` to unwrap NumPy scalar wrappers. */
 inline bool tryUnwrapPyScalarItem(const py::object& data, py::object& scalar) {
     if (!py::hasattr(data, "item")) {
         return false;

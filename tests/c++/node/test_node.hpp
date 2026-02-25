@@ -44,6 +44,7 @@ void test_attachTo();
 void test_attachTo_multiple_levels();
 
 void test_addChild();
+void test_example_addChild();
 
 void test_addChildAsPointer();
 
@@ -104,5 +105,48 @@ void test_saveThisNodeOnly(const std::string& filename = "test_save_this_node_on
 #endif
 
 void test_merge();
+
+void test_Node_example();
+void test_pick_example();
+void test_name_example();
+void test_setName_example();
+void test_type_example();
+void test_setType_example();
+void test_data_example();
+void test_setData_example();
+void test_children_example();
+void test_hasChildren_example();
+void test_parent_example();
+void test_root_example();
+void test_level_example();
+void test_position_example();
+void test_detach_example();
+void test_attachTo_example();
+void test_addChild_example();
+void test_addChildren_example();
+void test_siblings_example();
+void test_hasSiblings_example();
+void test_getChildrenNames_example();
+void test_swap_example();
+void test_copy_example();
+void test_getAtPath_example();
+void test_path_example();
+void test_descendants_example();
+void test_merge_example();
+void test_hasLinkTarget_example();
+void test_linkTargetFile_example();
+void test_linkTargetPath_example();
+void test_setLinkTarget_example();
+void test_clearLinkTarget_example();
+void test_getLinks_example();
+void test_setParameters_example();
+void test_getParameters_example();
+void test_printTree_example();
+#ifdef ENABLE_HDF5_IO
+void test_reloadNodeData_example();
+void test_saveThisNodeOnly_example();
+void test_write_example();
+#endif
+void test_node_method_examples();
 
 #endif // TEST_NODE_CLASS_H

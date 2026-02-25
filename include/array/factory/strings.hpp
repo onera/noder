@@ -15,10 +15,13 @@
 
 namespace arrayfactory {
 
+    /** @brief Convert UTF-8 text to a string-backed Array. */
     Array arrayFromString(const std::string& str);
 
+    /** @brief Convert UTF-8 text to a Unicode (`U`) Array. */
     Array arrayFromUnicodeString(const std::string& str);
 
+    /** @brief Convert UTF-8 text to UTF-32 code points. */
     std::u32string u32stringFromString(const std::string& str);
 }
 

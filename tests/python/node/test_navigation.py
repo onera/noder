@@ -571,3 +571,205 @@ def test_all_by_and_dispatcher_scalar():
 
     with pytest.raises(TypeError):
         a.pick().all_by_and("", "TypeT", {"unexpected": "type"})
+
+
+def _build_navigation_example_tree():
+    root = Node("root", "CGNSTree_t")
+
+    zone_a = Node("Zone_A", "Zone_t")
+    zone_a.set_data("prefix_A")
+    zone_b = Node("Zone_B", "Zone_t")
+    zone_b.set_data("prefix_B")
+    root.add_children([zone_a, zone_b])
+
+    coords_a = Node("Coords", "DataArray_t")
+    coords_a.set_data(3)
+    marker = Node("Marker", "UserDefinedData_t")
+    marker.set_data(7)
+    zone_a.add_children([coords_a, marker])
+
+    coords_b = Node("Coords", "DataArray_t")
+    coords_b.set_data(3)
+    zone_b.add_child(coords_b)
+
+    return root
+
+
+def test_child_by_name_example():
+    # docs:start child_by_name_example
+    tree = _build_navigation_example_tree()
+    node = tree.pick().child_by_name("Zone_A")
+    assert node is not None
+    assert node.name() == "Zone_A"
+    # docs:end child_by_name_example
+
+
+def test_by_name_example():
+    # docs:start by_name_example
+    tree = _build_navigation_example_tree()
+    node = tree.pick().by_name("Marker")
+    assert node is not None
+    assert node.name() == "Marker"
+    # docs:end by_name_example
+
+
+def test_all_by_name_example():
+    # docs:start all_by_name_example
+    tree = _build_navigation_example_tree()
+    matches = tree.pick().all_by_name("Coords")
+    assert len(matches) == 2
+    # docs:end all_by_name_example
+
+
+def test_by_name_regex_example():
+    # docs:start by_name_regex_example
+    tree = _build_navigation_example_tree()
+    node = tree.pick().by_name_regex(r"Zone_\w")
+    assert node is not None
+    assert node.name().startswith("Zone_")
+    # docs:end by_name_regex_example
+
+
+def test_all_by_name_regex_example():
+    # docs:start all_by_name_regex_example
+    tree = _build_navigation_example_tree()
+    matches = tree.pick().all_by_name_regex(r"Zone_\w")
+    assert len(matches) == 2
+    # docs:end all_by_name_regex_example
+
+
+def test_by_name_glob_example():
+    # docs:start by_name_glob_example
+    tree = _build_navigation_example_tree()
+    node = tree.pick().by_name_glob("Zone_*")
+    assert node is not None
+    assert node.name().startswith("Zone_")
+    # docs:end by_name_glob_example
+
+
+def test_all_by_name_glob_example():
+    # docs:start all_by_name_glob_example
+    tree = _build_navigation_example_tree()
+    matches = tree.pick().all_by_name_glob("Zone_*")
+    assert len(matches) == 2
+    # docs:end all_by_name_glob_example
+
+
+def test_child_by_type_example():
+    # docs:start child_by_type_example
+    tree = _build_navigation_example_tree()
+    node = tree.pick().child_by_type("Zone_t")
+    assert node is not None
+    assert node.type() == "Zone_t"
+    # docs:end child_by_type_example
+
+
+def test_by_type_example():
+    # docs:start by_type_example
+    tree = _build_navigation_example_tree()
+    node = tree.pick().by_type("UserDefinedData_t")
+    assert node is not None
+    assert node.name() == "Marker"
+    # docs:end by_type_example
+
+
+def test_all_by_type_example():
+    # docs:start all_by_type_example
+    tree = _build_navigation_example_tree()
+    matches = tree.pick().all_by_type("DataArray_t")
+    assert len(matches) == 2
+    # docs:end all_by_type_example
+
+
+def test_by_type_regex_example():
+    # docs:start by_type_regex_example
+    tree = _build_navigation_example_tree()
+    node = tree.pick().by_type_regex(r".*Defined.*")
+    assert node is not None
+    assert node.type() == "UserDefinedData_t"
+    # docs:end by_type_regex_example
+
+
+def test_all_by_type_regex_example():
+    # docs:start all_by_type_regex_example
+    tree = _build_navigation_example_tree()
+    matches = tree.pick().all_by_type_regex(r".*Array.*")
+    assert len(matches) == 2
+    # docs:end all_by_type_regex_example
+
+
+def test_by_type_glob_example():
+    # docs:start by_type_glob_example
+    tree = _build_navigation_example_tree()
+    node = tree.pick().by_type_glob("*Defined*")
+    assert node is not None
+    assert node.type() == "UserDefinedData_t"
+    # docs:end by_type_glob_example
+
+
+def test_all_by_type_glob_example():
+    # docs:start all_by_type_glob_example
+    tree = _build_navigation_example_tree()
+    matches = tree.pick().all_by_type_glob("*Array*")
+    assert len(matches) == 2
+    # docs:end all_by_type_glob_example
+
+
+def test_child_by_data_example():
+    # docs:start child_by_data_example
+    tree = _build_navigation_example_tree()
+    node = tree.pick().child_by_data("prefix_B")
+    assert node is not None
+    assert node.name() == "Zone_B"
+    # docs:end child_by_data_example
+
+
+def test_by_data_example():
+    # docs:start by_data_example
+    tree = _build_navigation_example_tree()
+    node = tree.pick().by_data("prefix_A")
+    assert node is not None
+    assert node.name() == "Zone_A"
+    # docs:end by_data_example
+
+
+def test_by_data_glob_example():
+    # docs:start by_data_glob_example
+    tree = _build_navigation_example_tree()
+    node = tree.pick().by_data_glob("prefix_B")
+    assert node is not None
+    assert node.name() == "Zone_B"
+    # docs:end by_data_glob_example
+
+
+def test_all_by_data_example():
+    # docs:start all_by_data_example
+    tree = _build_navigation_example_tree()
+    matches = tree.pick().all_by_data(3)
+    assert len(matches) == 2
+    # docs:end all_by_data_example
+
+
+def test_all_by_data_glob_example():
+    # docs:start all_by_data_glob_example
+    tree = _build_navigation_example_tree()
+    matches = tree.pick().all_by_data_glob("prefix_*")
+    assert len(matches) == 2
+    # docs:end all_by_data_glob_example
+
+
+def test_by_and_example():
+    # docs:start by_and_example
+    tree = _build_navigation_example_tree()
+    node = tree.pick().by_and(name="Marker", type="UserDefinedData_t", data=7)
+    assert node is not None
+    assert node.name() == "Marker"
+    # docs:end by_and_example
+
+
+def test_all_by_and_example():
+    # docs:start all_by_and_example
+    tree = _build_navigation_example_tree()
+    matches = tree.pick().all_by_and(type="DataArray_t", data=3)
+    assert len(matches) == 2
+    # docs:end all_by_and_example

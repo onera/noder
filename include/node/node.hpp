@@ -47,44 +47,57 @@ namespace datafactory {
 }
 # endif
 
+/**
+ * @brief Recursive value container used by Node parameter APIs.
+ *
+ * This structure models Python-like parameter payloads:
+ * - null-like placeholders
+ * - leaf Data values
+ * - ordered dictionaries
+ * - ordered lists
+ */
 struct NODE_EXPORT ParameterValue {
-    /// Supported parameter container kinds used to map between Python objects and Node trees.
+    /** @brief Runtime variant discriminator. */
     enum class Kind {
-        /// No value; corresponds to Python `None` or placeholder-like values.
         Null,
-        /// Leaf value represented by a `Data` instance.
         Data,
-        /// Mapping of named parameter entries.
         Dict,
-        /// Ordered list of parameter entries.
         List
     };
 
-    /// Ordered key/value pairs for dictionary-like parameters.
+    /** @brief Ordered dictionary entries. */
     using DictEntries = std::vector<std::pair<std::string, ParameterValue>>;
-    /// Ordered values for list-like parameters.
+    /** @brief Ordered list entries. */
     using ListEntries = std::vector<ParameterValue>;
 
-    /// Active kind stored in this container.
+    /** @brief Active kind for this value. */
     Kind kind = Kind::Null;
-    /// Leaf data payload used when `kind == Kind::Data`.
+    /** @brief Leaf payload when kind is Data. */
     std::shared_ptr<Data> data = nullptr;
-    /// Dictionary payload used when `kind == Kind::Dict`.
+    /** @brief Mapping payload when kind is Dict. */
     DictEntries dictEntries;
-    /// List payload used when `kind == Kind::List`.
+    /** @brief Sequence payload when kind is List. */
     ListEntries listEntries;
 
-    /// Build a null parameter value.
+    /** @brief Build a null-like value. */
     static ParameterValue makeNull();
-    /// Build a data parameter value from an existing `Data` pointer.
+    /** @brief Build a leaf Data value. */
     static ParameterValue makeData(std::shared_ptr<Data> inputData);
-    /// Build a dictionary parameter value preserving insertion order.
+    /** @brief Build an ordered dictionary value. */
     static ParameterValue makeDict(DictEntries entries);
-    /// Build a list parameter value preserving insertion order.
+    /** @brief Build an ordered list value. */
     static ParameterValue makeList(ListEntries entries);
 };
 
-/// Hierarchical CGNS-like node storing typed metadata, optional payload and children.
+/**
+ * @brief Hierarchical node for CGNS-like tree structures.
+ *
+ * A Node stores:
+ * - name/type metadata
+ * - optional Data payload
+ * - parent/children links
+ * - optional external-link metadata
+ */
 class NODE_EXPORT Node : public std::enable_shared_from_this<Node> {
 
 private:
@@ -106,165 +119,190 @@ private:
 
 public:
     
-    /// Set the global default factory used to initialize node payloads.
+    /**
+     * @brief Register default payload factory used by Node constructor.
+     * @param factory Callable returning a new default payload object.
+     */
     static void setDefaultFactory(std::function<std::shared_ptr<Data>()> factory);
 
-    /// Return this node and all descendants in depth-first order.
+    /**
+     * @brief Return this node and all descendants in depth-first order.
+     * @return Ordered vector including this node first.
+     */
     std::vector<std::shared_ptr<Node>> descendants(); // to be refactored into Navigation
 
-    /// Construct a node with a name and type.
+    /**
+     * @brief Construct a node.
+     * @param name Node name.
+     * @param type Node type string.
+     */
     Node(const std::string& name = "", const std::string& type = "DataArray_t");
 
     ~Node();
 
-    /// Access the navigation helper bound to this node.
+    /** @brief Access navigation helper bound to this node. */
     Navigation& pick();
     
-    /// Return `shared_ptr` to self when managed by shared ownership; otherwise null.
+    /** @brief Shared pointer to this node (or null when unmanaged). */
     std::shared_ptr<Node> selfPtr();
-    /// Const-qualified variant of `selfPtr`.
+    /** @brief Const shared pointer to this node (or null when unmanaged). */
     std::shared_ptr<const Node> selfPtr() const;
 
     // accessors and modifiers of class attributes
-    /// Node name.
+    /** @brief Node name accessor. */
     const std::string& name() const;
-    /// Set node name.
+    /** @brief Rename this node. */
     void setName(const std::string& name);
 
-    /// Node type string.
+    /** @brief Node type accessor. */
     std::string type() const;
-    /// Set node type string.
+    /** @brief Change node type string. */
     void setType(const std::string& type);
-    /// Whether this node holds link metadata.
+    /** @brief True when link target metadata is set. */
     bool hasLinkTarget() const;
-    /// Link target file component.
+    /** @brief Linked file for external/local link nodes. */
     const std::string& linkTargetFile() const;
-    /// Link target path component.
+    /** @brief Linked path for external/local link nodes. */
     const std::string& linkTargetPath() const;
-    /// Set link target metadata.
+    /**
+     * @brief Mark node as link to another file/path target.
+     * @param targetFile Target file ("." for same file).
+     * @param targetPath Target path in that file.
+     */
     void setLinkTarget(const std::string& targetFile, const std::string& targetPath);
-    /// Clear link target metadata.
+    /** @brief Remove link target metadata. */
     void clearLinkTarget();
 
-    /// Parent node (weak ownership).
+    /** @brief Parent accessor (weak to avoid cycles). */
     std::weak_ptr<Node> parent() const;
 
-    /// Access payload as `Data` reference.
+    /** @brief Read payload by reference. */
     const Data& data() const;
-    /// Access payload pointer.
+    /** @brief Read payload shared pointer. */
     std::shared_ptr<Data> dataPtr() const;
 
-    /// Set payload from `Data` pointer.
+    /** @brief Replace payload with shared Data instance. */
     void setData(std::shared_ptr<Data> d);
-    /// Set payload from cloned `Data` value.
+    /** @brief Replace payload by cloning another Data object. */
     void setData(const Data& d);
 
-    /// Set payload from scalar value.
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
     template <typename T, typename std::enable_if_t<utils::ContainsType_v<T, utils::ScalarTypes>, int> = 0>
     void setData(const T& d) {
         using CanonicalType = utils::CanonicalScalar_t<T>;
         this->setData(datafactory::makeDataFrom<CanonicalType>(static_cast<CanonicalType>(d)));
     }
 
-    /// Set payload from string value.
     template <typename T, typename std::enable_if_t<std::is_same_v<utils::DecayCvRef_t<T>, std::string>, int> = 0>
     void setData(const T& d) {
         this->setData(datafactory::makeDataFrom<std::string>(d));
     }
+#endif
 
-    /// Set payload from C string.
     void setData(const char* d) {
         this->setData(datafactory::makeDataFrom(d));
     }
 
-    /// Human-readable debug description of this node.
+    /** @brief Human-readable summary of this node. */
     std::string getInfo() const;
 
-    /// Whether node has no payload.
+    /** @brief True when payload is empty/none-like. */
     bool noData() const;
 
-    /// Child list.
+    /** @brief Child list accessor (in insertion order). */
     const std::vector<std::shared_ptr<Node>>& children() const;
-    /// Whether node has children.
+    /** @brief True when node has at least one child. */
     bool hasChildren() const;
-    /// Siblings, optionally including self.
+    /** @brief Siblings accessor with optional self inclusion. */
     std::vector<std::shared_ptr<Node>> siblings(bool includeMyself=true) const;
-    /// Whether node has siblings (excluding self).
+    /** @brief True when at least one sibling exists (excluding self). */
     bool hasSiblings() const;
-    /// Child names preserving child order.
+    /** @brief Return child names in insertion order. */
     std::vector<std::string> getChildrenNames() const;
     
-    /// Root ancestor.
+    /** @brief Return root ancestor for this node. */
     std::shared_ptr<const Node> root() const;
 
-    /// Depth from root.
+    /** @brief Depth level relative to root (root is 0). */
     size_t level() const;
 
-    /// Position among siblings.
+    /** @brief Position among siblings (0-based). */
     size_t position() const;
 
-    /// Detach node from parent.
+    /** @brief Detach this node from current parent. */
     void detach();
 
-    /// Attach node to a new parent.
+    /**
+     * @brief Attach this node below another parent node.
+     * @param node New parent.
+     * @param position Optional insertion index (-1 means append).
+     * @param overrideSiblingByName Replace conflicting sibling when true.
+     */
     void attachTo(
         std::shared_ptr<Node> node,
         const int16_t& position = -1,
         bool overrideSiblingByName = true);
     
-    /// Add one child.
+    /** @brief Attach one child to this node. */
     void addChild(
         std::shared_ptr<Node> node,
         bool overrideSiblingByName = true,
         const int16_t& position = -1);
-    /// Add multiple children.
+    /** @brief Attach multiple children to this node. */
     void addChildren(
         const std::vector<std::shared_ptr<Node>>& nodes,
         bool overrideSiblingByName = true);
-    /// Swap positions with another node.
+    /** @brief Swap parent attachment with another node. */
     void swap(std::shared_ptr<Node> node);
-    /// Copy subtree; optionally deep-copy payloads.
+    /** @brief Copy this subtree (deep copy duplicates payload buffers). */
     std::shared_ptr<Node> copy(bool deep=false) const;
-    /// Resolve node by path.
+    /** @brief Resolve a node from path (absolute or relative). */
     std::shared_ptr<Node> getAtPath(const std::string& path, bool pathIsRelative=false) const;
-    /// Collect link metadata in CGNS-compatible tuple layout.
+    /** @brief Collect all link descriptors under this subtree. */
     std::vector<std::tuple<std::string, std::string, std::string, std::string, int>> getLinks() const;
-    /// Write a parameter container from ordered key/value entries.
+    /**
+     * @brief Write/replace a parameter container node.
+     * @param containerName Name of container child.
+     * @param parameters Ordered key/value parameter entries.
+     * @param containerType Type of container node.
+     * @param parameterType Type used for leaf parameter nodes.
+     * @return Created or updated container node.
+     */
     std::shared_ptr<Node> setParameters(
         const std::string& containerName,
         const ParameterValue::DictEntries& parameters,
         const std::string& containerType = "UserDefinedData_t",
         const std::string& parameterType = "DataArray_t");
-    /// Read a parameter container as recursive `ParameterValue`.
+    /** @brief Read parameter container as recursive ParameterValue. */
     ParameterValue getParameters(const std::string& containerName) const;
-    /// Reload this node payload from file at the same path.
+    /** @brief Reload payload from disk using this node path as lookup key. */
     void reloadNodeData(const std::string& filename);
-    /// Persist only this node payload/metadata into an existing file.
+    /** @brief Save only this node payload/metadata to an existing file. */
     void saveThisNodeOnly(const std::string& filename, const std::string& backend = "hdf5");
-    /// Merge descendants from another node with same name.
+    /** @brief Merge another subtree into this node (same-root strategy). */
     void merge(std::shared_ptr<Node> node);
 
-    /// Full path from root.
+    /** @brief Build absolute path from root to this node. */
     std::string path() const;
 
     #ifdef ENABLE_HDF5_IO
-    /// Write subtree to file.
+    /** @brief Write this subtree to a CGNS/HDF5 file. */
     void write(const std::string& filename);
     #endif // ENABLE_HDF5_IO
 
     // Print method
-    /// Stream pretty-print helper.
+    /** @brief Stream helper for textual tree rendering. */
     void getPrintOutStream(std::ostream& os) const;
-    /// Python-like string representation.
+    /** @brief String representation used by Python bindings. */
     std::string __str__() const;
-    /// Render subtree as text tree.
+    /** @brief Render subtree as Unicode tree text. */
     std::string printTree(int max_depth=9999, std::string highlighted_path=std::string(""),
         int depth=0, bool last_pos=false, std::string markers=std::string("")) const;
 
     // Internal helpers for operator-expression semantics.
-    /// Set expression representative used by operator composition.
+    /** @brief Internal expression-composition helper. */
     void setExpressionRepresentative(std::shared_ptr<Node> node);
-    /// Get current expression representative.
+    /** @brief Internal expression-composition accessor. */
     std::shared_ptr<Node> expressionRepresentative() const;
 
     friend std::ostream& operator<<(std::ostream& os, const Node& node);

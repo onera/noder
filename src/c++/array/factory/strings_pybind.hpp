@@ -8,9 +8,53 @@ using namespace arrayfactory;
 
 void bindFactoryOfArraysFromStrings(py::module_ &m) {
 
-    m.def("arrayFromString", &arrayFromString, py::arg("string"), "Convert string to Array");
+    m.def(
+        "arrayFromString",
+        &arrayFromString,
+        py::arg("string"),
+        R"doc(
+Convert UTF-8 text into a string-backed :py:class:`noder.core.Array`.
 
-    m.def("arrayFromUnicodeString", &arrayFromUnicodeString, py::arg("string"), "Convert Unicode string to Array");
+Parameters
+----------
+string : str
+    Input UTF-8 text.
+
+Returns
+-------
+Array
+    String payload array.
+
+Example
+-------
+.. literalinclude:: ../../../tests/python/array/factory/test_strings.py
+   :language: python
+   :pyobject: test_arrayFromString
+)doc");
+
+    m.def(
+        "arrayFromUnicodeString",
+        &arrayFromUnicodeString,
+        py::arg("string"),
+        R"doc(
+Convert text into a Unicode (``U`` dtype) :py:class:`noder.core.Array`.
+
+Parameters
+----------
+string : str
+    Input text.
+
+Returns
+-------
+Array
+    Unicode payload array.
+
+Example
+-------
+.. literalinclude:: ../../../tests/python/array/factory/test_strings.py
+   :language: python
+   :pyobject: test_arrayFromUnicodeString
+)doc");
 
 }
 

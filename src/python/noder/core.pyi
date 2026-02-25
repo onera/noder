@@ -5,23 +5,77 @@ from . import factory
 from . import io
 __all__: list[str] = ['Array', 'Data', 'Navigation', 'Node', 'factory', 'io', 'new_node', 'nodeToPyCGNS', 'pyCGNSToNode', 'registerDefaultFactory']
 class Array(Data):
+    """
+    
+    NumPy-backed concrete :py:class:`noder.core.Data` payload.
+    
+    `Array` stores either numeric values or string-like values and exposes
+    lightweight helpers for shape, indexing, contiguity, and printing.
+    
+    See C++ counterpart: :ref:`cpp-array-class`.
+    """
     def __getitem__(self, arg0: typing.Any) -> Array:
-        ...
+        """
+        Return a sliced/indexed view as an :py:class:`Array`.
+        
+        Parameters
+        ----------
+        key : Any
+            NumPy-compatible index or slice expression.
+        
+        Returns
+        -------
+        Array
+            Indexed value wrapped as Array.
+        """
     @typing.overload
     def __init__(self) -> None:
-        ...
+        """
+        Construct an empty (None-like) array payload.
+        
+        Example
+        -------
+        .. literalinclude:: ../../../tests/python/array/test_array.py
+           :language: python
+           :pyobject: test_constructorEmpty
+        """
     @typing.overload
     def __init__(self, arg0: numpy.ndarray) -> None:
-        ...
+        """
+        Construct an Array from an existing NumPy ndarray.
+        
+        Parameters
+        ----------
+        arg0 : numpy.ndarray
+            Input array to wrap.
+        
+        Example
+        -------
+        .. literalinclude:: ../../../tests/python/array/test_array.py
+           :language: python
+           :pyobject: test_constructorPyArray
+        """
     @typing.overload
     def __init__(self, arg0: None) -> None:
-        ...
+        """
+        Construct an empty Array from ``None``.
+        """
     @typing.overload
     def __init__(self, arg0: str) -> None:
-        ...
+        """
+        Construct a string Array from UTF-8 text.
+        
+        Example
+        -------
+        .. literalinclude:: ../../../tests/python/array/test_array.py
+           :language: python
+           :pyobject: test_constructorString
+        """
     @typing.overload
     def __init__(self, arg0: Array) -> None:
-        ...
+        """
+        Copy-construct from another Array.
+        """
     @typing.overload
     def __init__(self, arg0: int) -> None:
         ...
@@ -56,53 +110,279 @@ class Array(Data):
     def __init__(self, arg0: bool) -> None:
         ...
     def __repr__(self) -> str:
-        ...
+        """
+        Return ``repr(array)`` style representation.
+        """
     def __setitem__(self, arg0: typing.Any, arg1: typing.Any) -> None:
-        ...
+        """
+        Assign a value into the underlying NumPy array.
+        
+        Parameters
+        ----------
+        key : Any
+            NumPy-compatible index or slice.
+        value : Any
+            Value assigned to the selected position(s).
+        """
     def dimensions(self) -> int:
-        ...
+        """
+        Return array rank (number of dimensions).
+        
+        Returns
+        -------
+        int
+            Number of dimensions.
+        """
     def extractString(self) -> str:
-        ...
+        """
+        Decode and return string payload.
+        
+        Returns
+        -------
+        str
+            UTF-8 string value.
+        
+        Example
+        -------
+        .. literalinclude:: ../../../tests/python/array/factory/test_strings.py
+           :language: python
+           :pyobject: test_arrayFromString
+        """
     def getFlatIndex(self, arg0: list[int]) -> int:
-        ...
+        """
+        Convert multidimensional indices to one flat index.
+        
+        Parameters
+        ----------
+        arg0 : list[int]
+            Indices per dimension.
+        
+        Returns
+        -------
+        int
+            Flat index in the current memory order.
+        """
     def getItemAtIndex(self, arg0: int) -> typing.Any:
-        ...
+        """
+        Read one element by flat index and return a Python scalar.
+        
+        Parameters
+        ----------
+        flatIndex : int
+            Zero-based flat index.
+        
+        Returns
+        -------
+        Any
+            Scalar value at requested position.
+        """
     def getPrintString(self, arg0: int) -> str:
-        ...
+        """
+        Return a compact textual representation.
+        
+        Parameters
+        ----------
+        arg0 : int
+            Maximum characters in output.
+        
+        Returns
+        -------
+        str
+            Formatted representation.
+        """
     def getPyArray(self) -> numpy.ndarray:
-        ...
+        """
+        Expose the underlying ``numpy.ndarray`` view.
+        
+        Returns
+        -------
+        numpy.ndarray
+            Wrapped NumPy array.
+        """
     def hasString(self) -> bool:
-        ...
+        """
+        Check whether this Array stores string data.
+        
+        Returns
+        -------
+        bool
+            ``True`` for string payloads.
+        """
     def info(self) -> str:
-        ...
+        """
+        Return detailed metadata and payload summary.
+        
+        Returns
+        -------
+        str
+            Human-readable Array description.
+        """
     def isContiguous(self) -> bool:
-        ...
+        """
+        Check whether memory layout is contiguous (C or Fortran order).
+        
+        Returns
+        -------
+        bool
+            ``True`` when contiguous.
+        """
     def isContiguousInStyleC(self) -> bool:
-        ...
+        """
+        Check C-order (row-major) contiguity.
+        
+        Returns
+        -------
+        bool
+            ``True`` for C-order contiguous arrays.
+        """
     def isContiguousInStyleFortran(self) -> bool:
-        ...
+        """
+        Check Fortran-order (column-major) contiguity.
+        
+        Returns
+        -------
+        bool
+            ``True`` for Fortran-order contiguous arrays.
+        """
     def isNone(self) -> bool:
-        ...
+        """
+        Check whether this Array is empty (None-like).
+        
+        Returns
+        -------
+        bool
+            ``True`` when empty.
+        """
     def isScalar(self) -> bool:
-        ...
+        """
+        Check whether this Array stores one scalar numeric value.
+        
+        Returns
+        -------
+        bool
+            ``True`` for scalar payloads.
+        """
     def print(self, arg0: int) -> None:
-        ...
+        """
+        Print a compact textual representation.
+        
+        Parameters
+        ----------
+        arg0 : int
+            Maximum characters to emit.
+        """
     def shape(self) -> list[int]:
-        ...
+        """
+        Return shape as a list of dimension lengths.
+        
+        Returns
+        -------
+        list[int]
+            Shape vector.
+        
+        Example
+        -------
+        .. literalinclude:: ../../../tests/python/array/test_array.py
+           :language: python
+           :pyobject: test_getArrayProperties
+        """
     def size(self) -> int:
-        ...
+        """
+        Return total number of elements.
+        
+        Returns
+        -------
+        int
+            Flat element count.
+        """
     def strides(self) -> list[int]:
-        ...
+        """
+        Return strides (in bytes) for each dimension.
+        
+        Returns
+        -------
+        list[int]
+            Stride vector.
+        """
 class Data:
+    """
+    
+    Abstract payload interface used by :py:class:`noder.core.Node`.
+    
+    This class is normally returned by :py:meth:`noder.core.Node.data` and most
+    concrete payloads are :py:class:`noder.core.Array`.
+    
+    See C++ counterpart: :ref:`cpp-data-class`.
+    """
     def extractString(self) -> str:
-        ...
+        """
+        Extract the payload as a Python string.
+        
+        Returns
+        -------
+        str
+            UTF-8 string representation of the payload.
+        
+        Example
+        -------
+        .. literalinclude:: ../../../tests/python/array/factory/test_strings.py
+           :language: python
+           :pyobject: test_arrayFromString
+        """
     def hasString(self) -> bool:
-        ...
+        """
+        Check whether this payload represents a string-like value.
+        
+        Returns
+        -------
+        bool
+            ``True`` when the payload stores string-compatible data.
+        
+        Example
+        -------
+        .. literalinclude:: ../../../tests/python/node/test_node.py
+           :language: python
+           :pyobject: test_dataInt
+        """
     def isNone(self) -> bool:
-        ...
+        """
+        Check whether this payload is empty (None-like).
+        
+        Returns
+        -------
+        bool
+            ``True`` when payload is considered empty.
+        
+        Example
+        -------
+        .. literalinclude:: ../../../tests/python/node/test_node.py
+           :language: python
+           :pyobject: test_parent_empty
+        """
     def isScalar(self) -> bool:
-        ...
+        """
+        Check whether this payload is a scalar numeric value.
+        
+        Returns
+        -------
+        bool
+            ``True`` when payload corresponds to a scalar.
+        
+        Example
+        -------
+        .. literalinclude:: ../../../tests/python/array/test_array.py
+           :language: python
+           :pyobject: test_isScalar
+        """
 class Navigation:
+    """
+    
+    Tree-query helper attached to :py:class:`noder.core.Node` via :py:meth:`Node.pick`.
+    
+    Navigation methods search descendants by name, type, data, or combined predicates.
+    
+    See C++ counterpart: :ref:`cpp-navigation-class`.
+    """
     def all_by_and(self, name: str = '', type: str = '', data: typing.Any = '', depth: int = 100) -> list[Node]:
         """
         get all nodes by and condition using name, type and data recursively (string or scalar)
@@ -416,10 +696,20 @@ class Node:
     """
     @typing.overload
     def __add__(self, arg0: Node) -> _NodeGroup:
-        ...
+        """
+        Create a :py:class:`_NodeGroup` from two nodes.
+        
+        Example
+        -------
+        .. literalinclude:: ../../../tests/python/node/test_node_group.py
+           :language: python
+           :pyobject: test_operator_plus_attach_to_first_parent
+        """
     @typing.overload
     def __add__(self, arg0: _NodeGroup) -> _NodeGroup:
-        ...
+        """
+        Prefix a node before an existing :py:class:`_NodeGroup`.
+        """
     def __init__(self, name: str, type: str = 'DataArray_t') -> None:
         """
         Construct a node with a name and type.
@@ -430,15 +720,29 @@ class Node:
         ...
     @typing.overload
     def __truediv__(self, arg0: Node) -> Node:
-        ...
+        """
+        Attach ``rhs`` as child of ``lhs`` and return ``rhs``.
+        """
     @typing.overload
     def __truediv__(self, arg0: _NodeGroup) -> Node:
-        ...
+        """
+        Attach all nodes in ``rhs`` as children of ``lhs`` and return the last node.
+        """
     def add_child(self, node: Node, override_sibling_by_name: bool = True, position: int = -1) -> None:
         """
         Add one child node.
         
         See C++ counterpart: :ref:`cpp-node-addchild`.
+        
+        Example
+        -------
+        The following example is imported dynamically from the test suite:
+        
+        .. literalinclude:: ../../../tests/python/node/test_node.py
+           :language: python
+           :start-after: # docs:start add_child_example
+           :end-before: # docs:end add_child_example
+           :dedent: 4
         """
     def add_children(self, nodes: list[Node], override_sibling_by_name: bool = True) -> None:
         """
@@ -671,27 +975,104 @@ class Node:
         See C++ counterpart: :ref:`cpp-node-write`.
         """
 class _NodeGroup:
+    """
+    
+    Internal helper type returned by Node expression operators.
+    
+    This type groups nodes for chained expressions such as ``a / (b + c)``.
+    """
     @typing.overload
     def __add__(self, arg0: Node) -> _NodeGroup:
-        ...
+        """
+        Append a node to this group and return a new group.
+        """
     @typing.overload
     def __add__(self, arg0: _NodeGroup) -> _NodeGroup:
-        ...
+        """
+        Concatenate two node groups.
+        """
     def nodes(self) -> list[Node]:
-        ...
+        """
+        Return grouped nodes in insertion order.
+        
+        Returns
+        -------
+        list[Node]
+            Grouped nodes.
+        """
 def new_node(name: str = '', type: str = '', data: typing.Any = None, parent: Node = None) -> Node:
     """
     Construct a Node and optionally attach it to a parent.
+    
+    Parameters
+    ----------
+    name : str, optional
+        Node name.
+    type : str, optional
+        Node type.
+    data : Any, optional
+        Payload convertible to :py:class:`noder.core.Data`.
+    parent : Node or None, optional
+        Parent node for immediate attachment.
+    
+    Returns
+    -------
+    Node
+        Newly created node.
+    
+    Example
+    -------
+    .. literalinclude:: ../../../tests/python/node/test_node_factory.py
+       :language: python
+       :pyobject: test_new_node_parent
     
     See C++ class: :ref:`cpp-node-class`.
     """
 def nodeToPyCGNS(arg0: Node) -> list:
     """
-    Convert a Node to a Python CGNS-like list.
+    Convert a Node hierarchy to a Python CGNS-like nested list.
+    
+    Parameters
+    ----------
+    arg0 : Node
+        Root node to convert.
+    
+    Returns
+    -------
+    list
+        CGNS-like list representation.
+    
+    Example
+    -------
+    .. literalinclude:: ../../../tests/python/io/test_node_pycgns.py
+       :language: python
+       :pyobject: test_nodeToPyCGNS_tree
     """
 def pyCGNSToNode(arg0: list) -> Node:
     """
-    Convert a Python CGNS-like list to a Node.
+    Convert a Python CGNS-like nested list into a Node hierarchy.
+    
+    Parameters
+    ----------
+    arg0 : list
+        CGNS-like list representation.
+    
+    Returns
+    -------
+    Node
+        Converted root node.
+    
+    Example
+    -------
+    .. literalinclude:: ../../../tests/python/io/test_node_pycgns.py
+       :language: python
+       :pyobject: test_pyCGNSToNode_tree
     """
 def registerDefaultFactory() -> None:
-    ...
+    """
+    Register the default data factory used by new nodes.
+    
+    Returns
+    -------
+    None
+    """

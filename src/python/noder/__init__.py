@@ -1,7 +1,7 @@
 """
-Copyright (c) 2024 Luis Bernardos. All rights reserved.
+Copyright (c) 2026 ONERA. All rights reserved.
 
-noder: Node Utility for Data Operations
+noder: Node-Oriented Data Extraction & Representation
 """
 import sys
 import os

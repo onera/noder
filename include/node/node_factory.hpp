@@ -4,6 +4,15 @@
 # include "node/node.hpp"
 # include "array/array.hpp"
 
+/**
+ * @brief Construct a Node with typed payload and optional parent.
+ *
+ * @tparam T Payload source type accepted by Node::setData.
+ * @param name Node name.
+ * @param type Node type string.
+ * @param data Payload value.
+ * @param parent Optional parent for immediate attachment.
+ */
 template <typename T> 
 std::shared_ptr<Node> newNode(
     const std::string& name,
@@ -12,7 +21,7 @@ std::shared_ptr<Node> newNode(
     std::shared_ptr<Node> parent = nullptr);
 
 
-// Overload: default data = bool(false)
+/** @brief Construct a Node with default empty Array payload. */
 inline std::shared_ptr<Node> newNode(
     const std::string& name = "",
     const std::string& type = "",
@@ -21,6 +30,7 @@ inline std::shared_ptr<Node> newNode(
     return newNode<Array>(name, type, Array(), parent);
 }
 
+/** @brief C-string payload convenience overload. */
 inline std::shared_ptr<Node> newNode(
     const std::string& name,
     const std::string& type,
