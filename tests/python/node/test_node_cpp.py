@@ -111,6 +111,10 @@ def test_cpp_getAtPath(): return test_in_cpp.test_getAtPath()
 
 def test_cpp_getLinks(): return test_in_cpp.test_getLinks()
 
+def test_cpp_setParametersAndGetParameters(): return test_in_cpp.test_setParametersAndGetParameters()
+
+def test_cpp_getParametersMixedListAndDictFallback(): return test_in_cpp.test_getParametersMixedListAndDictFallback()
+
 @pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
 def test_cpp_reloadNodeData(tmp_path):
     filename = str(tmp_path / "reload_node_data.cgns")

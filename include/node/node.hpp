@@ -47,6 +47,28 @@ namespace datafactory {
 }
 # endif
 
+struct NODE_EXPORT ParameterValue {
+    enum class Kind {
+        Null,
+        Data,
+        Dict,
+        List
+    };
+
+    using DictEntries = std::vector<std::pair<std::string, ParameterValue>>;
+    using ListEntries = std::vector<ParameterValue>;
+
+    Kind kind = Kind::Null;
+    std::shared_ptr<Data> data = nullptr;
+    DictEntries dictEntries;
+    ListEntries listEntries;
+
+    static ParameterValue makeNull();
+    static ParameterValue makeData(std::shared_ptr<Data> inputData);
+    static ParameterValue makeDict(DictEntries entries);
+    static ParameterValue makeList(ListEntries entries);
+};
+
 class NODE_EXPORT Node : public std::enable_shared_from_this<Node> {
 
 private:
@@ -150,6 +172,12 @@ public:
     std::shared_ptr<Node> copy(bool deep=false) const;
     std::shared_ptr<Node> getAtPath(const std::string& path, bool pathIsRelative=false) const;
     std::vector<std::tuple<std::string, std::string, std::string, std::string, int>> getLinks() const;
+    std::shared_ptr<Node> setParameters(
+        const std::string& containerName,
+        const ParameterValue::DictEntries& parameters,
+        const std::string& containerType = "UserDefinedData_t",
+        const std::string& parameterType = "DataArray_t");
+    ParameterValue getParameters(const std::string& containerName) const;
     void reloadNodeData(const std::string& filename);
     void saveThisNodeOnly(const std::string& filename, const std::string& backend = "hdf5");
     void merge(std::shared_ptr<Node> node);

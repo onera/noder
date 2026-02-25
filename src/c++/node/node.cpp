@@ -24,6 +24,10 @@ namespace {
 
 using LinkRecord = std::tuple<std::string, std::string, std::string, std::string, int>;
 
+bool isListEntryName(const std::string& name) {
+    return name.rfind("_list_.", 0) == 0;
+}
+
 int16_t toAttachPosition(size_t position, const char* context) {
     if (position > static_cast<size_t>(std::numeric_limits<int16_t>::max())) {
         throw std::runtime_error(std::string(context) + ": sibling position exceeds int16_t range");
@@ -181,7 +185,170 @@ void appendLinksRecursively(const std::shared_ptr<const Node>& node, std::vector
     }
 }
 
+std::shared_ptr<Node> childByNameDepth1(const std::shared_ptr<Node>& parent, const std::string& childName) {
+    if (!parent) {
+        return nullptr;
+    }
+    return parent->pick().childByName(childName);
+}
+
+std::shared_ptr<Node> childByNameDepth1(const Node& parent, const std::string& childName) {
+    for (const auto& child : parent.children()) {
+        if (!child) {
+            continue;
+        }
+        if (child->name() == childName) {
+            return child;
+        }
+    }
+    return nullptr;
+}
+
+std::shared_ptr<Node> updateParameterOrMakeNewOne(
+    const std::shared_ptr<Node>& parent,
+    const std::string& parameterName,
+    const ParameterValue& parameterValue,
+    const std::string& parameterType) {
+
+    if (!parent) {
+        throw std::invalid_argument("updateParameterOrMakeNewOne: parent cannot be null");
+    }
+
+    auto parameterNode = childByNameDepth1(parent, parameterName);
+    if (!parameterNode) {
+        parameterNode = std::make_shared<Node>(parameterName, parameterType);
+        parameterNode->attachTo(parent);
+    }
+
+    parameterNode->setType(parameterType);
+
+    if (parameterValue.kind == ParameterValue::Kind::Data && parameterValue.data) {
+        parameterNode->setData(parameterValue.data);
+    } else {
+        parameterNode->setData(std::make_shared<Array>());
+    }
+
+    return parameterNode;
+}
+
+void setParametersRecursively(
+    const std::shared_ptr<Node>& parent,
+    const ParameterValue::DictEntries& parameters,
+    const std::string& containerType,
+    const std::string& parameterType) {
+
+    for (const auto& [parameterName, parameterValue] : parameters) {
+        if (parameterValue.kind == ParameterValue::Kind::Dict) {
+            parent->setParameters(
+                parameterName,
+                parameterValue.dictEntries,
+                containerType,
+                parameterType);
+            continue;
+        }
+
+        if (parameterValue.kind == ParameterValue::Kind::List) {
+            if (parameterValue.listEntries.empty()) {
+                updateParameterOrMakeNewOne(parent, parameterName, ParameterValue::makeNull(), parameterType);
+                continue;
+            }
+
+            auto listContainer = updateParameterOrMakeNewOne(
+                parent,
+                parameterName,
+                ParameterValue::makeNull(),
+                parameterType);
+
+            for (size_t i = 0; i < parameterValue.listEntries.size(); ++i) {
+                const auto& listItem = parameterValue.listEntries[i];
+                if (listItem.kind != ParameterValue::Kind::Dict) {
+                    throw std::invalid_argument(
+                        "setParameters: expected dict at " + parent->path() + "/" + parameterName);
+                }
+                listContainer->setParameters(
+                    "_list_." + std::to_string(i),
+                    listItem.dictEntries,
+                    containerType,
+                    parameterType);
+            }
+            continue;
+        }
+
+        updateParameterOrMakeNewOne(parent, parameterName, parameterValue, parameterType);
+    }
+}
+
+ParameterValue getParametersRecursively(const std::shared_ptr<Node>& container) {
+    if (!container) {
+        throw std::invalid_argument("getParametersRecursively: container cannot be null");
+    }
+
+    ParameterValue::DictEntries dictEntries;
+    ParameterValue::ListEntries listEntries;
+
+    for (const auto& parameterNode : container->children()) {
+        if (!parameterNode) {
+            continue;
+        }
+
+        if (isListEntryName(parameterNode->name())) {
+            listEntries.push_back(getParametersRecursively(parameterNode));
+            continue;
+        }
+
+        if (parameterNode->hasChildren()) {
+            dictEntries.emplace_back(parameterNode->name(), getParametersRecursively(parameterNode));
+            continue;
+        }
+
+        if (parameterNode->noData()) {
+            dictEntries.emplace_back(parameterNode->name(), ParameterValue::makeNull());
+            continue;
+        }
+
+        dictEntries.emplace_back(parameterNode->name(), ParameterValue::makeData(parameterNode->dataPtr()));
+    }
+
+    if (!dictEntries.empty() && listEntries.empty()) {
+        return ParameterValue::makeDict(std::move(dictEntries));
+    }
+    if (dictEntries.empty() && !listEntries.empty()) {
+        return ParameterValue::makeList(std::move(listEntries));
+    }
+    if (!dictEntries.empty() && !listEntries.empty()) {
+        listEntries.push_back(ParameterValue::makeDict(std::move(dictEntries)));
+        return ParameterValue::makeList(std::move(listEntries));
+    }
+
+    return ParameterValue::makeDict({});
+}
+
 } // namespace
+
+ParameterValue ParameterValue::makeNull() {
+    return ParameterValue{};
+}
+
+ParameterValue ParameterValue::makeData(std::shared_ptr<Data> inputData) {
+    ParameterValue output;
+    output.kind = Kind::Data;
+    output.data = std::move(inputData);
+    return output;
+}
+
+ParameterValue ParameterValue::makeDict(DictEntries entries) {
+    ParameterValue output;
+    output.kind = Kind::Dict;
+    output.dictEntries = std::move(entries);
+    return output;
+}
+
+ParameterValue ParameterValue::makeList(ListEntries entries) {
+    ParameterValue output;
+    output.kind = Kind::List;
+    output.listEntries = std::move(entries);
+    return output;
+}
 
 std::function<std::shared_ptr<Data>()> Node::dataFactory;
 
@@ -646,6 +813,30 @@ std::vector<std::tuple<std::string, std::string, std::string, std::string, int>>
 
     appendLinksRecursively(thisPtr, links);
     return links;
+}
+
+std::shared_ptr<Node> Node::setParameters(
+    const std::string& containerName,
+    const ParameterValue::DictEntries& parameters,
+    const std::string& containerType,
+    const std::string& parameterType) {
+
+    auto thisPtr = selfPtr();
+    if (!thisPtr) {
+        throw std::runtime_error("setParameters: stack-allocated nodes are not supported");
+    }
+
+    auto container = updateParameterOrMakeNewOne(thisPtr, containerName, ParameterValue::makeNull(), containerType);
+    setParametersRecursively(container, parameters, containerType, parameterType);
+    return container;
+}
+
+ParameterValue Node::getParameters(const std::string& containerName) const {
+    auto container = childByNameDepth1(*this, containerName);
+    if (!container) {
+        throw std::runtime_error("getParameters: node " + containerName + " not found in " + path());
+    }
+    return getParametersRecursively(container);
 }
 
 void Node::reloadNodeData(const std::string& filename) {

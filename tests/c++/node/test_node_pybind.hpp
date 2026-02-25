@@ -49,6 +49,8 @@ void bindTestsOfNode(py::module_ &m) {
     sm.def("test_copy", &test_copy);
     sm.def("test_getAtPath", &test_getAtPath);
     sm.def("test_getLinks", &test_getLinks);
+    sm.def("test_setParametersAndGetParameters", &test_setParametersAndGetParameters);
+    sm.def("test_getParametersMixedListAndDictFallback", &test_getParametersMixedListAndDictFallback);
 #ifdef ENABLE_HDF5_IO
     sm.def("test_reloadNodeData", &test_reloadNodeData,
            py::arg("filename") = std::string("test_reload_node_data.cgns"));

@@ -42,6 +42,17 @@ std::shared_ptr<Data> dataFromPyObject(const py::object& data, const char* conte
         return std::make_shared<Array>(data.cast<py::array>());
     }
 
+    if (py::isinstance<py::list>(data) || py::isinstance<py::tuple>(data)) {
+        try {
+            py::module_ np = py::module_::import("numpy");
+            py::array arrayData = np.attr("asarray")(data).cast<py::array>();
+            return std::make_shared<Array>(arrayData);
+        } catch (const py::error_already_set&) {
+            throw py::type_error(
+                std::string(context) + ": list/tuple could not be converted to a NumPy array");
+        }
+    }
+
     // NumPy scalars (and 0d/size-1 arrays) can often be converted through item()
     if (py::hasattr(data, "item")) {
         try {
@@ -57,6 +68,117 @@ std::shared_ptr<Data> dataFromPyObject(const py::object& data, const char* conte
     throw py::type_error(
         std::string(context) +
         ": unsupported data type: " + py::str(data.get_type()).cast<std::string>());
+}
+
+ParameterValue::DictEntries parameterEntriesFromPyMapping(const py::handle& mapping, const char* context);
+
+ParameterValue parameterValueFromPyObject(const py::handle& value, const char* context) {
+    py::object objectValue = py::reinterpret_borrow<py::object>(value);
+
+    if (objectValue.is_none() || PyCallable_Check(objectValue.ptr())) {
+        return ParameterValue::makeNull();
+    }
+
+    if (py::isinstance<Node>(objectValue)) {
+        return ParameterValue::makeNull();
+    }
+
+    if (py::isinstance<py::dict>(objectValue)) {
+        return ParameterValue::makeDict(parameterEntriesFromPyMapping(objectValue, context));
+    }
+
+    if (py::isinstance<py::list>(objectValue) || py::isinstance<py::tuple>(objectValue)) {
+        py::sequence sequenceValue = objectValue.cast<py::sequence>();
+        const size_t sequenceSize = py::len(sequenceValue);
+        if (sequenceSize == 0) {
+            return ParameterValue::makeNull();
+        }
+
+        py::object firstElement = py::reinterpret_borrow<py::object>(sequenceValue[0]);
+        if (firstElement.is_none() || py::isinstance<Node>(firstElement)) {
+            return ParameterValue::makeNull();
+        }
+
+        if (py::isinstance<py::dict>(firstElement)) {
+            ParameterValue::ListEntries entries;
+            entries.reserve(sequenceSize);
+            for (size_t i = 0; i < sequenceSize; ++i) {
+                py::object item = py::reinterpret_borrow<py::object>(sequenceValue[i]);
+                if (!py::isinstance<py::dict>(item)) {
+                    throw py::value_error(std::string(context) + ": expected dict in list of dicts");
+                }
+                entries.push_back(ParameterValue::makeDict(parameterEntriesFromPyMapping(item, context)));
+            }
+            return ParameterValue::makeList(std::move(entries));
+        }
+    }
+
+    return ParameterValue::makeData(dataFromPyObject(objectValue, context));
+}
+
+ParameterValue::DictEntries parameterEntriesFromPyMapping(const py::handle& mapping, const char* context) {
+    if (!py::isinstance<py::dict>(mapping)) {
+        throw py::type_error(std::string(context) + ": expected dict-like mapping");
+    }
+
+    py::dict mappingDict = py::reinterpret_borrow<py::dict>(mapping);
+    ParameterValue::DictEntries entries;
+    entries.reserve(mappingDict.size());
+
+    for (const auto& item : mappingDict) {
+        if (!py::isinstance<py::str>(item.first)) {
+            throw py::type_error(std::string(context) + ": parameter names must be strings");
+        }
+        const std::string parameterName = item.first.cast<std::string>();
+        entries.emplace_back(parameterName, parameterValueFromPyObject(item.second, context));
+    }
+    return entries;
+}
+
+py::object pyObjectFromParameterValue(const ParameterValue& value, bool transformNumpyScalars) {
+    switch (value.kind) {
+        case ParameterValue::Kind::Null:
+            return py::none();
+
+        case ParameterValue::Kind::Data: {
+            if (!value.data || value.data->isNone()) {
+                return py::none();
+            }
+
+            auto arrayData = std::dynamic_pointer_cast<Array>(value.data);
+            if (!arrayData) {
+                return py::cast(value.data);
+            }
+
+            py::array output = arrayData->getPyArray();
+            if (transformNumpyScalars && output.size() == 1) {
+                try {
+                    return output.attr("item")();
+                } catch (const py::error_already_set&) {
+                    // Keep array output when item() is not applicable.
+                }
+            }
+            return output;
+        }
+
+        case ParameterValue::Kind::Dict: {
+            py::dict output;
+            for (const auto& [key, childValue] : value.dictEntries) {
+                output[py::str(key)] = pyObjectFromParameterValue(childValue, transformNumpyScalars);
+            }
+            return output;
+        }
+
+        case ParameterValue::Kind::List: {
+            py::list output;
+            for (const auto& childValue : value.listEntries) {
+                output.append(pyObjectFromParameterValue(childValue, transformNumpyScalars));
+            }
+            return output;
+        }
+    }
+
+    throw py::value_error("get_parameters: unsupported ParameterValue kind");
 }
 
 } // namespace
@@ -99,6 +221,35 @@ void bindNode(py::module_ &m) {
         .def("set_data", [](Node &node, const py::object& d) {
             node.setData(dataFromPyObject(d, "set_data"));
         })
+        .def(
+            "set_parameters",
+            [](Node& node,
+               const std::string& containerName,
+               const std::string& containerType,
+               const std::string& parameterType,
+               py::kwargs parameters) {
+                ParameterValue::DictEntries entries;
+                entries.reserve(parameters.size());
+                for (const auto& item : parameters) {
+                    if (!py::isinstance<py::str>(item.first)) {
+                        throw py::type_error("set_parameters: parameter names must be strings");
+                    }
+                    const std::string parameterName = item.first.cast<std::string>();
+                    entries.emplace_back(parameterName, parameterValueFromPyObject(item.second, "set_parameters"));
+                }
+                return node.setParameters(containerName, entries, containerType, parameterType);
+            },
+            py::arg("container_name"),
+            py::arg("container_type") = "UserDefinedData_t",
+            py::arg("parameter_type") = "DataArray_t")
+        .def(
+            "get_parameters",
+            [](const Node& node, const std::string& containerName, bool transformNumpyScalars) {
+                const ParameterValue parameters = node.getParameters(containerName);
+                return pyObjectFromParameterValue(parameters, transformNumpyScalars);
+            },
+            py::arg("container_name"),
+            py::arg("transform_numpy_scalars") = false)
                 
         .def("children", &Node::children)
         .def("type", &Node::type)

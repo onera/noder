@@ -471,6 +471,63 @@ def test_get_links():
     assert len(links) == 1
     assert tuple(links[0]) == (".", ".", "/root/link", "/root/target", 5)
 
+def test_set_data_list_and_tuple():
+    node = Node("values")
+    node.set_data([1, 2, 3])
+    assert np.array_equal(node.data().getPyArray(), np.array([1, 2, 3]))
+
+    node.set_data((1.5, 2.5))
+    assert np.array_equal(node.data().getPyArray(), np.array([1.5, 2.5]))
+
+def test_set_and_get_parameters():
+    root = Node("root")
+
+    placeholder = Node("placeholder")
+    root.set_parameters(
+        "Parameters",
+        scalar=3.5,
+        nested={"x": 1, "y": 2},
+        list_of_dicts=[{"k": 7}, {"k": 9}],
+        none_like=None,
+        node_like=placeholder,
+        callable_like=(lambda x: x),
+        vector=[1, 2, 3],
+    )
+
+    params = root.get_parameters("Parameters")
+    assert isinstance(params, dict)
+    assert isinstance(params["scalar"], np.ndarray)
+    assert np.allclose(params["scalar"], np.array([3.5]))
+    assert params["none_like"] is None
+    assert params["node_like"] is None
+    assert params["callable_like"] is None
+    assert np.array_equal(params["vector"], np.array([1, 2, 3]))
+    assert isinstance(params["nested"], dict)
+    assert isinstance(params["list_of_dicts"], list)
+    assert len(params["list_of_dicts"]) == 2
+
+    scalarized = root.get_parameters("Parameters", transform_numpy_scalars=True)
+    assert isinstance(scalarized["scalar"], float)
+    assert scalarized["scalar"] == 3.5
+    assert scalarized["nested"]["x"] == 1
+
+def test_get_parameters_mixed_list_and_dict_fallback():
+    root = Node("root")
+    payload = {
+        "_list_.1": {"v": 10},
+        "_list_.0": {"v": 20},
+        "scalar": 2,
+    }
+    root.set_parameters("Mixed", **payload)
+
+    params = root.get_parameters("Mixed")
+    assert isinstance(params, list)
+    assert len(params) == 3
+    assert params[0]["v"].item() == 10
+    assert params[1]["v"].item() == 20
+    assert isinstance(params[2], dict)
+    assert params[2]["scalar"].item() == 2
+
 @pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
 def test_reload_node_data(tmp_path):
     filename = str(tmp_path / "reload_node_data.cgns")

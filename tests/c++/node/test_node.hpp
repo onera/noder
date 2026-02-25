@@ -95,6 +95,8 @@ void test_copy();
 void test_getAtPath();
 
 void test_getLinks();
+void test_setParametersAndGetParameters();
+void test_getParametersMixedListAndDictFallback();
 
 #ifdef ENABLE_HDF5_IO
 void test_reloadNodeData(const std::string& filename = "test_reload_node_data.cgns");

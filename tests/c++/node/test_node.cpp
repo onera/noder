@@ -6,6 +6,19 @@
 
 using namespace std::string_literals;
 
+namespace {
+
+const ParameterValue* findEntryByName(const ParameterValue::DictEntries& entries, const std::string& key) {
+    for (const auto& [entryKey, entryValue] : entries) {
+        if (entryKey == key) {
+            return &entryValue;
+        }
+    }
+    return nullptr;
+}
+
+} // namespace
+
 void test_init() {
     auto a = newNode("a");
     auto b = newNode("b", "type_t");
@@ -580,6 +593,99 @@ void test_getLinks() {
     if (path1 != "/root/external_link") throw py::value_error("unexpected second link node path");
     if (target1 != "/ExternalRoot/Node") throw py::value_error("unexpected second link target path");
     if (flag1 != 5) throw py::value_error("unexpected second link flag");
+}
+
+void test_setParametersAndGetParameters() {
+    auto root = newNode("root");
+
+    ParameterValue::DictEntries nested;
+    nested.emplace_back("x", ParameterValue::makeData(std::make_shared<Array>(int32_t(1))));
+
+    ParameterValue::DictEntries item0;
+    item0.emplace_back("a", ParameterValue::makeData(std::make_shared<Array>(int32_t(7))));
+
+    ParameterValue::DictEntries item1;
+    item1.emplace_back("b", ParameterValue::makeData(std::make_shared<Array>(int32_t(9))));
+
+    ParameterValue::ListEntries listItems;
+    listItems.push_back(ParameterValue::makeDict(std::move(item0)));
+    listItems.push_back(ParameterValue::makeDict(std::move(item1)));
+
+    ParameterValue::DictEntries parameters;
+    parameters.emplace_back("scalar", ParameterValue::makeData(std::make_shared<Array>(double(3.5))));
+    parameters.emplace_back("none_like", ParameterValue::makeNull());
+    parameters.emplace_back("nested", ParameterValue::makeDict(std::move(nested)));
+    parameters.emplace_back("items", ParameterValue::makeList(std::move(listItems)));
+
+    auto container = root->setParameters("Params", parameters);
+    if (!container) {
+        throw py::value_error("setParameters should return the created container");
+    }
+    if (container->name() != "Params") {
+        throw py::value_error("setParameters returned unexpected container name");
+    }
+    if (container->type() != "UserDefinedData_t") {
+        throw py::value_error("setParameters did not set default container type");
+    }
+
+    ParameterValue output = root->getParameters("Params");
+    if (output.kind != ParameterValue::Kind::Dict) {
+        throw py::value_error("getParameters should return dict for regular parameter container");
+    }
+
+    const ParameterValue* scalar = findEntryByName(output.dictEntries, "scalar");
+    if (!scalar || scalar->kind != ParameterValue::Kind::Data || !scalar->data || !(*scalar->data == 3.5)) {
+        throw py::value_error("scalar parameter mismatch");
+    }
+
+    const ParameterValue* noneLike = findEntryByName(output.dictEntries, "none_like");
+    if (!noneLike || noneLike->kind != ParameterValue::Kind::Null) {
+        throw py::value_error("none-like parameter should round-trip as null");
+    }
+
+    const ParameterValue* nestedOut = findEntryByName(output.dictEntries, "nested");
+    if (!nestedOut || nestedOut->kind != ParameterValue::Kind::Dict) {
+        throw py::value_error("nested parameter should round-trip as dict");
+    }
+    const ParameterValue* nestedX = findEntryByName(nestedOut->dictEntries, "x");
+    if (!nestedX || nestedX->kind != ParameterValue::Kind::Data || !nestedX->data || !(*nestedX->data == 1)) {
+        throw py::value_error("nested leaf parameter mismatch");
+    }
+
+    const ParameterValue* itemsOut = findEntryByName(output.dictEntries, "items");
+    if (!itemsOut || itemsOut->kind != ParameterValue::Kind::List || itemsOut->listEntries.size() != 2) {
+        throw py::value_error("list[dict] parameter mismatch");
+    }
+}
+
+void test_getParametersMixedListAndDictFallback() {
+    auto root = newNode("root");
+
+    ParameterValue::DictEntries base;
+    base.emplace_back("scalar", ParameterValue::makeData(std::make_shared<Array>(int32_t(2))));
+    auto container = root->setParameters("Params", base);
+
+    ParameterValue::DictEntries listItem;
+    listItem.emplace_back("entry", ParameterValue::makeData(std::make_shared<Array>(int32_t(4))));
+    container->setParameters("_list_.0", listItem);
+
+    ParameterValue output = root->getParameters("Params");
+    if (output.kind != ParameterValue::Kind::List) {
+        throw py::value_error("mixed list+dict fallback should return a list");
+    }
+    if (output.listEntries.size() != 2) {
+        throw py::value_error("mixed list+dict fallback should return [list..., dict]");
+    }
+    if (output.listEntries[0].kind != ParameterValue::Kind::Dict) {
+        throw py::value_error("first mixed fallback item should be dict from _list_ entry");
+    }
+    if (output.listEntries[1].kind != ParameterValue::Kind::Dict) {
+        throw py::value_error("last mixed fallback item should be dict of regular entries");
+    }
+    const ParameterValue* scalar = findEntryByName(output.listEntries[1].dictEntries, "scalar");
+    if (!scalar || scalar->kind != ParameterValue::Kind::Data || !scalar->data || !(*scalar->data == 2)) {
+        throw py::value_error("mixed fallback dict did not preserve scalar entry");
+    }
 }
 
 #ifdef ENABLE_HDF5_IO
