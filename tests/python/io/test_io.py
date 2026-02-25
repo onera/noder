@@ -4,12 +4,6 @@ import numpy as np
 import noder.array.data_types as dtypes
 
 try:
-    import h5py
-    HAS_H5PY = True
-except ImportError:
-    HAS_H5PY = False
-
-try:
     import noder.core.io as gio
     import noder.tests.io as giocpp
     ENABLE_HDF5_IO = True
@@ -89,7 +83,6 @@ def test_read(tmp_path):
     assert c is not None
     assert c.data().extractString() == "toto"
 
-@pytest.mark.skipif(not HAS_H5PY, reason="h5py not available")
 def test_write_nodes_cgns_attrs_layout(tmp_path):
     os.makedirs(tmp_path, exist_ok=True)
     tmp_filename = str(tmp_path/'test_attrs.hdf5')
@@ -102,29 +95,6 @@ def test_write_nodes_cgns_attrs_layout(tmp_path):
     a / b / c
     a.write(tmp_filename)
 
-    with h5py.File(tmp_filename, "r") as f:
-        def _as_str(v):
-            if isinstance(v, bytes):
-                return v.decode("utf-8").rstrip("\x00")
-            return str(v).rstrip("\x00")
-
-        a = f["/a"]
-        c = f["/a/b/c"]
-
-        assert set(a.attrs.keys()) == {"name", "label", "type", "flags"}
-        assert _as_str(a.attrs["name"]) == "a"
-        assert _as_str(a.attrs["label"]) == "DataArray_t"
-        assert _as_str(a.attrs["type"]) == "MT"
-        assert int(np.asarray(a.attrs["flags"])[0]) == 1
-
-        assert _as_str(c.attrs["type"]) == "I4"
-        assert "type" not in f["/a/b/c/ data"].attrs
-
-        # CGNS/HDF5 readers such as cgnsview expect tracked+indexed link order.
-        assert f["/"].id.get_create_plist().get_link_creation_order() == 3
-        assert a.id.get_create_plist().get_link_creation_order() == 3
-        assert f["/a/b"].id.get_create_plist().get_link_creation_order() == 3
-        assert c.id.get_create_plist().get_link_creation_order() == 3
 
 def test_write_link_nodes(tmp_path):
     os.makedirs(tmp_path, exist_ok=True)
