@@ -1,6 +1,8 @@
 #include "utils/compat.hpp"
 #include "data/data_factory.hpp"
 #include "node/node.hpp"
+#include "array/array.hpp"
+#include <limits>
 
 using namespace std::string_literals;
 
@@ -17,6 +19,84 @@ const std::string VERTICAL = "│   ";
 const std::string BRANCH = "├───";
 const std::string LAST_BRANCH = "└───";
 // #endif
+
+namespace {
+
+int16_t toAttachPosition(size_t position, const char* context) {
+    if (position > static_cast<size_t>(std::numeric_limits<int16_t>::max())) {
+        throw std::runtime_error(std::string(context) + ": sibling position exceeds int16_t range");
+    }
+    return static_cast<int16_t>(position);
+}
+
+std::vector<std::string> splitPathElements(const std::string& path) {
+    std::vector<std::string> elements;
+    std::stringstream ss(path);
+    std::string item;
+    while (std::getline(ss, item, '/')) {
+        if (!item.empty()) {
+            elements.push_back(item);
+        }
+    }
+    return elements;
+}
+
+std::shared_ptr<Node> findDirectChildByName(
+    const std::shared_ptr<Node>& parent,
+    const std::string& childName) {
+
+    for (const auto& child : parent->children()) {
+        if (child && child->name() == childName) {
+            return child;
+        }
+    }
+    return nullptr;
+}
+
+bool hasSiblingNameConflict(
+    const std::shared_ptr<Node>& parent,
+    const std::string& candidateName,
+    const Node* ignoredA = nullptr,
+    const Node* ignoredB = nullptr) {
+
+    if (!parent) {
+        return false;
+    }
+
+    for (const auto& sibling : parent->children()) {
+        if (!sibling) {
+            continue;
+        }
+        const Node* siblingRawPtr = sibling.get();
+        if (siblingRawPtr == ignoredA || siblingRawPtr == ignoredB) {
+            continue;
+        }
+        if (sibling->name() == candidateName) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void mergeChildrenRecursively(
+    const std::shared_ptr<Node>& mergedNode,
+    const std::shared_ptr<Node>& incomingNode) {
+
+    for (const auto& incomingChild : incomingNode->children()) {
+        if (!incomingChild) {
+            continue;
+        }
+
+        auto mergedChild = findDirectChildByName(mergedNode, incomingChild->name());
+        if (mergedChild) {
+            mergeChildrenRecursively(mergedChild, incomingChild);
+        } else {
+            mergedNode->addChild(incomingChild->copy());
+        }
+    }
+}
+
+} // namespace
 
 std::function<std::shared_ptr<Data>()> Node::dataFactory;
 
@@ -175,6 +255,52 @@ const std::vector<std::shared_ptr<Node>>& Node::children() const {
     return _children;
 }
 
+bool Node::hasChildren() const {
+    return !_children.empty();
+}
+
+std::vector<std::shared_ptr<Node>> Node::siblings(bool includeMyself) const {
+    auto parentPtr = _parent.lock();
+    if (!parentPtr) {
+        if (includeMyself) {
+            auto thisPtr = selfPtr();
+            if (thisPtr) {
+                return {std::const_pointer_cast<Node>(thisPtr)};
+            }
+        }
+        return {};
+    }
+
+    std::vector<std::shared_ptr<Node>> siblingNodes;
+    siblingNodes.reserve(parentPtr->children().size());
+
+    for (const auto& sibling : parentPtr->children()) {
+        if (!sibling) {
+            continue;
+        }
+        if (!includeMyself && sibling.get() == this) {
+            continue;
+        }
+        siblingNodes.push_back(sibling);
+    }
+    return siblingNodes;
+}
+
+bool Node::hasSiblings() const {
+    return !siblings(false).empty();
+}
+
+std::vector<std::string> Node::getChildrenNames() const {
+    std::vector<std::string> names;
+    names.reserve(_children.size());
+    for (const auto& child : _children) {
+        if (child) {
+            names.push_back(child->name());
+        }
+    }
+    return names;
+}
+
 
 std::vector<std::shared_ptr<Node>> Node::descendants() {
     std::vector<std::shared_ptr<Node>> descendants;
@@ -303,6 +429,147 @@ void Node::addChild(std::shared_ptr<Node> node) {
         throw std::invalid_argument("addChild: Cannot add a null child");
     }
     node->attachTo(shared_from_this());
+}
+
+void Node::addChildren(const std::vector<std::shared_ptr<Node>>& nodes) {
+    for (const auto& node : nodes) {
+        addChild(node);
+    }
+}
+
+void Node::swap(std::shared_ptr<Node> node) {
+    if (!node) {
+        throw std::invalid_argument("swap: Cannot swap with a null node");
+    }
+    if (node.get() == this) {
+        return;
+    }
+
+    auto thisParent = _parent.lock();
+    auto otherParent = node->_parent.lock();
+
+    if (thisParent && otherParent && thisParent.get() == otherParent.get()) {
+        auto& siblings = thisParent->_children;
+        auto thisIt = std::find_if(siblings.begin(), siblings.end(),
+            [this](const std::shared_ptr<Node>& sibling) { return sibling.get() == this; });
+        auto otherIt = std::find_if(siblings.begin(), siblings.end(),
+            [node](const std::shared_ptr<Node>& sibling) { return sibling.get() == node.get(); });
+
+        if (thisIt == siblings.end() || otherIt == siblings.end()) {
+            throw std::runtime_error("swap: Could not locate both nodes in sibling list");
+        }
+
+        std::iter_swap(thisIt, otherIt);
+        return;
+    }
+
+    if (hasSiblingNameConflict(thisParent, node->name(), this, node.get())) {
+        throw std::runtime_error("swap: name conflict while attaching '" + node->name() +
+                                 "' into '" + thisParent->path() + "'");
+    }
+    if (hasSiblingNameConflict(otherParent, this->name(), this, node.get())) {
+        throw std::runtime_error("swap: name conflict while attaching '" + this->name() +
+                                 "' into '" + otherParent->path() + "'");
+    }
+
+    const size_t thisPosition = position();
+    const size_t otherPosition = node->position();
+
+    this->detach();
+    node->detach();
+
+    if (otherParent) {
+        this->attachTo(otherParent, toAttachPosition(otherPosition, "swap"));
+    }
+    if (thisParent) {
+        node->attachTo(thisParent, toAttachPosition(thisPosition, "swap"));
+    }
+}
+
+std::shared_ptr<Node> Node::copy(bool deep) const {
+    auto copiedNode = std::make_shared<Node>(_name, _type);
+
+    if (hasLinkTarget()) {
+        copiedNode->setLinkTarget(_linkTargetFile, _linkTargetPath);
+    }
+
+    if (deep) {
+        if (auto arrayData = std::dynamic_pointer_cast<Array>(_data)) {
+            py::gil_scoped_acquire acquireGil;
+            py::array copiedArray = arrayData->getPyArray().attr("copy")("K").cast<py::array>();
+            copiedNode->setData(std::make_shared<Array>(copiedArray));
+        } else {
+            copiedNode->setData(_data->clone());
+        }
+    } else {
+        copiedNode->setData(_data);
+    }
+
+    for (const auto& child : _children) {
+        if (!child) {
+            continue;
+        }
+        copiedNode->addChild(child->copy(deep));
+    }
+
+    return copiedNode;
+}
+
+std::shared_ptr<Node> Node::getAtPath(const std::string& path, bool pathIsRelative) const {
+    if (path.empty()) {
+        return nullptr;
+    }
+
+    std::shared_ptr<Node> startNode;
+    if (pathIsRelative) {
+        auto thisPtr = selfPtr();
+        if (!thisPtr) {
+            return nullptr;
+        }
+        startNode = std::const_pointer_cast<Node>(thisPtr);
+    } else {
+        auto rootPtr = root();
+        if (!rootPtr) {
+            return nullptr;
+        }
+        startNode = std::const_pointer_cast<Node>(rootPtr);
+    }
+
+    auto pathElements = splitPathElements(path);
+    if (pathElements.empty()) {
+        return nullptr;
+    }
+
+    size_t currentIndex = 0;
+    if (pathElements.front() == startNode->name()) {
+        currentIndex = 1;
+    }
+
+    auto currentNode = startNode;
+    for (; currentIndex < pathElements.size(); ++currentIndex) {
+        currentNode = findDirectChildByName(currentNode, pathElements[currentIndex]);
+        if (!currentNode) {
+            return nullptr;
+        }
+    }
+    return currentNode;
+}
+
+void Node::merge(std::shared_ptr<Node> node) {
+    if (!node) {
+        throw std::invalid_argument("merge: Cannot merge a null node");
+    }
+    if (name() != node->name()) {
+        throw std::invalid_argument("merge: Mismatching names '" + name() +
+                                    "' and '" + node->name() + "'");
+    }
+
+    auto thisPtr = selfPtr();
+    if (!thisPtr) {
+        throw std::runtime_error("merge: Stack-allocated nodes are not supported");
+    }
+
+    mergeChildrenRecursively(thisPtr, node);
 }
 
 

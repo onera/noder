@@ -37,6 +37,15 @@ void bindTestsOfNode(py::module_ &m) {
     sm.def("test_children", &test_children);
     sm.def("test_binding_addChildrenFromPython", &test_binding_addChildrenFromPython);
     sm.def("test_position", &test_position);
+    sm.def("test_hasChildren", &test_hasChildren);
+    sm.def("test_siblings", &test_siblings);
+    sm.def("test_hasSiblings", &test_hasSiblings);
+    sm.def("test_getChildrenNames", &test_getChildrenNames);
+    sm.def("test_addChildren", &test_addChildren);
+    sm.def("test_swap", &test_swap);
+    sm.def("test_copy", &test_copy);
+    sm.def("test_getAtPath", &test_getAtPath);
+    sm.def("test_merge", &test_merge);
 }
 
 # endif

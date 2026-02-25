@@ -296,6 +296,120 @@ def test_position():
     assert c.position() == 1
     assert d.position() == 2
 
+def test_has_children():
+    a = Node("a")
+    assert not a.has_children()
+
+    b = Node("b")
+    a.add_child(b)
+    assert a.has_children()
+    assert not b.has_children()
+
+def test_siblings():
+    a = Node("a")
+    b = Node("b")
+    c = Node("c")
+    d = Node("d")
+    a.add_children([b, c, d])
+
+    all_siblings = c.siblings()
+    assert [n.name() for n in all_siblings] == ["b", "c", "d"]
+
+    siblings_without_self = c.siblings(include_myself=False)
+    assert [n.name() for n in siblings_without_self] == ["b", "d"]
+
+def test_has_siblings_and_alias():
+    a = Node("a")
+    b = Node("b")
+    c = Node("c")
+
+    assert not a.has_siblings()
+    a.add_child(b)
+    assert not b.has_siblings()
+    a.add_child(c)
+    assert b.has_siblings()
+
+def test_get_children_names():
+    a = Node("a")
+    a.add_children([Node("b"), Node("c"), Node("d")])
+    assert a.get_children_names() == ["b", "c", "d"]
+
+def test_add_children():
+    a = Node("a")
+    b = Node("b")
+    c = Node("c")
+    d = Node("d")
+    a.add_children([b, c, d])
+
+    assert [n.name() for n in a.children()] == ["b", "c", "d"]
+    assert b.path() == "a/b"
+    assert c.path() == "a/c"
+    assert d.path() == "a/d"
+
+def test_swap():
+    left = Node("left")
+    right = Node("right")
+    b = Node("b")
+    c = Node("c")
+
+    left.add_child(b)
+    right.add_child(c)
+    b.swap(c)
+
+    assert b.parent() is right
+    assert c.parent() is left
+    assert b.path() == "right/b"
+    assert c.path() == "left/c"
+
+
+def test_copy():
+    a = Node("a")
+    a.set_data(np.array([1.0, 2.0]))
+    b = Node("b")
+    b.set_data(np.array([3.0, 4.0]))
+    a.add_child(b)
+
+    shallow = a.copy()
+    deep = a.copy(deep=True)
+
+    assert shallow.name() == "a"
+    assert deep.name() == "a"
+    assert [n.name() for n in shallow.children()] == ["b"]
+    assert [n.name() for n in deep.children()] == ["b"]
+    assert np.shares_memory(a.data().getPyArray(), shallow.data().getPyArray())
+    assert not np.shares_memory(a.data().getPyArray(), deep.data().getPyArray())
+
+def test_get_at_path():
+    a = Node("a")
+    b = Node("b")
+    c = Node("c")
+    d = Node("d")
+    a.add_child(b)
+    b.add_child(c)
+    c.add_child(d)
+
+    assert d.get_at_path("a/b/c") is c
+    assert b.get_at_path("c/d", path_is_relative=True) is d
+    assert a.get_at_path("a/not_found") is None
+
+def test_merge():
+    left = Node("Root")
+    left_a = Node("A")
+    left_a.add_child(Node("X"))
+    left.add_child(left_a)
+
+    right = Node("Root")
+    right_a = Node("A")
+    right_a.add_child(Node("Y"))
+    right_b = Node("B")
+    right.add_children([right_a, right_b])
+
+    left.merge(right)
+
+    assert left.get_children_names() == ["A", "B"]
+    merged_a = left.children()[0]
+    assert merged_a.get_children_names() == ["X", "Y"]
+
 
 def test_dangerous_extendChildren():
     a = Node("a")

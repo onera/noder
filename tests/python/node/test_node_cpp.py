@@ -81,6 +81,24 @@ def test_binding_addChildrenFromPython():
 
 def test_cpp_position(): return test_in_cpp.test_position()
 
+def test_cpp_hasChildren(): return test_in_cpp.test_hasChildren()
+
+def test_cpp_siblings(): return test_in_cpp.test_siblings()
+
+def test_cpp_hasSiblings(): return test_in_cpp.test_hasSiblings()
+
+def test_cpp_getChildrenNames(): return test_in_cpp.test_getChildrenNames()
+
+def test_cpp_addChildren(): return test_in_cpp.test_addChildren()
+
+def test_cpp_swap(): return test_in_cpp.test_swap()
+
+def test_cpp_copy(): return test_in_cpp.test_copy()
+
+def test_cpp_getAtPath(): return test_in_cpp.test_getAtPath()
+
+def test_cpp_merge(): return test_in_cpp.test_merge()
+
 def test_link_metadata_api():
     node = Node("link")
     assert not node.has_link_target()

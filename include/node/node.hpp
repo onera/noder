@@ -120,6 +120,10 @@ public:
     bool noData() const;
 
     const std::vector<std::shared_ptr<Node>>& children() const;
+    bool hasChildren() const;
+    std::vector<std::shared_ptr<Node>> siblings(bool includeMyself=true) const;
+    bool hasSiblings() const;
+    std::vector<std::string> getChildrenNames() const;
     
     std::shared_ptr<const Node> root() const;
 
@@ -132,6 +136,11 @@ public:
     void attachTo(std::shared_ptr<Node> node, const int16_t& position = -1);
     
     void addChild(std::shared_ptr<Node> node);
+    void addChildren(const std::vector<std::shared_ptr<Node>>& nodes);
+    void swap(std::shared_ptr<Node> node);
+    std::shared_ptr<Node> copy(bool deep=false) const;
+    std::shared_ptr<Node> getAtPath(const std::string& path, bool pathIsRelative=false) const;
+    void merge(std::shared_ptr<Node> node);
 
     std::string path() const;
 

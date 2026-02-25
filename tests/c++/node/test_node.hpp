@@ -75,4 +75,22 @@ void test_position();
 
 void test_descendants();
 
+void test_hasChildren();
+
+void test_siblings();
+
+void test_hasSiblings();
+
+void test_getChildrenNames();
+
+void test_addChildren();
+
+void test_swap();
+
+void test_copy();
+
+void test_getAtPath();
+
+void test_merge();
+
 #endif // TEST_NODE_CLASS_H

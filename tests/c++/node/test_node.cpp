@@ -369,3 +369,153 @@ void test_position() {
     if (c->position() != 1) throw py::value_error("expected pos 1 for node c");
     if (d->position() != 2) throw py::value_error("expected pos 2 for node d");
 }
+
+void test_hasChildren() {
+    auto a = newNode("a");
+    if (a->hasChildren()) throw py::value_error("expected no children");
+
+    auto b = newNode("b");
+    a->addChild(b);
+
+    if (!a->hasChildren()) throw py::value_error("expected children");
+    if (b->hasChildren()) throw py::value_error("expected no children on leaf");
+}
+
+void test_siblings() {
+    auto a = newNode("a");
+    auto b = newNode("b");
+    auto c = newNode("c");
+    auto d = newNode("d");
+
+    a->addChildren({b, c, d});
+
+    auto allSiblings = c->siblings();
+    if (allSiblings.size() != 3) throw py::value_error("expected 3 siblings including self");
+
+    auto siblingsWithoutSelf = c->siblings(false);
+    if (siblingsWithoutSelf.size() != 2) throw py::value_error("expected 2 siblings excluding self");
+    if (siblingsWithoutSelf[0]->name() != "b") throw py::value_error("expected sibling b");
+    if (siblingsWithoutSelf[1]->name() != "d") throw py::value_error("expected sibling d");
+}
+
+void test_hasSiblings() {
+    auto a = newNode("a");
+    auto b = newNode("b");
+    auto c = newNode("c");
+
+    if (a->hasSiblings()) throw py::value_error("root should not have siblings");
+
+    a->addChild(b);
+    if (b->hasSiblings()) throw py::value_error("single child should not have siblings");
+
+    a->addChild(c);
+    if (!b->hasSiblings()) throw py::value_error("expected siblings after second child");
+}
+
+void test_getChildrenNames() {
+    auto a = newNode("a");
+    a->addChildren({newNode("b"), newNode("c"), newNode("d")});
+
+    auto names = a->getChildrenNames();
+    if (names.size() != 3) throw py::value_error("expected 3 child names");
+    if (names[0] != "b") throw py::value_error("expected child name b");
+    if (names[1] != "c") throw py::value_error("expected child name c");
+    if (names[2] != "d") throw py::value_error("expected child name d");
+}
+
+void test_addChildren() {
+    auto a = newNode("a");
+    auto b = newNode("b");
+    auto c = newNode("c");
+    auto d = newNode("d");
+
+    a->addChildren({b, c, d});
+
+    if (a->children().size() != 3) throw py::value_error("expected three children");
+    if (b->path() != "a/b") throw py::value_error("expected path a/b");
+    if (c->path() != "a/c") throw py::value_error("expected path a/c");
+    if (d->path() != "a/d") throw py::value_error("expected path a/d");
+}
+
+void test_swap() {
+    auto parentLeft = newNode("left");
+    auto parentRight = newNode("right");
+    auto b = newNode("b");
+    auto c = newNode("c");
+
+    parentLeft->addChild(b);
+    parentRight->addChild(c);
+
+    b->swap(c);
+
+    if (b->parent().lock().get() != parentRight.get()) throw py::value_error("b should move to right");
+    if (c->parent().lock().get() != parentLeft.get()) throw py::value_error("c should move to left");
+    if (b->path() != "right/b") throw py::value_error("unexpected path for b after swap");
+    if (c->path() != "left/c") throw py::value_error("unexpected path for c after swap");
+}
+
+void test_copy() {
+    auto a = newNode("a");
+    a->setData(3.14);
+    auto b = newNode("b");
+    b->setData(7);
+    a->addChild(b);
+
+    auto shallow = a->copy(false);
+    if (shallow->name() != "a") throw py::value_error("shallow copy name mismatch");
+    if (shallow->children().size() != 1) throw py::value_error("shallow copy should include children");
+    if (shallow->dataPtr().get() != a->dataPtr().get()) throw py::value_error("shallow copy should share data");
+    if (shallow->children()[0]->dataPtr().get() != b->dataPtr().get()) throw py::value_error("shallow child should share data");
+
+    auto deep = a->copy(true);
+    if (deep->dataPtr().get() == a->dataPtr().get()) throw py::value_error("deep copy should clone root data");
+    if (deep->children()[0]->dataPtr().get() == b->dataPtr().get()) throw py::value_error("deep copy should clone child data");
+}
+
+void test_getAtPath() {
+    auto a = newNode("a");
+    auto b = newNode("b");
+    auto c = newNode("c");
+    auto d = newNode("d");
+
+    a->addChild(b);
+    b->addChild(c);
+    c->addChild(d);
+
+    auto fromRoot = d->getAtPath("a/b/c");
+    if (!fromRoot || fromRoot.get() != c.get()) throw py::value_error("expected to find c from absolute path");
+
+    auto fromRelative = b->getAtPath("c/d", true);
+    if (!fromRelative || fromRelative.get() != d.get()) throw py::value_error("expected to find d from relative path");
+
+    auto missing = a->getAtPath("a/not_found");
+    if (missing) throw py::value_error("expected null for missing path");
+}
+
+void test_merge() {
+    auto left = newNode("Root");
+    auto leftA = newNode("A");
+    auto leftAX = newNode("X");
+    leftA->addChild(leftAX);
+    left->addChild(leftA);
+
+    auto right = newNode("Root");
+    auto rightA = newNode("A");
+    auto rightAY = newNode("Y");
+    auto rightB = newNode("B");
+    rightA->addChild(rightAY);
+    right->addChildren({rightA, rightB});
+
+    left->merge(right);
+
+    auto names = left->getChildrenNames();
+    if (names.size() != 2) throw py::value_error("expected children A and B after merge");
+    if (names[0] != "A") throw py::value_error("expected first child A after merge");
+    if (names[1] != "B") throw py::value_error("expected second child B after merge");
+
+    auto mergedA = left->children()[0];
+    auto mergedANames = mergedA->getChildrenNames();
+    if (mergedANames.size() != 2) throw py::value_error("expected A to contain X and Y after merge");
+    if (mergedANames[0] != "X") throw py::value_error("expected first merged child X");
+    if (mergedANames[1] != "Y") throw py::value_error("expected second merged child Y");
+}
