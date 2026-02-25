@@ -94,6 +94,13 @@ void test_copy();
 
 void test_getAtPath();
 
+void test_getLinks();
+
+#ifdef ENABLE_HDF5_IO
+void test_reloadNodeData(const std::string& filename = "test_reload_node_data.cgns");
+void test_saveThisNodeOnly(const std::string& filename = "test_save_this_node_only.cgns");
+#endif
+
 void test_merge();
 
 #endif // TEST_NODE_CLASS_H

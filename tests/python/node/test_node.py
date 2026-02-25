@@ -1,5 +1,12 @@
 import numpy as np
+import pytest
 from noder.core import Node, Array, pyCGNSToNode, nodeToPyCGNS
+
+try:
+    import noder.core.io as gio
+    ENABLE_HDF5_IO = True
+except ImportError:
+    ENABLE_HDF5_IO = False
 
 def get_all_paths_list(node, pathlist):
     pathlist += [ node.path() ]
@@ -452,6 +459,56 @@ def test_merge():
     assert left.get_children_names() == ["A", "B"]
     merged_a = left.children()[0]
     assert merged_a.get_children_names() == ["X", "Y"]
+
+def test_get_links():
+    root = Node("root")
+    target = Node("target")
+    link = Node("link")
+    root.add_children([target, link])
+    link.set_link_target(".", "/root/target")
+
+    links = root.get_links()
+    assert len(links) == 1
+    assert tuple(links[0]) == (".", ".", "/root/link", "/root/target", 5)
+
+@pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
+def test_reload_node_data(tmp_path):
+    filename = str(tmp_path / "reload_node_data.cgns")
+
+    root = Node("root")
+    value = Node("value")
+    root.add_child(value)
+    value.set_data(np.array([3], dtype=np.int32))
+    root.write(filename)
+
+    value.set_data(np.array([9], dtype=np.int32))
+    value.reload_node_data(filename)
+
+    assert int(value.data().getPyArray()[0]) == 3
+
+@pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
+def test_save_this_node_only(tmp_path):
+    filename = str(tmp_path / "save_this_node_only.cgns")
+
+    root = Node("root")
+    mutable_node = Node("mutable")
+    stable_node = Node("stable")
+    mutable_node.set_data(np.array([1], dtype=np.int32))
+    stable_node.set_data(np.array([2], dtype=np.int32))
+    root.add_children([mutable_node, stable_node])
+    root.write(filename)
+
+    mutable_node.set_data(np.array([99], dtype=np.int32))
+    mutable_node.save_this_node_only(filename)
+
+    read_root = gio.read(filename)
+    persisted_mutable = read_root.get_at_path("root/mutable")
+    persisted_stable = read_root.get_at_path("root/stable")
+
+    assert persisted_mutable is not None
+    assert persisted_stable is not None
+    assert int(persisted_mutable.data().getPyArray()[0]) == 99
+    assert int(persisted_stable.data().getPyArray()[0]) == 2
 
 
 def test_dangerous_extendChildren():

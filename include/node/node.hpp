@@ -28,6 +28,7 @@
 # include <type_traits>
 # include <utility>
 # include <sstream>
+# include <tuple>
 
 # include "data/data.hpp"
 # include "node/navigation.hpp"
@@ -148,6 +149,9 @@ public:
     void swap(std::shared_ptr<Node> node);
     std::shared_ptr<Node> copy(bool deep=false) const;
     std::shared_ptr<Node> getAtPath(const std::string& path, bool pathIsRelative=false) const;
+    std::vector<std::tuple<std::string, std::string, std::string, std::string, int>> getLinks() const;
+    void reloadNodeData(const std::string& filename);
+    void saveThisNodeOnly(const std::string& filename, const std::string& backend = "hdf5");
     void merge(std::shared_ptr<Node> node);
 
     std::string path() const;

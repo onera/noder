@@ -1,5 +1,9 @@
 # include "test_node.hpp"
 
+#ifdef ENABLE_HDF5_IO
+#include "io/io.hpp"
+#endif
+
 using namespace std::string_literals;
 
 void test_init() {
@@ -546,6 +550,86 @@ void test_getAtPath() {
     auto missing = a->getAtPath("a/not_found");
     if (missing) throw py::value_error("expected null for missing path");
 }
+
+void test_getLinks() {
+    auto root = newNode("root");
+    auto target = newNode("target");
+    auto localLink = newNode("local_link");
+    auto externalLink = newNode("external_link");
+
+    root->addChildren({target, localLink, externalLink});
+
+    localLink->setLinkTarget(".", "/root/target");
+    externalLink->setLinkTarget("external.cgns", "/ExternalRoot/Node");
+
+    auto links = root->getLinks();
+    if (links.size() != 2) {
+        throw py::value_error("expected exactly two links");
+    }
+
+    const auto& [cwd0, file0, path0, target0, flag0] = links[0];
+    if (cwd0 != ".") throw py::value_error("expected first link current-directory marker '.'");
+    if (file0 != ".") throw py::value_error("expected first link target file '.'");
+    if (path0 != "/root/local_link") throw py::value_error("unexpected first link node path");
+    if (target0 != "/root/target") throw py::value_error("unexpected first link target path");
+    if (flag0 != 5) throw py::value_error("unexpected first link flag");
+
+    const auto& [cwd1, file1, path1, target1, flag1] = links[1];
+    if (cwd1 != ".") throw py::value_error("expected second link current-directory marker '.'");
+    if (file1 != "external.cgns") throw py::value_error("unexpected second link target file");
+    if (path1 != "/root/external_link") throw py::value_error("unexpected second link node path");
+    if (target1 != "/ExternalRoot/Node") throw py::value_error("unexpected second link target path");
+    if (flag1 != 5) throw py::value_error("unexpected second link flag");
+}
+
+#ifdef ENABLE_HDF5_IO
+void test_reloadNodeData(const std::string& filename) {
+    auto root = newNode("root");
+    auto valueNode = newNode("value");
+    valueNode->setData(42);
+    valueNode->attachTo(root);
+
+    root->write(filename);
+
+    valueNode->setData(-7);
+    valueNode->reloadNodeData(filename);
+
+    if (!(valueNode->data() == 42)) {
+        throw py::value_error("reloadNodeData did not restore persisted scalar value");
+    }
+}
+
+void test_saveThisNodeOnly(const std::string& filename) {
+    auto root = newNode("root");
+    auto mutableNode = newNode("mutable");
+    auto stableNode = newNode("stable");
+
+    mutableNode->setData(1);
+    stableNode->setData(2);
+    root->addChildren({mutableNode, stableNode});
+    root->write(filename);
+
+    mutableNode->setData(99);
+    mutableNode->saveThisNodeOnly(filename);
+
+    auto readRoot = io::read(filename);
+    auto persistedMutable = readRoot->getAtPath("root/mutable");
+    auto persistedStable = readRoot->getAtPath("root/stable");
+
+    if (!persistedMutable) {
+        throw py::value_error("saveThisNodeOnly: could not read back node root/mutable");
+    }
+    if (!persistedStable) {
+        throw py::value_error("saveThisNodeOnly: could not read back node root/stable");
+    }
+    if (!(persistedMutable->data() == 99)) {
+        throw py::value_error("saveThisNodeOnly did not persist modified node data");
+    }
+    if (!(persistedStable->data() == 2)) {
+        throw py::value_error("saveThisNodeOnly unexpectedly modified sibling node data");
+    }
+}
+#endif
 
 void test_merge() {
     auto left = newNode("Root");

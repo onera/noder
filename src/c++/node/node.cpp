@@ -1,6 +1,7 @@
 #include "utils/compat.hpp"
 #include "data/data_factory.hpp"
 #include "node/node.hpp"
+#include "array/array.hpp"
 #include <limits>
 
 using namespace std::string_literals;
@@ -21,6 +22,8 @@ const std::string LAST_BRANCH = "└───";
 
 namespace {
 
+using LinkRecord = std::tuple<std::string, std::string, std::string, std::string, int>;
+
 int16_t toAttachPosition(size_t position, const char* context) {
     if (position > static_cast<size_t>(std::numeric_limits<int16_t>::max())) {
         throw std::runtime_error(std::string(context) + ": sibling position exceeds int16_t range");
@@ -38,6 +41,16 @@ std::vector<std::string> splitPathElements(const std::string& path) {
         }
     }
     return elements;
+}
+
+std::string ensureLeadingSlash(const std::string& value) {
+    if (value.empty()) {
+        return "/";
+    }
+    if (value.front() == '/') {
+        return value;
+    }
+    return "/" + value;
 }
 
 std::shared_ptr<Node> findSiblingByNameExcluding(
@@ -99,6 +112,37 @@ bool hasSiblingNameConflict(
     return false;
 }
 
+std::shared_ptr<Node> ensureNodeAtPath(
+    const std::shared_ptr<Node>& rootNode,
+    const std::vector<std::string>& pathElements,
+    const std::string& leafType) {
+
+    if (!rootNode) {
+        throw std::invalid_argument("ensureNodeAtPath: rootNode cannot be null");
+    }
+    if (pathElements.empty()) {
+        throw std::invalid_argument("ensureNodeAtPath: pathElements cannot be empty");
+    }
+    if (rootNode->name() != pathElements.front()) {
+        throw std::runtime_error(
+            "ensureNodeAtPath: root node name '" + rootNode->name() +
+            "' does not match path root '" + pathElements.front() + "'");
+    }
+
+    auto current = rootNode;
+    for (size_t i = 1; i < pathElements.size(); ++i) {
+        const auto& element = pathElements[i];
+        auto child = current->pick().childByName(element);
+        if (!child) {
+            const bool isLeaf = (i == pathElements.size() - 1);
+            child = std::make_shared<Node>(element, isLeaf ? leafType : "DataArray_t");
+            child->attachTo(current);
+        }
+        current = child;
+    }
+    return current;
+}
+
 void mergeChildrenRecursively(
     const std::shared_ptr<Node>& mergedNode,
     const std::shared_ptr<Node>& incomingNode) {
@@ -114,6 +158,26 @@ void mergeChildrenRecursively(
         } else {
             mergedNode->addChild(incomingChild->copy());
         }
+    }
+}
+
+void appendLinksRecursively(const std::shared_ptr<const Node>& node, std::vector<LinkRecord>& links) {
+
+    if (!node) {
+        return;
+    }
+
+    if (node->hasLinkTarget()) {
+        links.emplace_back(
+            ".",
+            node->linkTargetFile(),
+            ensureLeadingSlash(node->path()),
+            ensureLeadingSlash(node->linkTargetPath()),
+            5);
+    }
+
+    for (const auto& child : node->children()) {
+        appendLinksRecursively(child, links);
     }
 }
 
@@ -570,6 +634,96 @@ std::shared_ptr<Node> Node::getAtPath(const std::string& path, bool pathIsRelati
         }
     }
     return currentNode;
+}
+
+std::vector<std::tuple<std::string, std::string, std::string, std::string, int>> Node::getLinks() const {
+    std::vector<LinkRecord> links;
+
+    auto thisPtr = selfPtr();
+    if (!thisPtr) {
+        throw std::runtime_error("getLinks: stack-allocated nodes are not supported");
+    }
+
+    appendLinksRecursively(thisPtr, links);
+    return links;
+}
+
+void Node::reloadNodeData(const std::string& filename) {
+#ifdef ENABLE_HDF5_IO
+    auto loadedTreeContainer = io::read(filename);
+    if (!loadedTreeContainer) {
+        throw std::runtime_error("reloadNodeData: could not load file '" + filename + "'");
+    }
+
+    auto updatedNode = loadedTreeContainer->getAtPath(this->path());
+    if (!updatedNode) {
+        throw std::runtime_error(
+            "reloadNodeData: node path '" + this->path() + "' was not found in '" + filename + "'");
+    }
+
+    if (updatedNode->hasLinkTarget()) {
+        this->setLinkTarget(updatedNode->linkTargetFile(), updatedNode->linkTargetPath());
+        this->setData(std::make_shared<Array>());
+        return;
+    }
+
+    this->clearLinkTarget();
+    this->setData(updatedNode->data());
+#else
+    (void)filename;
+    throw std::runtime_error("reloadNodeData: HDF5 IO support is disabled");
+#endif
+}
+
+void Node::saveThisNodeOnly(const std::string& filename, const std::string& backend) {
+    if (!(backend == "hdf5" || backend == "h5py2cgns")) {
+        throw std::invalid_argument(
+            "saveThisNodeOnly: unsupported backend '" + backend + "'. Supported: hdf5, h5py2cgns");
+    }
+
+#ifdef ENABLE_HDF5_IO
+    const std::string thisPath = this->path();
+    const auto pathElements = splitPathElements(thisPath);
+    if (pathElements.empty()) {
+        throw std::runtime_error("saveThisNodeOnly: node path is empty");
+    }
+
+    auto loadedTreeContainer = io::read(filename);
+    if (!loadedTreeContainer) {
+        throw std::runtime_error("saveThisNodeOnly: could not load file '" + filename + "'");
+    }
+
+    auto persistedRoot = loadedTreeContainer->getAtPath(pathElements.front());
+    if (!persistedRoot) {
+        persistedRoot = std::make_shared<Node>(pathElements.front(), "DataArray_t");
+    }
+
+    auto persistedNode = persistedRoot->getAtPath(thisPath);
+    if (!persistedNode) {
+        persistedNode = ensureNodeAtPath(persistedRoot, pathElements, this->type());
+    }
+
+    persistedNode->setType(this->type());
+
+    if (this->hasLinkTarget()) {
+        if (persistedNode->hasChildren()) {
+            throw std::runtime_error(
+                "saveThisNodeOnly: cannot persist link metadata onto node with existing children at path '" +
+                persistedNode->path() + "'");
+        }
+        persistedNode->setLinkTarget(this->linkTargetFile(), this->linkTargetPath());
+        persistedNode->setData(std::make_shared<Array>());
+    } else {
+        persistedNode->clearLinkTarget();
+        persistedNode->setData(this->data());
+    }
+
+    io::write_node(filename, persistedRoot);
+#else
+    (void)filename;
+    (void)backend;
+    throw std::runtime_error("saveThisNodeOnly: HDF5 IO support is disabled");
+#endif
 }
 
 void Node::merge(std::shared_ptr<Node> node) {

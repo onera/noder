@@ -4,6 +4,12 @@ import os
 import noder.tests.node as test_in_cpp
 from noder.core import Node
 
+try:
+    import noder.core.io  # noqa: F401
+    ENABLE_HDF5_IO = True
+except ImportError:
+    ENABLE_HDF5_IO = False
+
 def test_cpp_init(): return test_in_cpp.test_init()
 
 def test_cpp_name(): return test_in_cpp.test_name()
@@ -103,6 +109,18 @@ def test_cpp_copy(): return test_in_cpp.test_copy()
 
 def test_cpp_getAtPath(): return test_in_cpp.test_getAtPath()
 
+def test_cpp_getLinks(): return test_in_cpp.test_getLinks()
+
+@pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
+def test_cpp_reloadNodeData(tmp_path):
+    filename = str(tmp_path / "reload_node_data.cgns")
+    return test_in_cpp.test_reloadNodeData(filename)
+
+@pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
+def test_cpp_saveThisNodeOnly(tmp_path):
+    filename = str(tmp_path / "save_this_node_only.cgns")
+    return test_in_cpp.test_saveThisNodeOnly(filename)
+
 def test_cpp_merge(): return test_in_cpp.test_merge()
 
 def test_link_metadata_api():
@@ -118,6 +136,16 @@ def test_link_metadata_api():
     assert not node.has_link_target()
     assert node.link_target_file() == ""
     assert node.link_target_path() == ""
+
+def test_get_links_api():
+    root = Node("root")
+    link = Node("link")
+    root.add_child(link)
+    link.set_link_target(".", "/root/target")
+
+    links = root.get_links()
+    assert len(links) == 1
+    assert tuple(links[0]) == (".", ".", "/root/link", "/root/target", 5)
 
 if __name__ == '__main__':
     test_cpp_printTree()

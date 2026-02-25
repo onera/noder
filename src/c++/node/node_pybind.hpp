@@ -106,9 +106,13 @@ void bindNode(py::module_ &m) {
         .def("has_link_target", &Node::hasLinkTarget)
         .def("link_target_file", &Node::linkTargetFile)
         .def("link_target_path", &Node::linkTargetPath)
+        .def("get_links", &Node::getLinks)
         .def("set_link_target", &Node::setLinkTarget,
              py::arg("target_file"), py::arg("target_path"))
         .def("clear_link_target", &Node::clearLinkTarget)
+        .def("reload_node_data", &Node::reloadNodeData, py::arg("filename"))
+        .def("save_this_node_only", &Node::saveThisNodeOnly,
+             py::arg("filename"), py::arg("backend")="hdf5")
         .def("parent", [](const Node &self) -> std::shared_ptr<Node> {
             return self.parent().lock();
         }, "Returns the parent Node or None if no parent exists.")

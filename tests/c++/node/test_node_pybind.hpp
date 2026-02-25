@@ -48,6 +48,13 @@ void bindTestsOfNode(py::module_ &m) {
     sm.def("test_swap", &test_swap);
     sm.def("test_copy", &test_copy);
     sm.def("test_getAtPath", &test_getAtPath);
+    sm.def("test_getLinks", &test_getLinks);
+#ifdef ENABLE_HDF5_IO
+    sm.def("test_reloadNodeData", &test_reloadNodeData,
+           py::arg("filename") = std::string("test_reload_node_data.cgns"));
+    sm.def("test_saveThisNodeOnly", &test_saveThisNodeOnly,
+           py::arg("filename") = std::string("test_save_this_node_only.cgns"));
+#endif
     sm.def("test_merge", &test_merge);
 }
 
