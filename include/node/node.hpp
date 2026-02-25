@@ -133,10 +133,18 @@ public:
 
     void detach();
 
-    void attachTo(std::shared_ptr<Node> node, const int16_t& position = -1);
+    void attachTo(
+        std::shared_ptr<Node> node,
+        const int16_t& position = -1,
+        bool overrideSiblingByName = true);
     
-    void addChild(std::shared_ptr<Node> node);
-    void addChildren(const std::vector<std::shared_ptr<Node>>& nodes);
+    void addChild(
+        std::shared_ptr<Node> node,
+        bool overrideSiblingByName = true,
+        const int16_t& position = -1);
+    void addChildren(
+        const std::vector<std::shared_ptr<Node>>& nodes,
+        bool overrideSiblingByName = true);
     void swap(std::shared_ptr<Node> node);
     std::shared_ptr<Node> copy(bool deep=false) const;
     std::shared_ptr<Node> getAtPath(const std::string& path, bool pathIsRelative=false) const;

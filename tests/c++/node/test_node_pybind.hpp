@@ -42,6 +42,9 @@ void bindTestsOfNode(py::module_ &m) {
     sm.def("test_hasSiblings", &test_hasSiblings);
     sm.def("test_getChildrenNames", &test_getChildrenNames);
     sm.def("test_addChildren", &test_addChildren);
+    sm.def("test_overrideSiblingByName_attachTo", &test_overrideSiblingByName_attachTo);
+    sm.def("test_overrideSiblingByName_addChild", &test_overrideSiblingByName_addChild);
+    sm.def("test_overrideSiblingByName_addChildren", &test_overrideSiblingByName_addChildren);
     sm.def("test_swap", &test_swap);
     sm.def("test_copy", &test_copy);
     sm.def("test_getAtPath", &test_getAtPath);

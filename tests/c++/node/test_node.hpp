@@ -84,6 +84,9 @@ void test_hasSiblings();
 void test_getChildrenNames();
 
 void test_addChildren();
+void test_overrideSiblingByName_attachTo();
+void test_overrideSiblingByName_addChild();
+void test_overrideSiblingByName_addChildren();
 
 void test_swap();
 

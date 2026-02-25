@@ -426,11 +426,11 @@ class Node:
     @typing.overload
     def __truediv__(self, arg0: _NodeGroup) -> Node:
         ...
-    def add_child(self, arg0: Node) -> None:
+    def add_child(self, node: Node, override_sibling_by_name: bool = True, position: int = -1) -> None:
         ...
-    def add_children(self, nodes: list[Node]) -> None:
+    def add_children(self, nodes: list[Node], override_sibling_by_name: bool = True) -> None:
         ...
-    def attach_to(self, node: Node, position: int = -1) -> None:
+    def attach_to(self, node: Node, position: int = -1, override_sibling_by_name: bool = True) -> None:
         """
         attach this node to another
         """

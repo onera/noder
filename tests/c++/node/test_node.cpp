@@ -437,6 +437,61 @@ void test_addChildren() {
     if (d->path() != "a/d") throw py::value_error("expected path a/d");
 }
 
+void test_overrideSiblingByName_attachTo() {
+    auto parent = newNode("parent");
+    auto oldChild = newNode("child");
+    auto incoming = newNode("child");
+    oldChild->attachTo(parent);
+
+    incoming->attachTo(parent, -1, true);
+    if (parent->children().size() != 1) throw py::value_error("override=true should keep one child");
+    if (parent->children()[0].get() != incoming.get()) throw py::value_error("incoming child should replace old child");
+    if (oldChild->parent().lock()) throw py::value_error("replaced child should be detached");
+    if (oldChild->path() != "child") throw py::value_error("replaced child path should be reset");
+
+    auto parent2 = newNode("parent2");
+    auto first = newNode("child");
+    auto second = newNode("child");
+    first->attachTo(parent2);
+    second->attachTo(parent2, -1, false);
+
+    if (parent2->children().size() != 2) throw py::value_error("override=false should keep both children");
+    if (second->name() != "child.0") throw py::value_error("incoming child should be renamed to child.0");
+    if (parent2->children()[0]->name() != "child") throw py::value_error("expected original child name");
+    if (parent2->children()[1]->name() != "child.0") throw py::value_error("expected renamed incoming child");
+}
+
+void test_overrideSiblingByName_addChild() {
+    auto parent = newNode("parent");
+    parent->addChild(newNode("x"));
+    auto conflict = newNode("x");
+    parent->addChild(conflict, false);
+    if (conflict->name() != "x.0") throw py::value_error("addChild override=false should rename x to x.0");
+
+    auto replaceParent = newNode("replaceParent");
+    auto oldNode = newNode("x");
+    auto newNodeSameName = newNode("x");
+    replaceParent->addChild(oldNode);
+    replaceParent->addChild(newNodeSameName, true);
+    if (replaceParent->children().size() != 1) throw py::value_error("addChild override=true should replace");
+    if (replaceParent->children()[0].get() != newNodeSameName.get()) throw py::value_error("expected replacement child");
+}
+
+void test_overrideSiblingByName_addChildren() {
+    auto noOverride = newNode("parent");
+    noOverride->addChildren({newNode("n"), newNode("n"), newNode("n")}, false);
+    auto names = noOverride->getChildrenNames();
+    if (names.size() != 3) throw py::value_error("override=false should keep all children");
+    if (names[0] != "n") throw py::value_error("expected n");
+    if (names[1] != "n.0") throw py::value_error("expected n.0");
+    if (names[2] != "n.1") throw py::value_error("expected n.1");
+
+    auto override = newNode("parent2");
+    override->addChildren({newNode("n"), newNode("n"), newNode("n")}, true);
+    if (override->children().size() != 1) throw py::value_error("override=true should keep last sibling only");
+    if (override->children()[0]->name() != "n") throw py::value_error("expected final child to keep base name n");
+}
+
 void test_swap() {
     auto parentLeft = newNode("left");
     auto parentRight = newNode("right");

@@ -116,13 +116,21 @@ void bindNode(py::module_ &m) {
         .def("level", &Node::level)
         .def("position", &Node::position)
         .def("detach", &Node::detach)
-        .def("attach_to", &Node::attachTo, "attach this node to another",py::arg("node"),py::arg("position")=-1)
-        .def("add_child", &Node::addChild)
+        .def("attach_to", &Node::attachTo, "attach this node to another",
+             py::arg("node"),
+             py::arg("position")=-1,
+             py::arg("override_sibling_by_name")=true)
+        .def("add_child", &Node::addChild,
+             py::arg("node"),
+             py::arg("override_sibling_by_name")=true,
+             py::arg("position")=-1)
         .def("has_children", &Node::hasChildren)
         .def("siblings", &Node::siblings, py::arg("include_myself")=true)
         .def("has_siblings", &Node::hasSiblings)
         .def("get_children_names", &Node::getChildrenNames)
-        .def("add_children", &Node::addChildren, py::arg("nodes"))
+        .def("add_children", &Node::addChildren,
+             py::arg("nodes"),
+             py::arg("override_sibling_by_name")=true)
         .def("swap", &Node::swap, py::arg("node"))
         .def("copy", &Node::copy, py::arg("deep")=false)
         .def("get_at_path", &Node::getAtPath, py::arg("path"), py::arg("path_is_relative")=false)

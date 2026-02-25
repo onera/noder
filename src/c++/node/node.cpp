@@ -41,16 +41,38 @@ std::vector<std::string> splitPathElements(const std::string& path) {
     return elements;
 }
 
-std::shared_ptr<Node> findDirectChildByName(
+std::shared_ptr<Node> findSiblingByNameExcluding(
     const std::shared_ptr<Node>& parent,
-    const std::string& childName) {
+    const std::string& siblingName,
+    const Node* ignoredNode) {
 
-    for (const auto& child : parent->children()) {
-        if (child && child->name() == childName) {
-            return child;
+    for (const auto& sibling : parent->children()) {
+        if (!sibling) {
+            continue;
+        }
+        if (sibling.get() == ignoredNode) {
+            continue;
+        }
+        if (sibling->name() == siblingName) {
+            return sibling;
         }
     }
     return nullptr;
+}
+
+std::string nextUniqueSiblingName(
+    const std::shared_ptr<Node>& parent,
+    const std::string& baseName,
+    const Node* ignoredNode) {
+
+    int suffix = 0;
+    while (true) {
+        const std::string candidate = baseName + "." + std::to_string(suffix);
+        if (!findSiblingByNameExcluding(parent, candidate, ignoredNode)) {
+            return candidate;
+        }
+        suffix += 1;
+    }
 }
 
 bool hasSiblingNameConflict(
@@ -87,7 +109,7 @@ void mergeChildrenRecursively(
             continue;
         }
 
-        auto mergedChild = findDirectChildByName(mergedNode, incomingChild->name());
+        auto mergedChild = mergedNode->pick().childByName(incomingChild->name());
         if (mergedChild) {
             mergeChildrenRecursively(mergedChild, incomingChild);
         } else {
@@ -375,65 +397,67 @@ void Node::detach() {
     this->_parent.reset();
 }
 
-void Node::attachTo(std::shared_ptr<Node> node, const int16_t& position) {
+void Node::attachTo(
+    std::shared_ptr<Node> node,
+    const int16_t& position,
+    bool overrideSiblingByName) {
+
     if (!node) {
         throw std::invalid_argument("attachTo: Cannot attach to a null node");
     }
-
-    bool uniqueSibling = true;
-    auto& siblings = node->_children;
-    size_t nbOfSiblings = siblings.size();
-
-    for (const auto& sibling : siblings) {
-        if (sibling->name() == this->name()) {
-            uniqueSibling = false;
-            break;
-        }
+    auto thisPtr = selfPtr();
+    if (!thisPtr) {
+        throw std::runtime_error("attachTo: Stack-allocated nodes cannot be attached to heap-allocated nodes.");
     }
 
-    if (uniqueSibling) {
-
-        if (selfPtr()) {
-            this->detach();
-            this->_parent = node;
-            
-            int16_t emplacementIndex;
-            if (position < 0) {
-                emplacementIndex = nbOfSiblings + position + 1;
-            } else {
-                emplacementIndex = position;
-            }
-            
-            if (emplacementIndex > nbOfSiblings) {
-                throw std::runtime_error("failed attaching this node "+this->path()+
-                " into node "+node->path()+
-                " because requested position "+std::to_string(position)+
-                " produced emplacement index "+std::to_string(emplacementIndex)+
-                " which is higher than the node nb of siblings "+std::to_string(nbOfSiblings));
-            }
-            
-            node->_children.emplace(siblings.begin()+emplacementIndex, selfPtr());
+    auto siblingWithSameName = findSiblingByNameExcluding(node, this->name(), this);
+    if (siblingWithSameName) {
+        if (overrideSiblingByName) {
+            siblingWithSameName->detach();
         } else {
-            throw std::runtime_error("attachTo: Stack-allocated nodes cannot be attached to heap-allocated nodes.");
+            this->setName(nextUniqueSiblingName(node, this->name(), this));
         }
-
-    } else {
-        throw std::runtime_error("attachTo: Cannot attach '" + this->name() + "' to '" + node->name() +
-                                 "' since a sibling with the same name already exists");
     }
+
+    this->detach();
+    this->_parent = node;
+
+    auto& siblings = node->_children;
+    const size_t nbOfSiblings = siblings.size();
+
+    int32_t emplacementIndex = position;
+    if (position < 0) {
+        emplacementIndex = static_cast<int32_t>(nbOfSiblings) + position + 1;
+    }
+
+    if (emplacementIndex < 0 || static_cast<size_t>(emplacementIndex) > nbOfSiblings) {
+        throw std::runtime_error(
+            "attachTo: requested position " + std::to_string(position) +
+            " produced emplacement index " + std::to_string(emplacementIndex) +
+            " which is out of [0, " + std::to_string(nbOfSiblings) + "]");
+    }
+
+    node->_children.emplace(siblings.begin() + emplacementIndex, thisPtr);
 }
 
 
-void Node::addChild(std::shared_ptr<Node> node) {
+void Node::addChild(
+    std::shared_ptr<Node> node,
+    bool overrideSiblingByName,
+    const int16_t& position) {
+
     if (!node) {
         throw std::invalid_argument("addChild: Cannot add a null child");
     }
-    node->attachTo(shared_from_this());
+    node->attachTo(shared_from_this(), position, overrideSiblingByName);
 }
 
-void Node::addChildren(const std::vector<std::shared_ptr<Node>>& nodes) {
+void Node::addChildren(
+    const std::vector<std::shared_ptr<Node>>& nodes,
+    bool overrideSiblingByName) {
+
     for (const auto& node : nodes) {
-        addChild(node);
+        addChild(node, overrideSiblingByName);
     }
 }
 
@@ -547,7 +571,7 @@ std::shared_ptr<Node> Node::getAtPath(const std::string& path, bool pathIsRelati
 
     auto currentNode = startNode;
     for (; currentIndex < pathElements.size(); ++currentIndex) {
-        currentNode = findDirectChildByName(currentNode, pathElements[currentIndex]);
+        currentNode = currentNode->pick().childByName(pathElements[currentIndex]);
         if (!currentNode) {
             return nullptr;
         }

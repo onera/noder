@@ -91,6 +91,12 @@ def test_cpp_getChildrenNames(): return test_in_cpp.test_getChildrenNames()
 
 def test_cpp_addChildren(): return test_in_cpp.test_addChildren()
 
+def test_cpp_overrideSiblingByName_attachTo(): return test_in_cpp.test_overrideSiblingByName_attachTo()
+
+def test_cpp_overrideSiblingByName_addChild(): return test_in_cpp.test_overrideSiblingByName_addChild()
+
+def test_cpp_overrideSiblingByName_addChildren(): return test_in_cpp.test_overrideSiblingByName_addChildren()
+
 def test_cpp_swap(): return test_in_cpp.test_swap()
 
 def test_cpp_copy(): return test_in_cpp.test_copy()

@@ -109,6 +109,49 @@ def test_add_child():
     expected_path_of_b = "a/b"
     assert b.path() == expected_path_of_b 
 
+def test_override_sibling_by_name_attach_to():
+    parent = Node("parent")
+    old_child = Node("child")
+    new_child = Node("child")
+    old_child.attach_to(parent)
+
+    new_child.attach_to(parent, override_sibling_by_name=True)
+    assert [n.name() for n in parent.children()] == ["child"]
+    assert parent.children()[0] is new_child
+    assert old_child.parent() is None
+
+    parent2 = Node("parent2")
+    first = Node("child")
+    second = Node("child")
+    first.attach_to(parent2)
+    second.attach_to(parent2, override_sibling_by_name=False)
+    assert [n.name() for n in parent2.children()] == ["child", "child.0"]
+
+def test_override_sibling_by_name_add_child():
+    parent = Node("parent")
+    parent.add_child(Node("x"))
+    renamed = Node("x")
+    parent.add_child(renamed, override_sibling_by_name=False)
+    assert [n.name() for n in parent.children()] == ["x", "x.0"]
+
+    parent2 = Node("parent2")
+    first = Node("x")
+    second = Node("x")
+    parent2.add_child(first)
+    parent2.add_child(second, override_sibling_by_name=True)
+    assert [n.name() for n in parent2.children()] == ["x"]
+    assert parent2.children()[0] is second
+
+def test_override_sibling_by_name_add_children():
+    parent = Node("parent")
+    parent.add_children([Node("n"), Node("n"), Node("n")], override_sibling_by_name=False)
+    assert [n.name() for n in parent.children()] == ["n", "n.0", "n.1"]
+
+    parent2 = Node("parent2")
+    parent2.add_children([Node("n"), Node("n"), Node("n")], override_sibling_by_name=True)
+    assert [n.name() for n in parent2.children()] == ["n"]
+
+
 def test_detach_0():
     a = Node("a")
     a.detach()
