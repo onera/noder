@@ -13,7 +13,8 @@ from typing import Dict
 
 # Adjust if the package name changes
 PACKAGE_NAME = "noder"
-MODULE_NAME = f"{PACKAGE_NAME}.core"
+CORE_MODULE_NAME = f"{PACKAGE_NAME}.core"
+CGNS_MODULE_NAME = f"{PACKAGE_NAME}._cgns"
 
 # Repository layout assumptions:
 #   <ROOT>/
@@ -142,20 +143,25 @@ def postprocess_core_stub(stub_text: str) -> str:
     return patched
 
 
-def main() -> None:
-    env = build_stubgen_env()
-    out_dir = ROOT / "_stubgen_out"
+def generate_flat_stub(
+    module_name: str,
+    target_filename: str,
+    out_dir: Path,
+    env: Dict[str, str],
+    postprocess: callable | None = None,
+) -> str:
+    """
+    Generate a flat stub file for one pybind module and return its text.
 
-    if out_dir.exists():
-        shutil.rmtree(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    # Run pybind11-stubgen on the compiled module.
-    # --ignore-unresolved-names Node is needed because 'io.read' mentions Node.
+    pybind11-stubgen emits:
+      _stubgen_out/noder/<module_name>/__init__.pyi
+    We flatten that to:
+      src/python/noder/<target_filename>
+    """
     subprocess.check_call(
         [
             "pybind11-stubgen",
-            MODULE_NAME,
+            module_name,
             "-o",
             str(out_dir),
             "--ignore-unresolved-names",
@@ -164,41 +170,60 @@ def main() -> None:
         env=env,
     )
 
-    # Expected structure:
-    #   _stubgen_out/
-    #       noder/
-    #           core/
-    #               __init__.pyi   <-- main stub for noder.core
-    #               io.pyi         <-- optional submodule stub (not used for now)
-    #               factory.pyi    <-- optional submodule stub (not used for now)
-    generated_pkg_dir = out_dir / PACKAGE_NAME
-    core_pkg_dir = generated_pkg_dir / "core"
-    core_init_pyi = core_pkg_dir / "__init__.pyi"
-
-    if not core_init_pyi.exists():
-        available = list(core_pkg_dir.glob("*.pyi")) if core_pkg_dir.exists() else []
+    module_leaf = module_name.split(".")[-1]
+    module_init_pyi = out_dir / PACKAGE_NAME / module_leaf / "__init__.pyi"
+    module_file_pyi = out_dir / PACKAGE_NAME / f"{module_leaf}.pyi"
+    if module_init_pyi.exists():
+        source_stub = module_init_pyi
+    elif module_file_pyi.exists():
+        source_stub = module_file_pyi
+    else:
         raise SystemExit(
-            f"Did not find expected stub at {core_init_pyi}.\n"
-            f"Available in {core_pkg_dir}: {available}"
+            "Did not find expected stub at either "
+            f"{module_init_pyi} or {module_file_pyi}"
         )
+
+    text = source_stub.read_text(encoding="utf-8")
+    if postprocess is not None:
+        text = postprocess(text)
 
     target_dir = choose_target_dir()
     target_dir.mkdir(parents=True, exist_ok=True)
+    target_pyi = target_dir / target_filename
+    target_pyi.write_text(text, encoding="utf-8")
 
-    generated_core_text = core_init_pyi.read_text(encoding="utf-8")
-    generated_core_text = postprocess_core_stub(generated_core_text)
-
-    # Flatten noder/core/__init__.pyi -> noder/core.pyi
-    target_core_pyi = target_dir / "core.pyi"
-    # Overwrite existing stub (we want it to match current bindings + postprocess fixes)
-    target_core_pyi.write_text(generated_core_text, encoding="utf-8")
-
-    # In dev mode, optionally mirror the stub to dist/dev/noder/core.pyi when present.
-    # This keeps IDE typing consistent if the interpreter points at dist/dev.
     if is_dev_checkout():
-        dist_core_pyi = DIST_DEV / PACKAGE_NAME / "core.pyi"
-        if dist_core_pyi.exists():
-            dist_core_pyi.write_text(generated_core_text, encoding="utf-8")
+        dist_dir = DIST_DEV / PACKAGE_NAME
+        dist_dir.mkdir(parents=True, exist_ok=True)
+        dist_pyi = dist_dir / target_filename
+        dist_pyi.write_text(text, encoding="utf-8")
+
+    return text
+
+
+def main() -> None:
+    env = build_stubgen_env()
+    out_dir = ROOT / "_stubgen_out"
+
+    if out_dir.exists():
+        shutil.rmtree(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    target_dir = choose_target_dir()
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    generate_flat_stub(
+        CORE_MODULE_NAME,
+        "core.pyi",
+        out_dir,
+        env,
+        postprocess=postprocess_core_stub,
+    )
+    generate_flat_stub(
+        CGNS_MODULE_NAME,
+        "_cgns.pyi",
+        out_dir,
+        env,
+    )
 
     # We currently ignore submodule stubs (io.pyi, factory.pyi, ...) because
     # your public Python API is 'from noder.core import Node, Array, ...'.
@@ -221,7 +246,8 @@ def main() -> None:
     # Cleanup temporary directory
     shutil.rmtree(out_dir)
 
-    print(f"[gen_stubs] Updated main stub: {target_core_pyi}")
+    print(f"[gen_stubs] Updated main stub: {target_dir / 'core.pyi'}")
+    print(f"[gen_stubs] Updated CGNS stub: {target_dir / '_cgns.pyi'}")
     print(f"[gen_stubs] Ensured package stub: {target_init_pyi}")
 
 

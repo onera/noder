@@ -2,7 +2,6 @@
 # include "array/array_pybind.hpp"
 # include "data/data_factory.hpp"
 # include "node/node_pybind.hpp"
-# include "cgns/zone_pybind.hpp"
 # include "node/navigation_pybind.hpp"
 # include "io/cgns/node_pycgns_converter_pybind.hpp"
 
@@ -118,7 +117,6 @@ Example
     bindData(m);
     bindArray(m);
     bindNode(m);
-    bindZone(m);
     bindNavigation(m);
     bindNodePyCGNSConverter(m);
 

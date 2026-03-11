@@ -174,13 +174,17 @@ include_directories(
     ${PYBIND11_INCLUDE_DIRS}
 )
 
-file(GLOB_RECURSE SRC_FILES "src/c++/*.cpp" "include/*.hpp")
+file(GLOB_RECURSE CPP_FILES "src/c++/*.cpp")
+file(GLOB_RECURSE HPP_FILES "include/*.hpp")
+file(GLOB_RECURSE PYBIND_CPP_FILES "src/c++/*_pybind.cpp")
+set(CORE_SHARED_SRC ${CPP_FILES} ${HPP_FILES})
+list(REMOVE_ITEM CORE_SHARED_SRC ${PYBIND_CPP_FILES})
 
 if (MSVC)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
 
-add_library(core_shared SHARED ${SRC_FILES})
+add_library(core_shared SHARED ${CORE_SHARED_SRC})
 set_target_properties(core_shared PROPERTIES
     CXX_VISIBILITY_PRESET default
     VISIBILITY_INLINES_HIDDEN OFF
@@ -261,11 +265,18 @@ if(ENABLE_MPI)
     target_link_libraries(core_shared PUBLIC ${MPI_CXX_LIBRARIES})
 endif()
 
-pybind11_add_module(core MODULE ${SRC_FILES})
+pybind11_add_module(core MODULE src/c++/core_pybind.cpp)
 target_link_libraries(core PRIVATE core_shared)
 add_dependencies(core core_shared)
 if(APPLE)
     target_link_options(core PRIVATE "-Wl,-force_load,$<TARGET_FILE:core_shared>")
+endif()
+
+pybind11_add_module(_cgns MODULE src/c++/cgns_pybind.cpp)
+target_link_libraries(_cgns PRIVATE core_shared)
+add_dependencies(_cgns core_shared)
+if(APPLE)
+    target_link_options(_cgns PRIVATE "-Wl,-force_load,$<TARGET_FILE:core_shared>")
 endif()
 
 install(TARGETS core_shared DESTINATION ${SKBUILD_PROJECT_NAME})
@@ -274,6 +285,7 @@ if(MSVC AND ENABLE_HDF5_IO)
 endif()
 
 install(TARGETS core DESTINATION ${SKBUILD_PROJECT_NAME})
+install(TARGETS _cgns DESTINATION ${SKBUILD_PROJECT_NAME})
 install(FILES README.md LICENSE DESTINATION ${SKBUILD_PROJECT_NAME})
 install(DIRECTORY src/python/noder/ DESTINATION ${SKBUILD_PROJECT_NAME} FILES_MATCHING PATTERN "*.py*")
 install(DIRECTORY include DESTINATION ${SKBUILD_PROJECT_NAME})

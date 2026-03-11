@@ -1,7 +1,9 @@
 import numpy as np
 import pytest
+import importlib
 
-from noder.core import Node, Zone
+from noder.core import Node
+from noder.cgns import Zone
 
 
 def make_cart():
@@ -35,6 +37,11 @@ def test_zone_init():
     assert zone.is_structured()
     assert zone.number_of_points() == 2
     assert zone.number_of_cells() == 1
+
+
+def test_zone_is_not_exported_from_core_module():
+    core = importlib.import_module("noder.core")
+    assert not hasattr(core, "Zone")
 
 
 def test_zone_metrics():
