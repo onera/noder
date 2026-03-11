@@ -1,10 +1,43 @@
 # include "array/array.hpp"
 # include "array/assertions.hpp"
 # include "array/factory/strings.hpp"
+# include <pybind11/stl.h>
+# include <limits>
+# include <stdexcept>
 
 Array::Array() {
     this->setArrayMembersAsNull();
 }
+
+namespace {
+
+std::vector<ssize_t> toSignedShape(const std::vector<size_t>& shape, const char* context) {
+    std::vector<ssize_t> output;
+    output.reserve(shape.size());
+    for (size_t value : shape) {
+        if (value > static_cast<size_t>(std::numeric_limits<ssize_t>::max())) {
+            throw std::runtime_error(std::string(context) + ": shape value exceeds ssize_t range");
+        }
+        output.push_back(static_cast<ssize_t>(value));
+    }
+    return output;
+}
+
+py::tuple toPyIndexTuple(const std::vector<size_t>& indices, size_t dimensions, const char* context) {
+    if (indices.size() != dimensions) {
+        throw std::runtime_error(
+            std::string(context) + ": expected " + std::to_string(dimensions) +
+            " indices, got " + std::to_string(indices.size()));
+    }
+
+    py::tuple indexTuple(dimensions);
+    for (size_t i = 0; i < dimensions; ++i) {
+        indexTuple[static_cast<ssize_t>(i)] = py::int_(indices[i]);
+    }
+    return indexTuple;
+}
+
+} // namespace
 
 
 void Array::setArrayMembersAsNull() {
@@ -195,6 +228,95 @@ bool Array::isScalar() const {
     if (this->hasString()) return false;
     if (this->size() == 1) return true;
     return false;
+}
+
+std::string Array::dtype() const {
+    return this->pyArray.dtype().attr("name").cast<std::string>();
+}
+
+std::shared_ptr<Data> Array::full(
+    const std::vector<size_t>& shape,
+    double value,
+    const std::string& dtypeName) const {
+
+    py::module_ np = py::module_::import("numpy");
+    py::array output = np.attr("full")(
+        toSignedShape(shape, "Array::full"),
+        value,
+        py::arg("dtype") = dtypeName,
+        py::arg("order") = "F").cast<py::array>();
+    return std::make_shared<Array>(output);
+}
+
+std::shared_ptr<Data> Array::ravel(const std::string& order) const {
+    py::module_ np = py::module_::import("numpy");
+    py::array flattened = np.attr("ravel")(this->pyArray, py::arg("order") = order).cast<py::array>();
+    return std::make_shared<Array>(flattened);
+}
+
+std::shared_ptr<Data> Array::take(int64_t index, size_t axis) const {
+    if (this->dimensions() == 0) {
+        return this->clone();
+    }
+    if (axis >= this->dimensions()) {
+        throw std::runtime_error("Array::take: axis out of bounds");
+    }
+
+    py::module_ np = py::module_::import("numpy");
+    py::object sliced = np.attr("take")(
+        this->pyArray,
+        index,
+        py::arg("axis") = static_cast<int>(axis));
+
+    py::object asArray = np.attr("atleast_1d")(sliced);
+    py::array output = np.attr("asfortranarray")(asArray).cast<py::array>();
+    return std::make_shared<Array>(output);
+}
+
+int64_t Array::itemAsInt64(const std::vector<size_t>& indices) const {
+    if (this->dimensions() == 0) {
+        if (!indices.empty()) {
+            throw std::runtime_error("Array::itemAsInt64: scalar payload expects empty indices");
+        }
+        return py::cast<int64_t>(this->pyArray);
+    }
+
+    if (indices.size() != this->dimensions()) {
+        throw std::runtime_error("Array::itemAsInt64: wrong number of indices");
+    }
+    const auto currentShape = this->shape();
+    for (size_t i = 0; i < indices.size(); ++i) {
+        if (indices[i] >= currentShape[i]) {
+            throw std::runtime_error("Array::itemAsInt64: index out of bounds");
+        }
+    }
+
+    py::tuple indexTuple = toPyIndexTuple(indices, this->dimensions(), "Array::itemAsInt64");
+    py::object value = this->pyArray[indexTuple];
+    return py::cast<int64_t>(value);
+}
+
+void Array::setItemFromInt64(const std::vector<size_t>& indices, int64_t value) {
+    if (this->dimensions() == 0) {
+        if (!indices.empty()) {
+            throw std::runtime_error("Array::setItemFromInt64: scalar payload expects empty indices");
+        }
+        this->pyArray[py::tuple()] = py::int_(value);
+        return;
+    }
+
+    if (indices.size() != this->dimensions()) {
+        throw std::runtime_error("Array::setItemFromInt64: wrong number of indices");
+    }
+    const auto currentShape = this->shape();
+    for (size_t i = 0; i < indices.size(); ++i) {
+        if (indices[i] >= currentShape[i]) {
+            throw std::runtime_error("Array::setItemFromInt64: index out of bounds");
+        }
+    }
+
+    py::tuple indexTuple = toPyIndexTuple(indices, this->dimensions(), "Array::setItemFromInt64");
+    this->pyArray[indexTuple] = py::int_(value);
 }
 
 

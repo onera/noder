@@ -5,6 +5,7 @@
 # include <memory>
 # include <cstdint>
 # include <type_traits>
+# include <vector>
 
 /**
  * @brief Abstract interface for payload values attached to Node instances.
@@ -32,6 +33,48 @@ public:
     virtual bool isNone() const = 0;
     /** @brief True when payload is a scalar numeric value. */
     virtual bool isScalar() const = 0;
+
+    /** @brief Number of payload dimensions. */
+    virtual size_t dimensions() const = 0;
+    /** @brief Total number of payload elements. */
+    virtual size_t size() const = 0;
+    /** @brief Shape of payload dimensions. */
+    virtual std::vector<size_t> shape() const = 0;
+    /** @brief Human-readable dtype name (for example ``float64``). */
+    virtual std::string dtype() const = 0;
+
+    /**
+     * @brief Build a filled array-like payload.
+     * @param shape Output shape.
+     * @param value Fill value.
+     * @param dtypeName Target dtype name.
+     */
+    virtual std::shared_ptr<Data> full(
+        const std::vector<size_t>& shape,
+        double value,
+        const std::string& dtypeName) const = 0;
+    /**
+     * @brief Return a flattened view/copy according to backend semantics.
+     * @param order Flattening order (``C``, ``F``, ``A``, ``K``).
+     */
+    virtual std::shared_ptr<Data> ravel(const std::string& order = "K") const = 0;
+    /**
+     * @brief Extract a slice by taking one index along a given axis.
+     * @param index Index to take (negative indices allowed by backend).
+     * @param axis Axis where index is taken.
+     */
+    virtual std::shared_ptr<Data> take(int64_t index, size_t axis) const = 0;
+    /**
+     * @brief Read one element at multidimensional indices and cast to int64.
+     * @param indices Index tuple with one index per dimension.
+     */
+    virtual int64_t itemAsInt64(const std::vector<size_t>& indices) const = 0;
+    /**
+     * @brief Write one element at multidimensional indices from int64.
+     * @param indices Index tuple with one index per dimension.
+     * @param value New value converted to payload dtype.
+     */
+    virtual void setItemFromInt64(const std::vector<size_t>& indices, int64_t value) = 0;
 
     /** @brief Extract payload as UTF-8 string when available. */
     virtual std::string extractString() const = 0;

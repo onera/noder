@@ -56,10 +56,16 @@ std::shared_ptr<Node> Navigation::childByName(const std::string& name) {
 
 std::shared_ptr<Node> Navigation::byName(const std::string& name, const size_t& depth) {
 
-    if ( depth > 0 ) {
-        if ( _node.name() == name ) return _node.shared_from_this();
+    if ( depth == 0 ) {
+        return nullptr;
+    }
 
-        for (auto child: _node.children()) {
+    for (auto child: _node.children()) {
+        if (child && child->name() == name) {
+            return child;
+        }
+
+        if (child && depth > 1) {
             auto foundNode = child->pick().byName(name, depth-1);
             if (foundNode) return foundNode;
         }
@@ -70,12 +76,16 @@ std::shared_ptr<Node> Navigation::byName(const std::string& name, const size_t& 
 std::vector<std::shared_ptr<Node>> Navigation::allByName(const std::string& name, const size_t& depth) {
     std::vector<std::shared_ptr<Node>> matches;
 
-    if ( depth > 0 ) {
-        if ( _node.name() == name ) {
-            matches.push_back(_node.shared_from_this());
+    if ( depth == 0 ) {
+        return matches;
+    }
+
+    for (auto child: _node.children()) {
+        if (child && child->name() == name) {
+            matches.push_back(child);
         }
 
-        for (auto child: _node.children()) {
+        if (child && depth > 1) {
             auto childMatches = child->pick().allByName(name, depth-1);
             matches.insert(matches.end(), childMatches.begin(), childMatches.end());
         }
@@ -85,11 +95,17 @@ std::vector<std::shared_ptr<Node>> Navigation::allByName(const std::string& name
 
 std::shared_ptr<Node> Navigation::byNameRegex(const std::string& namePattern, const size_t& depth) {
 
-    if ( depth > 0 ) {
-        std::regex regexPattern(namePattern);
-        if (std::regex_search(_node.name(), regexPattern)) return _node.shared_from_this();
+    if ( depth == 0 ) {
+        return nullptr;
+    }
 
-        for (auto child: _node.children()) {
+    std::regex regexPattern(namePattern);
+    for (auto child: _node.children()) {
+        if (child && std::regex_search(child->name(), regexPattern)) {
+            return child;
+        }
+
+        if (child && depth > 1) {
             auto foundNode = child->pick().byNameRegex(namePattern, depth-1);
             if (foundNode) return foundNode;
         }
@@ -102,13 +118,17 @@ std::vector<std::shared_ptr<Node>> Navigation::allByNameRegex(
     const size_t& depth) {
     std::vector<std::shared_ptr<Node>> matches;
 
-    if ( depth > 0 ) {
-        std::regex regexPattern(namePattern);
-        if (std::regex_search(_node.name(), regexPattern)) {
-            matches.push_back(_node.shared_from_this());
+    if ( depth == 0 ) {
+        return matches;
+    }
+
+    std::regex regexPattern(namePattern);
+    for (auto child: _node.children()) {
+        if (child && std::regex_search(child->name(), regexPattern)) {
+            matches.push_back(child);
         }
 
-        for (auto child: _node.children()) {
+        if (child && depth > 1) {
             auto childMatches = child->pick().allByNameRegex(namePattern, depth-1);
             matches.insert(matches.end(), childMatches.begin(), childMatches.end());
         }
@@ -117,11 +137,17 @@ std::vector<std::shared_ptr<Node>> Navigation::allByNameRegex(
 }
 
 std::shared_ptr<Node> Navigation::byNameGlob(const std::string& namePattern, const size_t& depth) {
-    if ( depth > 0 ) {
-        const std::regex regexPattern(globToRegexPattern(namePattern));
-        if (std::regex_match(_node.name(), regexPattern)) return _node.shared_from_this();
+    if ( depth == 0 ) {
+        return nullptr;
+    }
 
-        for (auto child: _node.children()) {
+    const std::regex regexPattern(globToRegexPattern(namePattern));
+    for (auto child: _node.children()) {
+        if (child && std::regex_match(child->name(), regexPattern)) {
+            return child;
+        }
+
+        if (child && depth > 1) {
             auto foundNode = child->pick().byNameGlob(namePattern, depth-1);
             if (foundNode) return foundNode;
         }
@@ -134,13 +160,17 @@ std::vector<std::shared_ptr<Node>> Navigation::allByNameGlob(
     const size_t& depth) {
     std::vector<std::shared_ptr<Node>> matches;
 
-    if ( depth > 0 ) {
-        const std::regex regexPattern(globToRegexPattern(namePattern));
-        if (std::regex_match(_node.name(), regexPattern)) {
-            matches.push_back(_node.shared_from_this());
+    if ( depth == 0 ) {
+        return matches;
+    }
+
+    const std::regex regexPattern(globToRegexPattern(namePattern));
+    for (auto child: _node.children()) {
+        if (child && std::regex_match(child->name(), regexPattern)) {
+            matches.push_back(child);
         }
 
-        for (auto child: _node.children()) {
+        if (child && depth > 1) {
             auto childMatches = child->pick().allByNameGlob(namePattern, depth-1);
             matches.insert(matches.end(), childMatches.begin(), childMatches.end());
         }
@@ -160,10 +190,16 @@ std::shared_ptr<Node> Navigation::childByType(const std::string& type) {
 
 std::shared_ptr<Node> Navigation::byType(const std::string& type, const size_t& depth) {
 
-    if ( depth > 0 ) {
-        if ( _node.type() == type ) return _node.shared_from_this();
+    if ( depth == 0 ) {
+        return nullptr;
+    }
 
-        for (auto child: _node.children()) {
+    for (auto child: _node.children()) {
+        if (child && child->type() == type) {
+            return child;
+        }
+
+        if (child && depth > 1) {
             auto foundNode = child->pick().byType(type, depth-1);
             if (foundNode) return foundNode;
         }
@@ -174,12 +210,16 @@ std::shared_ptr<Node> Navigation::byType(const std::string& type, const size_t& 
 std::vector<std::shared_ptr<Node>> Navigation::allByType(const std::string& type, const size_t& depth) {
     std::vector<std::shared_ptr<Node>> matches;
 
-    if ( depth > 0 ) {
-        if ( _node.type() == type ) {
-            matches.push_back(_node.shared_from_this());
+    if ( depth == 0 ) {
+        return matches;
+    }
+
+    for (auto child: _node.children()) {
+        if (child && child->type() == type) {
+            matches.push_back(child);
         }
 
-        for (auto child: _node.children()) {
+        if (child && depth > 1) {
             auto childMatches = child->pick().allByType(type, depth-1);
             matches.insert(matches.end(), childMatches.begin(), childMatches.end());
         }
@@ -190,11 +230,17 @@ std::vector<std::shared_ptr<Node>> Navigation::allByType(const std::string& type
 
 std::shared_ptr<Node> Navigation::byTypeRegex(const std::string& typePattern,
                                                 const size_t& depth) {
-    if ( depth > 0 ) {
-        std::regex regexPattern(typePattern);
-        if (std::regex_search(_node.type(), regexPattern)) return _node.shared_from_this();
+    if ( depth == 0 ) {
+        return nullptr;
+    }
 
-        for (auto child: _node.children()) {
+    std::regex regexPattern(typePattern);
+    for (auto child: _node.children()) {
+        if (child && std::regex_search(child->type(), regexPattern)) {
+            return child;
+        }
+
+        if (child && depth > 1) {
             auto foundNode = child->pick().byTypeRegex(typePattern, depth-1);
             if (foundNode) return foundNode;
         }
@@ -207,13 +253,17 @@ std::vector<std::shared_ptr<Node>> Navigation::allByTypeRegex(
     const size_t& depth) {
     std::vector<std::shared_ptr<Node>> matches;
 
-    if ( depth > 0 ) {
-        std::regex regexPattern(typePattern);
-        if (std::regex_search(_node.type(), regexPattern)) {
-            matches.push_back(_node.shared_from_this());
+    if ( depth == 0 ) {
+        return matches;
+    }
+
+    std::regex regexPattern(typePattern);
+    for (auto child: _node.children()) {
+        if (child && std::regex_search(child->type(), regexPattern)) {
+            matches.push_back(child);
         }
 
-        for (auto child: _node.children()) {
+        if (child && depth > 1) {
             auto childMatches = child->pick().allByTypeRegex(typePattern, depth-1);
             matches.insert(matches.end(), childMatches.begin(), childMatches.end());
         }
@@ -223,11 +273,17 @@ std::vector<std::shared_ptr<Node>> Navigation::allByTypeRegex(
 
 std::shared_ptr<Node> Navigation::byTypeGlob(const std::string& typePattern,
                                              const size_t& depth) {
-    if ( depth > 0 ) {
-        const std::regex regexPattern(globToRegexPattern(typePattern));
-        if (std::regex_match(_node.type(), regexPattern)) return _node.shared_from_this();
+    if ( depth == 0 ) {
+        return nullptr;
+    }
 
-        for (auto child: _node.children()) {
+    const std::regex regexPattern(globToRegexPattern(typePattern));
+    for (auto child: _node.children()) {
+        if (child && std::regex_match(child->type(), regexPattern)) {
+            return child;
+        }
+
+        if (child && depth > 1) {
             auto foundNode = child->pick().byTypeGlob(typePattern, depth-1);
             if (foundNode) return foundNode;
         }
@@ -240,13 +296,17 @@ std::vector<std::shared_ptr<Node>> Navigation::allByTypeGlob(
     const size_t& depth) {
     std::vector<std::shared_ptr<Node>> matches;
 
-    if ( depth > 0 ) {
-        const std::regex regexPattern(globToRegexPattern(typePattern));
-        if (std::regex_match(_node.type(), regexPattern)) {
-            matches.push_back(_node.shared_from_this());
+    if ( depth == 0 ) {
+        return matches;
+    }
+
+    const std::regex regexPattern(globToRegexPattern(typePattern));
+    for (auto child: _node.children()) {
+        if (child && std::regex_match(child->type(), regexPattern)) {
+            matches.push_back(child);
         }
 
-        for (auto child: _node.children()) {
+        if (child && depth > 1) {
             auto childMatches = child->pick().allByTypeGlob(typePattern, depth-1);
             matches.insert(matches.end(), childMatches.begin(), childMatches.end());
         }
@@ -294,17 +354,18 @@ std::shared_ptr<Node> Navigation::childByData(const T& data) {
 
 std::shared_ptr<Node> Navigation::byData(const std::string& data, const size_t& depth) {
 
-    if ( depth > 0 ) {
+    if ( depth == 0 ) {
+        return nullptr;
+    }
 
-        bool thisHasDataString = _node.data().hasString();
-
-        if (thisHasDataString) {
-            if (_node.data().extractString() == data ) {
-                return _node.shared_from_this();
+    for (auto child: _node.children()) {
+        if (child && child->data().hasString()) {
+            if (child->data().extractString() == data) {
+                return child;
             }
         }
 
-        for (auto child: _node.children()) {
+        if (child && depth > 1) {
             auto foundNode = child->pick().byData(data, depth-1);
             if (foundNode) return foundNode;
         }
@@ -315,16 +376,18 @@ std::shared_ptr<Node> Navigation::byData(const std::string& data, const size_t& 
 std::vector<std::shared_ptr<Node>> Navigation::allByData(const std::string& data, const size_t& depth) {
     std::vector<std::shared_ptr<Node>> matches;
 
-    if ( depth > 0 ) {
-        bool thisHasDataString = _node.data().hasString();
+    if ( depth == 0 ) {
+        return matches;
+    }
 
-        if (thisHasDataString) {
-            if (_node.data().extractString() == data ) {
-                matches.push_back(_node.shared_from_this());
+    for (auto child: _node.children()) {
+        if (child && child->data().hasString()) {
+            if (child->data().extractString() == data) {
+                matches.push_back(child);
             }
         }
 
-        for (auto child: _node.children()) {
+        if (child && depth > 1) {
             auto childMatches = child->pick().allByData(data, depth-1);
             matches.insert(matches.end(), childMatches.begin(), childMatches.end());
         }
@@ -333,19 +396,20 @@ std::vector<std::shared_ptr<Node>> Navigation::allByData(const std::string& data
 }
 
 std::shared_ptr<Node> Navigation::byDataGlob(const std::string& dataPattern, const size_t& depth) {
-    if ( depth > 0 ) {
+    if ( depth == 0 ) {
+        return nullptr;
+    }
 
-        const std::regex regexPattern(globToRegexPattern(dataPattern));
-
-        bool thisHasDataString = _node.data().hasString();
-        if (thisHasDataString) {
-            const std::string dataAsString = _node.data().extractString();
+    const std::regex regexPattern(globToRegexPattern(dataPattern));
+    for (auto child: _node.children()) {
+        if (child && child->data().hasString()) {
+            const std::string dataAsString = child->data().extractString();
             if (std::regex_match(dataAsString, regexPattern)) {
-                return _node.shared_from_this();
+                return child;
             }
         }
 
-        for (auto child: _node.children()) {
+        if (child && depth > 1) {
             auto foundNode = child->pick().byDataGlob(dataPattern, depth-1);
             if (foundNode) return foundNode;
         }
@@ -358,19 +422,20 @@ std::vector<std::shared_ptr<Node>> Navigation::allByDataGlob(
     const size_t& depth) {
     std::vector<std::shared_ptr<Node>> matches;
 
-    if ( depth > 0 ) {
+    if ( depth == 0 ) {
+        return matches;
+    }
 
-        const std::regex regexPattern(globToRegexPattern(dataPattern));
-
-        bool thisHasDataString = _node.data().hasString();
-        if (thisHasDataString) {
-            const std::string dataAsString = _node.data().extractString();
+    const std::regex regexPattern(globToRegexPattern(dataPattern));
+    for (auto child: _node.children()) {
+        if (child && child->data().hasString()) {
+            const std::string dataAsString = child->data().extractString();
             if (std::regex_match(dataAsString, regexPattern)) {
-                matches.push_back(_node.shared_from_this());
+                matches.push_back(child);
             }
         }
 
-        for (auto child: _node.children()) {
+        if (child && depth > 1) {
             auto childMatches = child->pick().allByDataGlob(dataPattern, depth-1);
             matches.insert(matches.end(), childMatches.begin(), childMatches.end());
         }
@@ -391,15 +456,18 @@ std::vector<std::shared_ptr<Node>> Navigation::allByData(const char* data, const
 template <typename T>
 std::shared_ptr<Node> Navigation::byData(const T& data, const size_t& depth) {
 
-    if ( depth > 0 ) {
+    if ( depth == 0 ) {
+        return nullptr;
+    }
 
-        if (_node.data().isScalar()) {
-            if (_node.data() == data ) {
-                return _node.shared_from_this();
+    for (auto child: _node.children()) {
+        if (child && child->data().isScalar()) {
+            if (child->data() == data) {
+                return child;
             }
         }
 
-        for (auto child: _node.children()) {
+        if (child && depth > 1) {
             auto foundNode = child->pick().byData(data, depth-1);
             if (foundNode) return foundNode;
         }
@@ -411,15 +479,18 @@ template <typename T>
 std::vector<std::shared_ptr<Node>> Navigation::allByData(const T& data, const size_t& depth) {
     std::vector<std::shared_ptr<Node>> matches;
 
-    if ( depth > 0 ) {
+    if ( depth == 0 ) {
+        return matches;
+    }
 
-        if (_node.data().isScalar()) {
-            if (_node.data() == data ) {
-                matches.push_back(_node.shared_from_this());
+    for (auto child: _node.children()) {
+        if (child && child->data().isScalar()) {
+            if (child->data() == data) {
+                matches.push_back(child);
             }
         }
 
-        for (auto child: _node.children()) {
+        if (child && depth > 1) {
             auto childMatches = child->pick().allByData(data, depth-1);
             matches.insert(matches.end(), childMatches.begin(), childMatches.end());
         }
@@ -433,31 +504,34 @@ std::shared_ptr<Node> Navigation::byAnd(
     const std::string& data,
     const size_t& depth) {
 
-    if ( depth > 0 ) {
+    if ( depth == 0 ) {
+        return nullptr;
+    }
+
+    for (auto child: _node.children()) {
 
         bool matchName(false);
         bool matchType(false);
         bool matchData(false);
 
-        if ( name.empty() || _node.name() == name ) {
+        if (child && (name.empty() || child->name() == name)) {
             matchName = true;
             
-            if ( type.empty() || _node.type() == type ) {
+            if ( type.empty() || child->type() == type ) {
                 matchType = true;
 
                 if ( data.empty() ) {
                     matchData = true;
-                } else if (_node.data().hasString()) {
-                    std::string data_str = _node.data().extractString();
+                } else if (child->data().hasString()) {
+                    std::string data_str = child->data().extractString();
                     matchData = data_str == data;
                 }
             }
         }
 
-        if ( matchName && matchType && matchData ) return _node.shared_from_this();
+        if ( matchName && matchType && matchData ) return child;
 
-
-        for (auto child: _node.children()) {
+        if (child && depth > 1) {
             auto foundNode = child->pick().byAnd(name, type, data, depth-1);
             if (foundNode) return foundNode;
         }
@@ -483,28 +557,31 @@ std::shared_ptr<Node> Navigation::byAnd(
     const T& data,
     const size_t& depth) {
 
-    if ( depth > 0 ) {
+    if ( depth == 0 ) {
+        return nullptr;
+    }
+
+    for (auto child: _node.children()) {
 
         bool matchName(false);
         bool matchType(false);
         bool matchData(false);
 
-        if ( name.empty() || _node.name() == name ) {
+        if (child && (name.empty() || child->name() == name)) {
             matchName = true;
             
-            if ( type.empty() || _node.type() == type ) {
+            if ( type.empty() || child->type() == type ) {
                 matchType = true;
 
-                if ( _node.data().isScalar() && _node.data() == data ) {
+                if ( child->data().isScalar() && child->data() == data ) {
                     matchData = true;
                 }
             }
         }
 
-        if ( matchName && matchType && matchData ) return _node.shared_from_this();
+        if ( matchName && matchType && matchData ) return child;
 
-
-        for (auto child: _node.children()) {
+        if (child && depth > 1) {
             auto foundNode = child->pick().byAnd(name, type, data, depth-1);
             if (foundNode) return foundNode;
         }
@@ -540,37 +617,41 @@ std::vector<std::shared_ptr<Node>> Navigation::allByAnd(
 
     std::vector<std::shared_ptr<Node>> matches;
 
-    if ( depth > 0 ) {
+    if ( depth == 0 ) {
+        return matches;
+    }
+
+    for (auto child: _node.children()) {
 
         bool matchName(false);
         bool matchType(false);
         bool matchData(false);
 
-        if ( name.empty() || _node.name() == name ) {
+        if (child && (name.empty() || child->name() == name)) {
             matchName = true;
             
-            if ( type.empty() || _node.type() == type ) {
+            if ( type.empty() || child->type() == type ) {
                 matchType = true;
 
                 if constexpr (std::is_same_v<T, std::string>) {
                     if ( data.empty() ) {
                         matchData = true;
-                    } else if (_node.data().hasString()) {
-                        std::string data_str = _node.data().extractString();
+                    } else if (child->data().hasString()) {
+                        std::string data_str = child->data().extractString();
                         matchData = data_str == data;
                     }
-                }  else if (_node.data().isScalar()) {
-                    matchData = _node.data() == data;
+                }  else if (child->data().isScalar()) {
+                    matchData = child->data() == data;
                 }
             }
         }
 
         if ( matchName && matchType && matchData ) {
-            matches.push_back(_node.shared_from_this());
+            matches.push_back(child);
         };
 
 
-        for (auto child: _node.children()) {
+        if (child && depth > 1) {
             auto childMatches = child->pick().allByAnd(name, type, data, depth-1);
             matches.insert(matches.end(), childMatches.begin(), childMatches.end());
         }

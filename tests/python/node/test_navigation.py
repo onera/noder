@@ -573,6 +573,93 @@ def test_all_by_and_dispatcher_scalar():
         a.pick().all_by_and("", "TypeT", {"unexpected": "type"})
 
 
+def test_depth_shift_semantics():
+    root = Node("root", "Root_t")
+    root.set_data("root_data")
+
+    target_1 = Node("target_1", "Target_1_t")
+    target_1.set_data("requested_value_01")
+    target_1.attach_to(root)
+
+    branch = Node("branch", "Branch_t")
+    branch.set_data("branch_data")
+    branch.attach_to(root)
+
+    target_2 = Node("target_2", "Target_2_t")
+    target_2.set_data("requested_value_02")
+    target_2.attach_to(branch)
+
+    target_3 = Node("target_3", "Target_3_t")
+    target_3.set_data("requested_value_03")
+    target_3.attach_to(target_2)
+
+    assert root.pick().by_name("root", depth=3) is None
+    assert root.pick().by_name("target_2", depth=1) is None
+    assert root.pick().by_name("target_2", depth=2) is target_2
+    assert root.pick().by_name("target_3", depth=2) is None
+    assert root.pick().by_name("target_3", depth=3) is target_3
+
+    assert len(root.pick().all_by_name_regex(r"^target_.*", depth=2)) == 2
+    assert len(root.pick().all_by_name_glob("target_*", depth=3)) == 3
+
+    assert root.pick().by_type("Target_2_t", depth=1) is None
+    assert root.pick().by_type("Target_2_t", depth=2) is target_2
+    assert len(root.pick().all_by_type_regex(r"^Target_.*_t$", depth=2)) == 2
+    assert len(root.pick().all_by_type_glob("Target_*", depth=3)) == 3
+
+    assert root.pick().by_data("root_data", depth=3) is None
+    assert root.pick().by_data("requested_value_02", depth=1) is None
+    assert root.pick().by_data("requested_value_02", depth=2) is target_2
+    assert root.pick().by_data_glob("requested_value_03", depth=2) is None
+    assert root.pick().by_data_glob("requested_value_03", depth=3) is target_3
+    assert len(root.pick().all_by_data_glob("requested_value_*", depth=2)) == 2
+
+    assert root.pick().by_and("target_2", "Target_2_t", "requested_value_02", depth=1) is None
+    assert root.pick().by_and("target_2", "Target_2_t", "requested_value_02", depth=2) is target_2
+    assert len(root.pick().all_by_and("", "", "", depth=1)) == 2
+    assert len(root.pick().all_by_and("", "", "", depth=3)) == 4
+
+    scalar_root = Node("scalar_root", "Root_t")
+    scalar_root.set_data(0)
+
+    scalar_1 = Node("scalar_1", "Scalar_t")
+    scalar_1.set_data(7)
+    scalar_1.attach_to(scalar_root)
+
+    scalar_branch = Node("scalar_branch", "Branch_t")
+    scalar_branch.set_data(1)
+    scalar_branch.attach_to(scalar_root)
+
+    scalar_2 = Node("scalar_2", "Scalar_t")
+    scalar_2.set_data(8)
+    scalar_2.attach_to(scalar_branch)
+
+    scalar_3 = Node("scalar_3", "Scalar_t")
+    scalar_3.set_data(7)
+    scalar_3.attach_to(scalar_2)
+
+    assert scalar_root.pick().by_data(0, depth=3) is None
+    assert scalar_root.pick().by_data(8, depth=1) is None
+    assert scalar_root.pick().by_data(8, depth=2) is scalar_2
+
+    scalar_all_depth_1 = scalar_root.pick().all_by_data(7, depth=1)
+    assert len(scalar_all_depth_1) == 1
+    assert scalar_all_depth_1[0] is scalar_1
+
+    scalar_all_depth_3 = scalar_root.pick().all_by_data(7, depth=3)
+    assert len(scalar_all_depth_3) == 2
+
+    assert scalar_root.pick().by_and("scalar_2", "Scalar_t", 8, depth=1) is None
+    assert scalar_root.pick().by_and("scalar_2", "Scalar_t", 8, depth=2) is scalar_2
+
+    scalar_and_depth_1 = scalar_root.pick().all_by_and("", "Scalar_t", 7, depth=1)
+    assert len(scalar_and_depth_1) == 1
+    assert scalar_and_depth_1[0] is scalar_1
+
+    scalar_and_depth_3 = scalar_root.pick().all_by_and("", "Scalar_t", 7, depth=3)
+    assert len(scalar_and_depth_3) == 2
+
+
 def _build_navigation_example_tree():
     root = Node("root", "CGNSTree_t")
 

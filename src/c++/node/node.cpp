@@ -420,6 +420,11 @@ Navigation& Node::pick() {
     return *_navigator;
 }
 
+Navigation& Node::pick() const {
+    return const_cast<Node*>(this)->pick();
+}
+
+
 std::shared_ptr<Node> Node::selfPtr() {
     try {
         return shared_from_this(); // if owned by shared_ptr

@@ -51,6 +51,7 @@ void bindTestsOfArray(py::module_ &m) {
     );
 
     sm.def("doNotHaveDataOfType", &test_doNotHaveDataOfType);
+    sm.def("dataArrayInterface", &test_dataArrayInterface);
 
 
     bindTestsOfFactoryOfArrays(sm);

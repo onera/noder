@@ -11,6 +11,7 @@
 # include "node/test_data_pybind.hpp"
 # include "node/test_navigation_pybind.hpp"
 # include "node/test_node_group_pybind.hpp"
+# include "cgns/test_zone_pybind.hpp"
 # include "learn_pybind11/test_learn_pybind11_pybind.hpp"
 # include "utils/test_utils_pybind.hpp"
 
@@ -38,6 +39,7 @@ PYBIND11_MODULE(tests, m) {
     bindTestsOfData(m);
     bindTestsOfNavigation(m);
     bindTestsOfNodeGroup(m);
+    bindTestsOfZone(m);
     bindTestsOfUtils(m);
     
     bindLearningTestsOfPyBind11(m);

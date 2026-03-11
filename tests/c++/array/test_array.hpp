@@ -43,6 +43,7 @@ void test_doNotHaveDataOfType();
 void test_getPointerOfDataSafely();
 void test_getPointerOfModifiableDataFast();
 void test_getPointerOfReadOnlyDataFast();
+void test_dataArrayInterface();
 
 
 #endif

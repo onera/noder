@@ -42,6 +42,7 @@ def test_hasDataOfType(dtype):
     return getattr(test_in_cpp,f"hasDataOfType_{dtype}")()
 
 def test_doNotHaveDataOfType(): test_in_cpp.doNotHaveDataOfType()
+def test_dataArrayInterface(): return test_in_cpp.dataArrayInterface()
 
 
 if __name__ == "__main__":

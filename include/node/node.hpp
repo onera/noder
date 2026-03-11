@@ -90,7 +90,7 @@ struct NODE_EXPORT ParameterValue {
 };
 
 /**
- * @brief Hierarchical node for CGNS-like tree structures.
+ * @brief Hierarchical node for tree structures.
  *
  * A Node stores:
  * - name/type metadata
@@ -138,10 +138,11 @@ public:
      */
     Node(const std::string& name = "", const std::string& type = "DataArray_t");
 
-    ~Node();
+    virtual ~Node();
 
     /** @brief Access navigation helper bound to this node. */
     Navigation& pick();
+    Navigation& pick() const;
     
     /** @brief Shared pointer to this node (or null when unmanaged). */
     std::shared_ptr<Node> selfPtr();

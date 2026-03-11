@@ -216,7 +216,7 @@ See C++ counterpart: :ref:`cpp-node-ctor`.
 )doc",
              py::arg("name"), py::arg("type")="DataArray_t")
 
-        .def("pick", &Node::pick, R"doc(
+        .def("pick", py::overload_cast<>(&Node::pick), R"doc(
 Return the Navigation helper bound to this node.
 
 See C++ counterpart: :ref:`cpp-node-pick`.

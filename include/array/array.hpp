@@ -94,6 +94,33 @@ public:
     bool isNone() const override;
     /** @brief True when payload is a scalar numeric value. */
     bool isScalar() const override;
+    /** @brief Number of array dimensions. */
+    size_t dimensions() const override {
+        return this->_dimensions;
+    }
+    /** @brief Total number of elements. */
+    size_t size() const override {
+        return this->_size;
+    }
+    /** @brief Shape vector. */
+    std::vector<size_t> shape() const override {
+        return this->_shape;
+    }
+    /** @brief NumPy dtype short name (for example ``float64``). */
+    std::string dtype() const override;
+    /** @brief Create a filled array payload with requested shape/dtype. */
+    std::shared_ptr<Data> full(
+        const std::vector<size_t>& shape,
+        double value,
+        const std::string& dtypeName) const override;
+    /** @brief Flatten according to NumPy-like ``order`` semantics. */
+    std::shared_ptr<Data> ravel(const std::string& order = "K") const override;
+    /** @brief Take one index along axis and return result as a new payload. */
+    std::shared_ptr<Data> take(int64_t index, size_t axis) const override;
+    /** @brief Read one value at indices and cast to int64. */
+    int64_t itemAsInt64(const std::vector<size_t>& indices) const override;
+    /** @brief Write one value at indices from int64. */
+    void setItemFromInt64(const std::vector<size_t>& indices, int64_t value) override;
     /** @brief True when memory is contiguous in C or Fortran order. */
     bool isContiguous() const;
     /** @brief True when memory is C-order contiguous. */
@@ -203,21 +230,6 @@ public:
     /*
         consultation of array properties
     */
-
-    /** @brief Number of array dimensions. */
-    size_t dimensions() const {
-        return this->_dimensions;
-    }
-
-    /** @brief Total number of elements. */
-    size_t size() const {
-        return this->_size;
-    }
-
-    /** @brief Shape vector. */
-    std::vector<size_t> shape() const {
-        return this->_shape;
-    }
 
     /** @brief Strides (bytes per dimension). */
     std::vector<size_t> strides() const {

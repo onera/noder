@@ -564,3 +564,151 @@ void test_allByAnd() {
     if (matches[0].get() != c.get()) throw py::value_error("expected to recover node c without copy");
     if (matches[1].get() != d.get()) throw py::value_error("expected to recover node d without copy");
 }
+
+void test_depthSemantics() {
+    auto root = newNode("root", "Root_t");
+    root->setData("root_data");
+
+    auto target1 = newNode("target_1", "Target_1_t");
+    target1->setData("requested_value_01");
+    target1->attachTo(root);
+
+    auto branch = newNode("branch", "Branch_t");
+    branch->setData("branch_data");
+    branch->attachTo(root);
+
+    auto target2 = newNode("target_2", "Target_2_t");
+    target2->setData("requested_value_02");
+    target2->attachTo(branch);
+
+    auto target3 = newNode("target_3", "Target_3_t");
+    target3->setData("requested_value_03");
+    target3->attachTo(target2);
+
+    if (root->pick().byName("root", 3) != nullptr) {
+        throw py::value_error("depth semantics: current node must not be matched");
+    }
+    if (root->pick().byName("target_2", 1) != nullptr) {
+        throw py::value_error("depth semantics: byName depth=1 must not reach grandchildren");
+    }
+    if (root->pick().byName("target_2", 2).get() != target2.get()) {
+        throw py::value_error("depth semantics: byName depth=2 must reach grandchildren");
+    }
+    if (root->pick().byName("target_3", 2) != nullptr) {
+        throw py::value_error("depth semantics: byName depth=2 must not reach great-grandchildren");
+    }
+    if (root->pick().byName("target_3", 3).get() != target3.get()) {
+        throw py::value_error("depth semantics: byName depth=3 must reach great-grandchildren");
+    }
+
+    auto byNameRegexDepth2 = root->pick().allByNameRegex("^target_.*", 2);
+    if (byNameRegexDepth2.size() != 2) {
+        throw py::value_error("depth semantics: allByNameRegex depth=2 expected 2 matches");
+    }
+    auto byNameGlobDepth3 = root->pick().allByNameGlob("target_*", 3);
+    if (byNameGlobDepth3.size() != 3) {
+        throw py::value_error("depth semantics: allByNameGlob depth=3 expected 3 matches");
+    }
+
+    if (root->pick().byType("Target_2_t", 1) != nullptr) {
+        throw py::value_error("depth semantics: byType depth=1 must not reach grandchildren");
+    }
+    if (root->pick().byType("Target_2_t", 2).get() != target2.get()) {
+        throw py::value_error("depth semantics: byType depth=2 must reach grandchildren");
+    }
+    auto byTypeRegexDepth2 = root->pick().allByTypeRegex("^Target_.*_t$", 2);
+    if (byTypeRegexDepth2.size() != 2) {
+        throw py::value_error("depth semantics: allByTypeRegex depth=2 expected 2 matches");
+    }
+    auto byTypeGlobDepth3 = root->pick().allByTypeGlob("Target_*", 3);
+    if (byTypeGlobDepth3.size() != 3) {
+        throw py::value_error("depth semantics: allByTypeGlob depth=3 expected 3 matches");
+    }
+
+    if (root->pick().byData("root_data", 3) != nullptr) {
+        throw py::value_error("depth semantics: byData must not match current node");
+    }
+    if (root->pick().byData("requested_value_02", 1) != nullptr) {
+        throw py::value_error("depth semantics: byData depth=1 must not reach grandchildren");
+    }
+    if (root->pick().byData("requested_value_02", 2).get() != target2.get()) {
+        throw py::value_error("depth semantics: byData depth=2 must reach grandchildren");
+    }
+    if (root->pick().byDataGlob("requested_value_03", 2) != nullptr) {
+        throw py::value_error("depth semantics: byDataGlob depth=2 must not reach great-grandchildren");
+    }
+    if (root->pick().byDataGlob("requested_value_03", 3).get() != target3.get()) {
+        throw py::value_error("depth semantics: byDataGlob depth=3 must reach great-grandchildren");
+    }
+    auto byDataGlobDepth2 = root->pick().allByDataGlob("requested_value_*", 2);
+    if (byDataGlobDepth2.size() != 2) {
+        throw py::value_error("depth semantics: allByDataGlob depth=2 expected 2 matches");
+    }
+
+    if (root->pick().byAnd("target_2", "Target_2_t", "requested_value_02", 1) != nullptr) {
+        throw py::value_error("depth semantics: byAnd(string) depth=1 must not reach grandchildren");
+    }
+    if (root->pick().byAnd("target_2", "Target_2_t", "requested_value_02", 2).get() != target2.get()) {
+        throw py::value_error("depth semantics: byAnd(string) depth=2 must reach grandchildren");
+    }
+    auto allByAndDepth1 = root->pick().allByAnd("", "", "", 1);
+    if (allByAndDepth1.size() != 2) {
+        throw py::value_error("depth semantics: allByAnd(string) depth=1 expected 2 direct children");
+    }
+    auto allByAndDepth3 = root->pick().allByAnd("", "", "", 3);
+    if (allByAndDepth3.size() != 4) {
+        throw py::value_error("depth semantics: allByAnd(string) depth=3 expected 4 descendants");
+    }
+
+    auto scalarRoot = newNode("scalar_root", "Root_t");
+    scalarRoot->setData(0);
+
+    auto scalar1 = newNode("scalar_1", "Scalar_t");
+    scalar1->setData(7);
+    scalar1->attachTo(scalarRoot);
+
+    auto scalarBranch = newNode("scalar_branch", "Branch_t");
+    scalarBranch->setData(1);
+    scalarBranch->attachTo(scalarRoot);
+
+    auto scalar2 = newNode("scalar_2", "Scalar_t");
+    scalar2->setData(8);
+    scalar2->attachTo(scalarBranch);
+
+    auto scalar3 = newNode("scalar_3", "Scalar_t");
+    scalar3->setData(7);
+    scalar3->attachTo(scalar2);
+
+    if (scalarRoot->pick().byData(0, 3) != nullptr) {
+        throw py::value_error("depth semantics: scalar byData must not match current node");
+    }
+    if (scalarRoot->pick().byData(8, 1) != nullptr) {
+        throw py::value_error("depth semantics: scalar byData depth=1 must not reach grandchildren");
+    }
+    if (scalarRoot->pick().byData(8, 2).get() != scalar2.get()) {
+        throw py::value_error("depth semantics: scalar byData depth=2 must reach grandchildren");
+    }
+    auto scalarAllDepth1 = scalarRoot->pick().allByData(7, 1);
+    if (scalarAllDepth1.size() != 1 || scalarAllDepth1[0].get() != scalar1.get()) {
+        throw py::value_error("depth semantics: scalar allByData depth=1 expected only scalar_1");
+    }
+    auto scalarAllDepth3 = scalarRoot->pick().allByData(7, 3);
+    if (scalarAllDepth3.size() != 2) {
+        throw py::value_error("depth semantics: scalar allByData depth=3 expected 2 matches");
+    }
+
+    if (scalarRoot->pick().byAnd("scalar_2", "Scalar_t", 8, 1) != nullptr) {
+        throw py::value_error("depth semantics: byAnd(scalar) depth=1 must not reach grandchildren");
+    }
+    if (scalarRoot->pick().byAnd("scalar_2", "Scalar_t", 8, 2).get() != scalar2.get()) {
+        throw py::value_error("depth semantics: byAnd(scalar) depth=2 must reach grandchildren");
+    }
+    auto scalarAndDepth1 = scalarRoot->pick().allByAnd("", "Scalar_t", 7, 1);
+    if (scalarAndDepth1.size() != 1 || scalarAndDepth1[0].get() != scalar1.get()) {
+        throw py::value_error("depth semantics: allByAnd(scalar) depth=1 expected only scalar_1");
+    }
+    auto scalarAndDepth3 = scalarRoot->pick().allByAnd("", "Scalar_t", 7, 3);
+    if (scalarAndDepth3.size() != 2) {
+        throw py::value_error("depth semantics: allByAnd(scalar) depth=3 expected 2 matches");
+    }
+}

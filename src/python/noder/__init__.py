@@ -18,6 +18,7 @@ from .core import (
     registerDefaultFactory,
     factory,
     Node,
+    Zone,
     Array)
 registerDefaultFactory()
 

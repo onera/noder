@@ -300,6 +300,48 @@ void test_doNotHaveDataOfType() {
     }
 }
 
+void test_dataArrayInterface() {
+    Array prototype;
+
+    auto filled = prototype.full({2, 3}, 1.5, "float64");
+    if (filled->dimensions() != 2) {
+        throw py::value_error("full expected dimensions=2");
+    }
+    if (filled->size() != 6) {
+        throw py::value_error("full expected size=6");
+    }
+    if (filled->shape() != std::vector<size_t>({2, 3})) {
+        throw py::value_error("full expected shape=(2,3)");
+    }
+    if (filled->dtype() != "float64") {
+        throw py::value_error("full expected dtype float64");
+    }
+
+    auto flattened = filled->ravel("K");
+    if (flattened->dimensions() != 1 || flattened->size() != 6) {
+        throw py::value_error("ravel expected 1D size=6");
+    }
+
+    auto taken = filled->take(0, 0);
+    if (taken->shape() != std::vector<size_t>({3})) {
+        throw py::value_error("take expected shape=(3,)");
+    }
+
+    auto ints = prototype.full({1, 3}, 0.0, "int32");
+    ints->setItemFromInt64({0, 0}, 2);
+    ints->setItemFromInt64({0, 1}, 1);
+    ints->setItemFromInt64({0, 2}, 0);
+    if (ints->itemAsInt64({0, 0}) != 2) {
+        throw py::value_error("itemAsInt64 expected 2 at (0,0)");
+    }
+    if (ints->itemAsInt64({0, 1}) != 1) {
+        throw py::value_error("itemAsInt64 expected 1 at (0,1)");
+    }
+    if (ints->itemAsInt64({0, 2}) != 0) {
+        throw py::value_error("itemAsInt64 expected 0 at (0,2)");
+    }
+}
+
 /*
     template instantiations
 */
