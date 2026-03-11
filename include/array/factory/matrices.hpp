@@ -9,6 +9,8 @@
 # include <tuple>
 # include <utility>
 # include <type_traits>
+# include <algorithm>
+# include <stdexcept>
 # include <pybind11/numpy.h>
 
 # include "array/array.hpp"
@@ -54,6 +56,66 @@ namespace arrayfactory {
     Array ones(const std::vector<size_t>& shape, const char order = 'C');
 
 
+}
+
+// Template implementations kept in header to avoid cross-TU symbol issues.
+namespace arrayfactory {
+
+    template <typename T>
+    Array full(const std::vector<size_t>& shape, T fill_value, const char order) {
+        Array array = empty<T>(shape, order);
+        T* data = array.getPointerOfModifiableDataFast<T>();
+        std::fill(data, data + array.size(), fill_value);
+        return array;
+    }
+
+    template <typename T>
+    Array empty(const std::vector<size_t>& shape, const char order) {
+        std::vector<size_t> strides;
+        if (order == 'C') {
+            strides = computeStridesInOrderC<T>(shape);
+        } else if (order == 'F') {
+            strides = computeStridesInOrderF<T>(shape);
+        } else {
+            throw std::invalid_argument("order must be either 'C' or 'F'");
+        }
+        py::array pyarray = py::array(py::dtype::of<T>(), shape, strides);
+        return Array(pyarray);
+    }
+
+    template <typename T>
+    std::vector<size_t> computeStridesInOrderC(const std::vector<size_t>& shape) {
+        size_t stride = sizeof(T);
+        const size_t dims = shape.size();
+        std::vector<size_t> strides(shape.size());
+        for (size_t j = 0; j < dims; ++j) {
+            const size_t dim = dims - 1 - j;
+            strides[dim] = stride;
+            stride *= shape[dim];
+        }
+        return strides;
+    }
+
+    template <typename T>
+    std::vector<size_t> computeStridesInOrderF(const std::vector<size_t>& shape) {
+        size_t stride = sizeof(T);
+        std::vector<size_t> strides(shape.size());
+        for (size_t i = 0; i < shape.size(); ++i) {
+            strides[i] = stride;
+            stride *= shape[i];
+        }
+        return strides;
+    }
+
+    template <typename T>
+    Array zeros(const std::vector<size_t>& shape, const char order) {
+        return full(shape, static_cast<T>(0), order);
+    }
+
+    template <typename T>
+    Array ones(const std::vector<size_t>& shape, const char order) {
+        return full(shape, static_cast<T>(1), order);
+    }
 }
 
 # endif 
