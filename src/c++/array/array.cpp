@@ -1,7 +1,9 @@
 # include "array/array.hpp"
 # include "array/assertions.hpp"
+# include "array/factory/matrices.hpp"
 # include "array/factory/strings.hpp"
 # include <pybind11/stl.h>
+# include <cctype>
 # include <limits>
 # include <stdexcept>
 
@@ -21,6 +23,110 @@ std::vector<ssize_t> toSignedShape(const std::vector<size_t>& shape, const char*
         output.push_back(static_cast<ssize_t>(value));
     }
     return output;
+}
+
+std::vector<size_t> computeByteStrides(
+    const std::vector<size_t>& shape,
+    size_t itemsize,
+    char order,
+    const char* context) {
+
+    const char normalizedOrder = static_cast<char>(std::toupper(static_cast<unsigned char>(order)));
+    if (normalizedOrder != 'C' && normalizedOrder != 'F') {
+        throw std::invalid_argument(std::string(context) + ": order must be 'C' or 'F'");
+    }
+
+    std::vector<size_t> strides(shape.size(), 0);
+    size_t stride = itemsize;
+    if (normalizedOrder == 'F') {
+        for (size_t i = 0; i < shape.size(); ++i) {
+            strides[i] = stride;
+            if (shape[i] != 0 && stride > std::numeric_limits<size_t>::max() / shape[i]) {
+                throw std::runtime_error(std::string(context) + ": overflow while computing Fortran strides");
+            }
+            stride *= shape[i];
+        }
+        return strides;
+    }
+
+    for (size_t j = 0; j < shape.size(); ++j) {
+        const size_t dim = shape.size() - 1 - j;
+        strides[dim] = stride;
+        if (shape[dim] != 0 && stride > std::numeric_limits<size_t>::max() / shape[dim]) {
+            throw std::runtime_error(std::string(context) + ": overflow while computing C strides");
+        }
+        stride *= shape[dim];
+    }
+    return strides;
+}
+
+template <typename T>
+std::shared_ptr<Data> makeFilledWithFactory(const std::vector<size_t>& shape, double value, char order) {
+    return std::make_shared<Array>(arrayfactory::full<T>(shape, static_cast<T>(value), order));
+}
+
+std::shared_ptr<Data> fullFromDtype(
+    const std::vector<size_t>& shape,
+    double value,
+    const std::string& dtypeName,
+    char order,
+    const char* context) {
+
+    const char normalizedOrder = static_cast<char>(std::toupper(static_cast<unsigned char>(order)));
+    if (normalizedOrder != 'C' && normalizedOrder != 'F') {
+        throw std::invalid_argument(std::string(context) + ": order must be 'C' or 'F'");
+    }
+
+    py::dtype dtype;
+    try {
+        dtype = py::dtype(dtypeName);
+    } catch (const py::error_already_set&) {
+        throw std::invalid_argument(std::string(context) + ": unsupported dtype '" + dtypeName + "'");
+    }
+
+    if (dtype.is(py::dtype::of<bool>())) {
+        return std::make_shared<Array>(
+            arrayfactory::full<bool>(shape, static_cast<bool>(value), normalizedOrder));
+    }
+    if (dtype.is(py::dtype::of<int8_t>())) {
+        return makeFilledWithFactory<int8_t>(shape, value, normalizedOrder);
+    }
+    if (dtype.is(py::dtype::of<int16_t>())) {
+        return makeFilledWithFactory<int16_t>(shape, value, normalizedOrder);
+    }
+    if (dtype.is(py::dtype::of<int32_t>())) {
+        return makeFilledWithFactory<int32_t>(shape, value, normalizedOrder);
+    }
+    if (dtype.is(py::dtype::of<int64_t>())) {
+        return makeFilledWithFactory<int64_t>(shape, value, normalizedOrder);
+    }
+    if (dtype.is(py::dtype::of<uint8_t>())) {
+        return makeFilledWithFactory<uint8_t>(shape, value, normalizedOrder);
+    }
+    if (dtype.is(py::dtype::of<uint16_t>())) {
+        return makeFilledWithFactory<uint16_t>(shape, value, normalizedOrder);
+    }
+    if (dtype.is(py::dtype::of<uint32_t>())) {
+        return makeFilledWithFactory<uint32_t>(shape, value, normalizedOrder);
+    }
+    if (dtype.is(py::dtype::of<uint64_t>())) {
+        return makeFilledWithFactory<uint64_t>(shape, value, normalizedOrder);
+    }
+    if (dtype.is(py::dtype::of<float>())) {
+        return makeFilledWithFactory<float>(shape, value, normalizedOrder);
+    }
+    if (dtype.is(py::dtype::of<double>())) {
+        return makeFilledWithFactory<double>(shape, value, normalizedOrder);
+    }
+
+    // Fallback path for non-scalar dtypes (for example string/object dtypes):
+    // still avoids importing numpy and keeps Fortran-order allocation.
+    py::array output(
+        dtype,
+        toSignedShape(shape, context),
+        toSignedShape(computeByteStrides(shape, static_cast<size_t>(dtype.itemsize()), normalizedOrder, context), context));
+    output.attr("fill")(py::float_(value));
+    return std::make_shared<Array>(output);
 }
 
 py::tuple toPyIndexTuple(const std::vector<size_t>& indices, size_t dimensions, const char* context) {
@@ -237,20 +343,13 @@ std::string Array::dtype() const {
 std::shared_ptr<Data> Array::full(
     const std::vector<size_t>& shape,
     double value,
-    const std::string& dtypeName) const {
-
-    py::module_ np = py::module_::import("numpy");
-    py::array output = np.attr("full")(
-        toSignedShape(shape, "Array::full"),
-        value,
-        py::arg("dtype") = dtypeName,
-        py::arg("order") = "F").cast<py::array>();
-    return std::make_shared<Array>(output);
+    const std::string& dtypeName,
+    char order) const {
+    return fullFromDtype(shape, value, dtypeName, order, "Array::full");
 }
 
 std::shared_ptr<Data> Array::ravel(const std::string& order) const {
-    py::module_ np = py::module_::import("numpy");
-    py::array flattened = np.attr("ravel")(this->pyArray, py::arg("order") = order).cast<py::array>();
+    py::array flattened = this->pyArray.attr("ravel")(py::arg("order") = order).cast<py::array>();
     return std::make_shared<Array>(flattened);
 }
 
@@ -262,14 +361,38 @@ std::shared_ptr<Data> Array::take(int64_t index, size_t axis) const {
         throw std::runtime_error("Array::take: axis out of bounds");
     }
 
-    py::module_ np = py::module_::import("numpy");
-    py::object sliced = np.attr("take")(
-        this->pyArray,
-        index,
-        py::arg("axis") = static_cast<int>(axis));
+    const auto currentShape = this->shape();
+    const size_t axisLength = currentShape[axis];
+    if (axisLength == 0) {
+        throw std::runtime_error("Array::take: cannot take from empty axis");
+    }
+    if (axisLength > static_cast<size_t>(std::numeric_limits<int64_t>::max())) {
+        throw std::runtime_error("Array::take: axis length exceeds int64 range");
+    }
 
-    py::object asArray = np.attr("atleast_1d")(sliced);
-    py::array output = np.attr("asfortranarray")(asArray).cast<py::array>();
+    int64_t normalizedIndex = index;
+    if (normalizedIndex < 0) {
+        normalizedIndex += static_cast<int64_t>(axisLength);
+    }
+    if (normalizedIndex < 0 || normalizedIndex >= static_cast<int64_t>(axisLength)) {
+        throw std::runtime_error("Array::take: index out of bounds");
+    }
+
+    py::tuple indexTuple(this->dimensions());
+    for (size_t i = 0; i < this->dimensions(); ++i) {
+        if (this->dimensions() == 1 && i == axis) {
+            indexTuple[static_cast<ssize_t>(i)] = py::slice(
+                py::int_(normalizedIndex),
+                py::int_(normalizedIndex + 1),
+                py::int_(1));
+        } else if (i == axis) {
+            indexTuple[static_cast<ssize_t>(i)] = py::int_(normalizedIndex);
+        } else {
+            indexTuple[static_cast<ssize_t>(i)] = py::slice(py::none(), py::none(), py::none());
+        }
+    }
+
+    py::array output = this->pyArray[indexTuple].cast<py::array>();
     return std::make_shared<Array>(output);
 }
 

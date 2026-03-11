@@ -316,6 +316,16 @@ void test_dataArrayInterface() {
     if (filled->dtype() != "float64") {
         throw py::value_error("full expected dtype float64");
     }
+    auto filledArray = std::dynamic_pointer_cast<Array>(filled);
+    if (!filledArray || !filledArray->isContiguousInStyleFortran()) {
+        throw py::value_error("full default order expected Fortran contiguous");
+    }
+
+    auto filledC = prototype.full({2, 3}, 1.5, "float64", 'C');
+    auto filledCArray = std::dynamic_pointer_cast<Array>(filledC);
+    if (!filledCArray || !filledCArray->isContiguousInStyleC()) {
+        throw py::value_error("full order='C' expected C contiguous");
+    }
 
     auto flattened = filled->ravel("K");
     if (flattened->dimensions() != 1 || flattened->size() != 6) {
@@ -325,6 +335,13 @@ void test_dataArrayInterface() {
     auto taken = filled->take(0, 0);
     if (taken->shape() != std::vector<size_t>({3})) {
         throw py::value_error("take expected shape=(3,)");
+    }
+
+    auto intsViewSource = prototype.full({2, 3}, 0.0, "int32");
+    auto intsView = intsViewSource->take(0, 0);
+    intsView->setItemFromInt64({0}, 9);
+    if (intsViewSource->itemAsInt64({0, 0}) != 9) {
+        throw py::value_error("take expected view semantics (in-place modification of parent)");
     }
 
     auto ints = prototype.full({1, 3}, 0.0, "int32");

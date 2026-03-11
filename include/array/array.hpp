@@ -112,7 +112,8 @@ public:
     std::shared_ptr<Data> full(
         const std::vector<size_t>& shape,
         double value,
-        const std::string& dtypeName) const override;
+        const std::string& dtypeName,
+        char order = 'F') const override;
     /** @brief Flatten according to NumPy-like ``order`` semantics. */
     std::shared_ptr<Data> ravel(const std::string& order = "K") const override;
     /** @brief Take one index along axis and return result as a new payload. */

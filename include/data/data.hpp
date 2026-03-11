@@ -52,7 +52,8 @@ public:
     virtual std::shared_ptr<Data> full(
         const std::vector<size_t>& shape,
         double value,
-        const std::string& dtypeName) const = 0;
+        const std::string& dtypeName,
+        char order = 'F') const = 0;
     /**
      * @brief Return a flattened view/copy according to backend semantics.
      * @param order Flattening order (``C``, ``F``, ``A``, ``K``).
