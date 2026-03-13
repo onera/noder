@@ -1,4 +1,6 @@
-# include "io/cgns/node_pycgns_converter.hpp"
+#include "io/cgns/node_pycgns_converter.hpp"
+
+#include "array/array_numpy_bridge.hpp"
 
 /**
  * @brief Convert a C++ Node object into a Python CGNS-like structure (list).
@@ -22,7 +24,7 @@ py::list nodeToPyCGNS(const std::shared_ptr<Node>& node) {
         if (!dataPtr || dataPtr->isNone()) {
             nodePyList.append(py::none());
         } else if (auto arrayPtr = std::dynamic_pointer_cast<Array>(dataPtr)) {
-            nodePyList.append(arrayPtr->getPyArray());
+            nodePyList.append(arraybridge::toPyObject(*arrayPtr));
         } else {
             throw std::runtime_error("nodeToPyCGNS: Unsupported Data subclass.");
         }
@@ -62,7 +64,7 @@ std::shared_ptr<Node> pyCGNSToNode(const py::list& pyList) {
 
     py::object valueObj = pyList[1].cast<py::object>();
     if (py::isinstance<py::array>(valueObj)) {
-        node->setData(Array(py::cast<py::array>(valueObj)));
+        node->setData(arraybridge::arrayFromPyArray(py::cast<py::array>(valueObj)));
     } else if (py::isinstance<py::none>(valueObj)) {
         // Keep default none-data.
     } else if (py::isinstance<py::list>(valueObj)) {
@@ -100,12 +102,4 @@ std::shared_ptr<Node> pyCGNSToNode(const py::list& pyList) {
     }
 
     return node;
-}
-
-/**
- * @brief Bind the conversion functions to Pybind11.
- */
-PYBIND11_MODULE(noder_core, m) {
-    m.def("nodeToPyCGNS", &nodeToPyCGNS, "Convert a Node to a Python CGNS-like list.");
-    m.def("pyCGNSToNode", &pyCGNSToNode, "Convert a Python CGNS-like list to a Node.");
 }

@@ -1,6 +1,10 @@
 # include "test_data.hpp"
 # include <array/array.hpp>
 
+# include <pybind11/pybind11.h>
+
+namespace py = pybind11;
+
 namespace testdata {
 
 void test_hasString() {

@@ -1,5 +1,4 @@
 from __future__ import annotations
-import numpy
 import typing
 from . import factory
 from . import io
@@ -7,303 +6,54 @@ __all__: list[str] = ['Array', 'Data', 'Navigation', 'Node', 'factory', 'io', 'n
 class Array(Data):
     """
     
-    NumPy-backed concrete :py:class:`noder.core.Data` payload.
-    
-    `Array` stores either numeric values or string-like values and exposes
-    lightweight helpers for shape, indexing, contiguity, and printing.
-    
-    See C++ counterpart: :ref:`cpp-array-class`.
+    Pure C++ array payload exposed to Python through a NumPy bridge.
     """
     def __getitem__(self, arg0: typing.Any) -> Array:
-        """
-        Return a sliced/indexed view as an :py:class:`Array`.
-        
-        Parameters
-        ----------
-        key : Any
-            NumPy-compatible index or slice expression.
-        
-        Returns
-        -------
-        Array
-            Indexed value wrapped as Array.
-        """
+        ...
     @typing.overload
     def __init__(self) -> None:
-        """
-        Construct an empty (None-like) array payload.
-        
-        Example
-        -------
-        .. literalinclude:: ../../../tests/python/array/test_array.py
-           :language: python
-           :pyobject: test_constructorEmpty
-        """
-    @typing.overload
-    def __init__(self, arg0: numpy.ndarray) -> None:
-        """
-        Construct an Array from an existing NumPy ndarray.
-        
-        Parameters
-        ----------
-        arg0 : numpy.ndarray
-            Input array to wrap.
-        
-        Example
-        -------
-        .. literalinclude:: ../../../tests/python/array/test_array.py
-           :language: python
-           :pyobject: test_constructorPyArray
-        """
-    @typing.overload
-    def __init__(self, arg0: None) -> None:
-        """
-        Construct an empty Array from ``None``.
-        """
-    @typing.overload
-    def __init__(self, arg0: str) -> None:
-        """
-        Construct a string Array from UTF-8 text.
-        
-        Example
-        -------
-        .. literalinclude:: ../../../tests/python/array/test_array.py
-           :language: python
-           :pyobject: test_constructorString
-        """
-    @typing.overload
-    def __init__(self, arg0: Array) -> None:
-        """
-        Copy-construct from another Array.
-        """
-    @typing.overload
-    def __init__(self, arg0: int) -> None:
         ...
     @typing.overload
-    def __init__(self, arg0: int) -> None:
-        ...
-    @typing.overload
-    def __init__(self, arg0: int) -> None:
-        ...
-    @typing.overload
-    def __init__(self, arg0: int) -> None:
-        ...
-    @typing.overload
-    def __init__(self, arg0: int) -> None:
-        ...
-    @typing.overload
-    def __init__(self, arg0: int) -> None:
-        ...
-    @typing.overload
-    def __init__(self, arg0: int) -> None:
-        ...
-    @typing.overload
-    def __init__(self, arg0: int) -> None:
-        ...
-    @typing.overload
-    def __init__(self, arg0: float) -> None:
-        ...
-    @typing.overload
-    def __init__(self, arg0: float) -> None:
-        ...
-    @typing.overload
-    def __init__(self, arg0: bool) -> None:
+    def __init__(self, arg0: typing.Any) -> None:
         ...
     def __repr__(self) -> str:
-        """
-        Return ``repr(array)`` style representation.
-        """
+        ...
     def __setitem__(self, arg0: typing.Any, arg1: typing.Any) -> None:
-        """
-        Assign a value into the underlying NumPy array.
-        
-        Parameters
-        ----------
-        key : Any
-            NumPy-compatible index or slice.
-        value : Any
-            Value assigned to the selected position(s).
-        """
+        ...
     def dimensions(self) -> int:
-        """
-        Return array rank (number of dimensions).
-        
-        Returns
-        -------
-        int
-            Number of dimensions.
-        """
+        ...
     def extractString(self) -> str:
-        """
-        Decode and return string payload.
-        
-        Returns
-        -------
-        str
-            UTF-8 string value.
-        
-        Example
-        -------
-        .. literalinclude:: ../../../tests/python/array/factory/test_strings.py
-           :language: python
-           :pyobject: test_arrayFromString
-        """
+        ...
     def getFlatIndex(self, arg0: list[int]) -> int:
-        """
-        Convert multidimensional indices to one flat index.
-        
-        Parameters
-        ----------
-        arg0 : list[int]
-            Indices per dimension.
-        
-        Returns
-        -------
-        int
-            Flat index in the current memory order.
-        """
+        ...
     def getItemAtIndex(self, arg0: int) -> typing.Any:
-        """
-        Read one element by flat index and return a Python scalar.
-        
-        Parameters
-        ----------
-        flatIndex : int
-            Zero-based flat index.
-        
-        Returns
-        -------
-        Any
-            Scalar value at requested position.
-        """
+        ...
     def getPrintString(self, arg0: int) -> str:
-        """
-        Return a compact textual representation.
-        
-        Parameters
-        ----------
-        arg0 : int
-            Maximum characters in output.
-        
-        Returns
-        -------
-        str
-            Formatted representation.
-        """
-    def getPyArray(self) -> numpy.ndarray:
-        """
-        Expose the underlying ``numpy.ndarray`` view.
-        
-        Returns
-        -------
-        numpy.ndarray
-            Wrapped NumPy array.
-        """
+        ...
+    def getPyArray(self) -> typing.Any:
+        ...
     def hasString(self) -> bool:
-        """
-        Check whether this Array stores string data.
-        
-        Returns
-        -------
-        bool
-            ``True`` for string payloads.
-        """
+        ...
     def info(self) -> str:
-        """
-        Return detailed metadata and payload summary.
-        
-        Returns
-        -------
-        str
-            Human-readable Array description.
-        """
+        ...
     def isContiguous(self) -> bool:
-        """
-        Check whether memory layout is contiguous (C or Fortran order).
-        
-        Returns
-        -------
-        bool
-            ``True`` when contiguous.
-        """
+        ...
     def isContiguousInStyleC(self) -> bool:
-        """
-        Check C-order (row-major) contiguity.
-        
-        Returns
-        -------
-        bool
-            ``True`` for C-order contiguous arrays.
-        """
+        ...
     def isContiguousInStyleFortran(self) -> bool:
-        """
-        Check Fortran-order (column-major) contiguity.
-        
-        Returns
-        -------
-        bool
-            ``True`` for Fortran-order contiguous arrays.
-        """
+        ...
     def isNone(self) -> bool:
-        """
-        Check whether this Array is empty (None-like).
-        
-        Returns
-        -------
-        bool
-            ``True`` when empty.
-        """
+        ...
     def isScalar(self) -> bool:
-        """
-        Check whether this Array stores one scalar numeric value.
-        
-        Returns
-        -------
-        bool
-            ``True`` for scalar payloads.
-        """
+        ...
     def print(self, arg0: int) -> None:
-        """
-        Print a compact textual representation.
-        
-        Parameters
-        ----------
-        arg0 : int
-            Maximum characters to emit.
-        """
+        ...
     def shape(self) -> list[int]:
-        """
-        Return shape as a list of dimension lengths.
-        
-        Returns
-        -------
-        list[int]
-            Shape vector.
-        
-        Example
-        -------
-        .. literalinclude:: ../../../tests/python/array/test_array.py
-           :language: python
-           :pyobject: test_getArrayProperties
-        """
+        ...
     def size(self) -> int:
-        """
-        Return total number of elements.
-        
-        Returns
-        -------
-        int
-            Flat element count.
-        """
+        ...
     def strides(self) -> list[int]:
-        """
-        Return strides (in bytes) for each dimension.
-        
-        Returns
-        -------
-        list[int]
-            Stride vector.
-        """
+        ...
 class Data:
     """
     

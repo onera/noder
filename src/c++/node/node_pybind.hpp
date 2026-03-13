@@ -6,6 +6,7 @@
 # include <pybind11/stl.h>
 
 # include "array/array.hpp"
+# include "array/array_numpy_bridge.hpp"
 # include "node/node.hpp"
 # include "node/node_group_pybind.hpp"
 # include "node/node_factory.hpp"
@@ -39,14 +40,14 @@ std::shared_ptr<Data> dataFromPyObject(const py::object& data, const char* conte
     }
 
     if (py::isinstance<py::array>(data)) {
-        return std::make_shared<Array>(data.cast<py::array>());
+        return std::make_shared<Array>(arraybridge::arrayFromPyArray(data.cast<py::array>()));
     }
 
     if (py::isinstance<py::list>(data) || py::isinstance<py::tuple>(data)) {
         try {
             py::module_ np = py::module_::import("numpy");
             py::array arrayData = np.attr("asarray")(data).cast<py::array>();
-            return std::make_shared<Array>(arrayData);
+            return std::make_shared<Array>(arraybridge::arrayFromPyArray(arrayData));
         } catch (const py::error_already_set&) {
             throw py::type_error(
                 std::string(context) + ": list/tuple could not be converted to a NumPy array");
@@ -150,7 +151,7 @@ py::object pyObjectFromParameterValue(const ParameterValue& value, bool transfor
                 return py::cast(value.data);
             }
 
-            py::array output = arrayData->getPyArray();
+            py::array output = arraybridge::toPyArray(*arrayData);
             if (transformNumpyScalars && output.size() == 1) {
                 try {
                     return output.attr("item")();

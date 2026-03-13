@@ -6,6 +6,7 @@
 #include <pybind11/stl.h>
 
 #include "array/array.hpp"
+#include "array/array_numpy_bridge.hpp"
 #include "cgns/zone.hpp"
 
 namespace py = pybind11;
@@ -19,7 +20,7 @@ py::object pyObjectFromData(const std::shared_ptr<Data>& data) {
 
     auto arrayData = std::dynamic_pointer_cast<Array>(data);
     if (arrayData) {
-        return arrayData->getPyArray();
+        return arraybridge::toPyObject(*arrayData);
     }
 
     return py::cast(data);

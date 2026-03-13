@@ -1,7 +1,4 @@
-# include "array/array.hpp"
-
-
-namespace py = pybind11;
+#include "array/array.hpp"
 
 void Array::print(const size_t& maxChars) const {
     std::cout << getPrintString(maxChars) << std::endl;

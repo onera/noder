@@ -1,5 +1,9 @@
 # include "test_modifiers.hpp"
 
+# include <pybind11/pybind11.h>
+
+namespace py = pybind11;
+
 
 template <typename T>
 void test_setArrayToScalar() {
@@ -20,8 +24,8 @@ void test_catchErrorWhenAssigningWrongScalarType() {
     try {
         array = newValue;
         throw std::runtime_error("should have raised an error");
-    
-    } catch(const py::type_error& e) {
+
+    } catch(const std::invalid_argument& e) {
         std::string expectedErrorMessageStart = "Wrong requested";
         if ( !utils::stringStartsWith(e.what(), expectedErrorMessageStart) ) {
             throw e;
@@ -35,8 +39,8 @@ void test_catchErrorWhenAssigningScalarToStringArray() {
     try {
         array = 1;
         throw std::runtime_error("should have raised an error");
-    
-    } catch(const py::type_error& e) {
+
+    } catch(const std::invalid_argument& e) {
         std::string expectedErrorMessage = "cannot assign a scalar to an array containing a string";
         if (e.what() != expectedErrorMessage) {
             throw e;

@@ -1,5 +1,9 @@
 # include "test_node.hpp"
 
+# include <pybind11/pybind11.h>
+
+namespace py = pybind11;
+
 #ifdef ENABLE_HDF5_IO
 #include "io/io.hpp"
 #endif

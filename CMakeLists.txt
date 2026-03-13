@@ -179,6 +179,7 @@ file(GLOB_RECURSE HPP_FILES "include/*.hpp")
 file(GLOB_RECURSE PYBIND_CPP_FILES "src/c++/*_pybind.cpp")
 set(CORE_SHARED_SRC ${CPP_FILES} ${HPP_FILES})
 list(REMOVE_ITEM CORE_SHARED_SRC ${PYBIND_CPP_FILES})
+list(REMOVE_ITEM CORE_SHARED_SRC "${CMAKE_SOURCE_DIR}/src/c++/io/cgns/node_pycgns_converter.cpp")
 
 if (MSVC)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
@@ -206,13 +207,6 @@ elseif(UNIX OR MSVC)
     )
 endif()
 
-target_include_directories(core_shared PUBLIC ${PYBIND11_INCLUDE_DIRS})
-target_link_libraries(core_shared PUBLIC
-    pybind11::pybind11
-    Python3::Module
-    ${Python3_LIBRARIES}
-    ${NUMPY_LIBRARIES}
-)
 target_compile_definitions(core_shared PUBLIC BUILDING_NODE_LIBRARY)
 
 
@@ -265,7 +259,10 @@ if(ENABLE_MPI)
     target_link_libraries(core_shared PUBLIC ${MPI_CXX_LIBRARIES})
 endif()
 
-pybind11_add_module(core MODULE src/c++/core_pybind.cpp)
+pybind11_add_module(core MODULE
+    src/c++/core_pybind.cpp
+    src/c++/io/cgns/node_pycgns_converter.cpp
+)
 target_link_libraries(core PRIVATE core_shared)
 add_dependencies(core core_shared)
 if(APPLE)

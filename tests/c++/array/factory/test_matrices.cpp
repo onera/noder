@@ -1,6 +1,9 @@
 # include "test_matrices.hpp"
 
+# include <pybind11/pybind11.h>
+
 using namespace arrayfactory;
+namespace py = pybind11;
 
 
 /*

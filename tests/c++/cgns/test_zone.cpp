@@ -1,6 +1,7 @@
 #include "test_zone.hpp"
 
 #include "array/array.hpp"
+#include "array/array_numpy_bridge.hpp"
 
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
@@ -70,7 +71,7 @@ std::shared_ptr<Zone> makeCartesianZone(
 
     auto addCoordinate = [&](const std::string& coordName, const py::array_t<double>& values) {
         auto coord = std::make_shared<Node>(coordName, "DataArray_t");
-        coord->setData(std::make_shared<Array>(values));
+        coord->setData(std::make_shared<Array>(arraybridge::arrayFromPyArray(values)));
         coord->attachTo(coordinates);
     };
 
@@ -198,7 +199,7 @@ void test_zone_infer_location_and_coherency() {
 
     py::array_t<double> invalidShape(std::vector<ssize_t>{2});
     auto badField = std::make_shared<Node>("bad", "DataArray_t");
-    badField->setData(std::make_shared<Array>(invalidShape));
+    badField->setData(std::make_shared<Array>(arraybridge::arrayFromPyArray(invalidShape)));
     badField->attachTo(bad);
 
     bool raised = false;
@@ -219,7 +220,7 @@ void test_zone_update_shape() {
 
     py::array_t<double> values(std::vector<ssize_t>{3, 2, 5});
     auto data = std::make_shared<Node>("Data", "DataArray_t");
-    data->setData(std::make_shared<Array>(values));
+    data->setData(std::make_shared<Array>(arraybridge::arrayFromPyArray(values)));
     data->attachTo(flowSolution);
 
     zone->updateShape();

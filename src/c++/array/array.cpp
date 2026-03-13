@@ -1,26 +1,61 @@
-# include "array/array.hpp"
-# include "array/assertions.hpp"
-# include "array/factory/matrices.hpp"
-# include "array/factory/strings.hpp"
-# include <pybind11/stl.h>
-# include <cctype>
-# include <limits>
-# include <stdexcept>
+#include "array/array.hpp"
+#include "array/assertions.hpp"
+#include "array/factory/matrices.hpp"
+#include "array/factory/strings.hpp"
 
-Array::Array() {
-    this->setArrayMembersAsNull();
-}
+#include <cctype>
+#include <codecvt>
+#include <cstring>
+#include <limits>
+#include <locale>
+#include <stdexcept>
 
 namespace {
 
-std::vector<ssize_t> toSignedShape(const std::vector<size_t>& shape, const char* context) {
-    std::vector<ssize_t> output;
-    output.reserve(shape.size());
+char normalizeOrder(char order, const char* context) {
+    const char normalized = static_cast<char>(std::toupper(static_cast<unsigned char>(order)));
+    if (normalized != 'C' && normalized != 'F') {
+        throw std::invalid_argument(std::string(context) + ": order must be 'C' or 'F'");
+    }
+    return normalized;
+}
+
+size_t checkedProduct(const std::vector<size_t>& shape, const char* context) {
+    size_t product = 1;
     for (size_t value : shape) {
-        if (value > static_cast<size_t>(std::numeric_limits<ssize_t>::max())) {
-            throw std::runtime_error(std::string(context) + ": shape value exceeds ssize_t range");
+        if (value != 0 && product > std::numeric_limits<size_t>::max() / value) {
+            throw std::overflow_error(std::string(context) + ": shape product overflow");
         }
-        output.push_back(static_cast<ssize_t>(value));
+        product *= value;
+    }
+    return product;
+}
+
+size_t checkedByteCount(const std::vector<size_t>& shape, size_t itemsize, const char* context) {
+    const size_t count = checkedProduct(shape, context);
+    if (count != 0 && itemsize > std::numeric_limits<size_t>::max() / count) {
+        throw std::overflow_error(std::string(context) + ": byte-size overflow");
+    }
+    return count * itemsize;
+}
+
+std::shared_ptr<void> allocateBytes(size_t byteCount, bool zeroInitialize = false) {
+    if (byteCount == 0) {
+        return nullptr;
+    }
+
+    std::uint8_t* buffer = zeroInitialize ? new std::uint8_t[byteCount]() : new std::uint8_t[byteCount];
+    return std::shared_ptr<void>(buffer, [](void* ptr) {
+        delete[] static_cast<std::uint8_t*>(ptr);
+    });
+}
+
+std::vector<size_t> makeSignedCompatible(const std::vector<size_t>& values, const char* context) {
+    std::vector<size_t> output = values;
+    for (size_t value : output) {
+        if (value > static_cast<size_t>(std::numeric_limits<ssize_t>::max())) {
+            throw std::overflow_error(std::string(context) + ": value exceeds ssize_t range");
+        }
     }
     return output;
 }
@@ -31,18 +66,15 @@ std::vector<size_t> computeByteStrides(
     char order,
     const char* context) {
 
-    const char normalizedOrder = static_cast<char>(std::toupper(static_cast<unsigned char>(order)));
-    if (normalizedOrder != 'C' && normalizedOrder != 'F') {
-        throw std::invalid_argument(std::string(context) + ": order must be 'C' or 'F'");
-    }
-
+    const char normalizedOrder = normalizeOrder(order, context);
     std::vector<size_t> strides(shape.size(), 0);
     size_t stride = itemsize;
+
     if (normalizedOrder == 'F') {
         for (size_t i = 0; i < shape.size(); ++i) {
             strides[i] = stride;
             if (shape[i] != 0 && stride > std::numeric_limits<size_t>::max() / shape[i]) {
-                throw std::runtime_error(std::string(context) + ": overflow while computing Fortran strides");
+                throw std::overflow_error(std::string(context) + ": overflow while computing Fortran strides");
             }
             stride *= shape[i];
         }
@@ -53,11 +85,77 @@ std::vector<size_t> computeByteStrides(
         const size_t dim = shape.size() - 1 - j;
         strides[dim] = stride;
         if (shape[dim] != 0 && stride > std::numeric_limits<size_t>::max() / shape[dim]) {
-            throw std::runtime_error(std::string(context) + ": overflow while computing C strides");
+            throw std::overflow_error(std::string(context) + ": overflow while computing C strides");
         }
         stride *= shape[dim];
     }
     return strides;
+}
+
+std::vector<size_t> indicesFromFlatIndex(
+    size_t flatIndex,
+    const std::vector<size_t>& shape,
+    char order,
+    const char* context) {
+
+    const char normalizedOrder = normalizeOrder(order, context);
+    std::vector<size_t> indices(shape.size(), 0);
+
+    if (shape.empty()) {
+        return indices;
+    }
+
+    if (normalizedOrder == 'C') {
+        for (size_t j = 0; j < shape.size(); ++j) {
+            const size_t dim = shape.size() - 1 - j;
+            const size_t axisExtent = shape[dim];
+            indices[dim] = axisExtent == 0 ? 0 : flatIndex % axisExtent;
+            flatIndex = axisExtent == 0 ? 0 : flatIndex / axisExtent;
+        }
+        return indices;
+    }
+
+    for (size_t dim = 0; dim < shape.size(); ++dim) {
+        const size_t axisExtent = shape[dim];
+        indices[dim] = axisExtent == 0 ? 0 : flatIndex % axisExtent;
+        flatIndex = axisExtent == 0 ? 0 : flatIndex / axisExtent;
+    }
+    return indices;
+}
+
+size_t byteOffsetFromIndices(const Array& array, const std::vector<size_t>& indices) {
+    const std::vector<size_t> shape = array.shape();
+    const std::vector<size_t> strides = array.strides();
+    if (indices.size() != shape.size()) {
+        throw std::runtime_error("Array: wrong number of indices");
+    }
+
+    size_t offset = 0;
+    for (size_t i = 0; i < indices.size(); ++i) {
+        if (indices[i] >= shape[i]) {
+            throw std::runtime_error("Array: index out of bounds");
+        }
+        offset += indices[i] * strides[i];
+    }
+    return offset;
+}
+
+std::u32string u32StringFromRaw(const char32_t* data, size_t codePointCapacity) {
+    std::u32string output;
+    output.reserve(codePointCapacity);
+    for (size_t i = 0; i < codePointCapacity; ++i) {
+        const char32_t value = data[i];
+        if (value == U'\0') {
+            break;
+        }
+        output.push_back(value);
+    }
+    return output;
+}
+
+std::string stringFromU32String(const std::u32string& value) {
+    std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
+    return converter.to_bytes(value);
 }
 
 template <typename T>
@@ -72,225 +170,263 @@ std::shared_ptr<Data> fullFromDtype(
     char order,
     const char* context) {
 
-    const char normalizedOrder = static_cast<char>(std::toupper(static_cast<unsigned char>(order)));
-    if (normalizedOrder != 'C' && normalizedOrder != 'F') {
-        throw std::invalid_argument(std::string(context) + ": order must be 'C' or 'F'");
-    }
+    const char normalizedOrder = normalizeOrder(order, context);
 
-    py::dtype dtype;
-    try {
-        dtype = py::dtype(dtypeName);
-    } catch (const py::error_already_set&) {
-        throw std::invalid_argument(std::string(context) + ": unsupported dtype '" + dtypeName + "'");
+    if (dtypeName == "bool") {
+        return makeFilledWithFactory<bool>(shape, value, normalizedOrder);
     }
-
-    if (dtype.is(py::dtype::of<bool>())) {
-        return std::make_shared<Array>(
-            arrayfactory::full<bool>(shape, static_cast<bool>(value), normalizedOrder));
-    }
-    if (dtype.is(py::dtype::of<int8_t>())) {
+    if (dtypeName == "int8") {
         return makeFilledWithFactory<int8_t>(shape, value, normalizedOrder);
     }
-    if (dtype.is(py::dtype::of<int16_t>())) {
+    if (dtypeName == "int16") {
         return makeFilledWithFactory<int16_t>(shape, value, normalizedOrder);
     }
-    if (dtype.is(py::dtype::of<int32_t>())) {
+    if (dtypeName == "int32" || dtypeName == "int") {
         return makeFilledWithFactory<int32_t>(shape, value, normalizedOrder);
     }
-    if (dtype.is(py::dtype::of<int64_t>())) {
+    if (dtypeName == "int64") {
         return makeFilledWithFactory<int64_t>(shape, value, normalizedOrder);
     }
-    if (dtype.is(py::dtype::of<uint8_t>())) {
+    if (dtypeName == "uint8") {
         return makeFilledWithFactory<uint8_t>(shape, value, normalizedOrder);
     }
-    if (dtype.is(py::dtype::of<uint16_t>())) {
+    if (dtypeName == "uint16") {
         return makeFilledWithFactory<uint16_t>(shape, value, normalizedOrder);
     }
-    if (dtype.is(py::dtype::of<uint32_t>())) {
+    if (dtypeName == "uint32") {
         return makeFilledWithFactory<uint32_t>(shape, value, normalizedOrder);
     }
-    if (dtype.is(py::dtype::of<uint64_t>())) {
+    if (dtypeName == "uint64") {
         return makeFilledWithFactory<uint64_t>(shape, value, normalizedOrder);
     }
-    if (dtype.is(py::dtype::of<float>())) {
+    if (dtypeName == "float32" || dtypeName == "float") {
         return makeFilledWithFactory<float>(shape, value, normalizedOrder);
     }
-    if (dtype.is(py::dtype::of<double>())) {
+    if (dtypeName == "float64" || dtypeName == "double") {
         return makeFilledWithFactory<double>(shape, value, normalizedOrder);
     }
 
-    // Fallback path for non-scalar dtypes (for example string/object dtypes):
-    // still avoids importing numpy and keeps Fortran-order allocation.
-    py::array output(
-        dtype,
-        toSignedShape(shape, context),
-        toSignedShape(computeByteStrides(shape, static_cast<size_t>(dtype.itemsize()), normalizedOrder, context), context));
-    output.attr("fill")(py::float_(value));
-    return std::make_shared<Array>(output);
+    throw std::invalid_argument(std::string(context) + ": unsupported dtype '" + dtypeName + "'");
 }
 
-py::tuple toPyIndexTuple(const std::vector<size_t>& indices, size_t dimensions, const char* context) {
-    if (indices.size() != dimensions) {
-        throw std::runtime_error(
-            std::string(context) + ": expected " + std::to_string(dimensions) +
-            " indices, got " + std::to_string(indices.size()));
+template <typename T>
+Array makeDeepCopyImpl(const Array& source, char order) {
+    const std::vector<size_t> strides = computeByteStrides(source.shape(), sizeof(T), order, "Array::copy");
+    const size_t byteCount = checkedByteCount(source.shape(), sizeof(T), "Array::copy");
+    auto owner = allocateBytes(byteCount, false);
+    Array copied(Array::typeIdFor<T>(), sizeof(T), owner.get(), source.shape(), strides, owner);
+
+    if (source.size() == 0) {
+        return copied;
     }
 
-    py::tuple indexTuple(dimensions);
-    for (size_t i = 0; i < dimensions; ++i) {
-        indexTuple[static_cast<ssize_t>(i)] = py::int_(indices[i]);
+    if ((order == 'C' && source.isContiguousInStyleC()) || (order == 'F' && source.isContiguousInStyleFortran())) {
+        std::memcpy(copied.rawData(), source.rawData(), byteCount);
+        return copied;
     }
-    return indexTuple;
+
+    T* dst = copied.getPointerOfModifiableDataFast<T>();
+    for (size_t i = 0; i < source.size(); ++i) {
+        const std::vector<size_t> indices = indicesFromFlatIndex(i, source.shape(), order, "Array::copy");
+        const size_t sourceOffset = byteOffsetFromIndices(source, indices) / sizeof(T);
+        dst[i] = source.getPointerOfReadOnlyDataFast<T>()[sourceOffset];
+    }
+    return copied;
+}
+
+Array makeDeepCopyString(const Array& source, char order) {
+    const size_t byteCount = checkedByteCount(source.shape(), source.itemsize(), "Array::copy");
+    const std::vector<size_t> strides = computeByteStrides(source.shape(), source.itemsize(), order, "Array::copy");
+    auto owner = allocateBytes(byteCount, false);
+
+    Array copied(
+        source.typeId(),
+        source.itemsize(),
+        owner.get(),
+        source.shape(),
+        strides,
+        owner);
+
+    if (source.size() == 0) {
+        return copied;
+    }
+
+    if ((order == 'C' && source.isContiguousInStyleC()) || (order == 'F' && source.isContiguousInStyleFortran())) {
+        std::memcpy(copied.rawData(), source.rawData(), byteCount);
+        return copied;
+    }
+
+    auto* destination = static_cast<std::uint8_t*>(copied.rawData());
+    const auto* sourceBytes = static_cast<const std::uint8_t*>(source.rawData());
+    for (size_t i = 0; i < source.size(); ++i) {
+        const std::vector<size_t> indices = indicesFromFlatIndex(i, source.shape(), order, "Array::copy");
+        const size_t sourceOffset = byteOffsetFromIndices(source, indices);
+        std::memcpy(destination + i * source.itemsize(), sourceBytes + sourceOffset, source.itemsize());
+    }
+    return copied;
 }
 
 } // namespace
 
+Array::Array() {
+    this->setArrayMembersAsNull();
+}
+
+Array::Array(ArrayTypeId typeId,
+             size_t itemsize,
+             void* data,
+             const std::vector<size_t>& shape,
+             const std::vector<size_t>& strides,
+             std::shared_ptr<void> owner) :
+    Array(typeId, itemsize, data, shape, strides, std::move(owner), ArrayOwnerKind::ManagedBuffer) {}
+
+Array::Array(ArrayTypeId typeId,
+             size_t itemsize,
+             void* data,
+             const std::vector<size_t>& shape,
+             const std::vector<size_t>& strides,
+             std::shared_ptr<void> owner,
+             ArrayOwnerKind ownerKind) {
+    this->setArrayMembersUsing(typeId, itemsize, data, shape, strides, std::move(owner), ownerKind);
+}
+
+Array Array::bytesView(void* data,
+                       size_t itemsize,
+                       const std::vector<size_t>& shape,
+                       const std::vector<size_t>& strides,
+                       std::shared_ptr<void> owner) {
+    return Array::bytesView(data, itemsize, shape, strides, std::move(owner), ArrayOwnerKind::ManagedBuffer);
+}
+
+Array Array::bytesView(void* data,
+                       size_t itemsize,
+                       const std::vector<size_t>& shape,
+                       const std::vector<size_t>& strides,
+                       std::shared_ptr<void> owner,
+                       ArrayOwnerKind ownerKind) {
+    return Array(ArrayTypeId::Bytes, itemsize, data, shape, strides, std::move(owner), ownerKind);
+}
+
+Array Array::unicodeView(void* data,
+                         size_t itemsize,
+                         const std::vector<size_t>& shape,
+                         const std::vector<size_t>& strides,
+                         std::shared_ptr<void> owner) {
+    return Array::unicodeView(data, itemsize, shape, strides, std::move(owner), ArrayOwnerKind::ManagedBuffer);
+}
+
+Array Array::unicodeView(void* data,
+                         size_t itemsize,
+                         const std::vector<size_t>& shape,
+                         const std::vector<size_t>& strides,
+                         std::shared_ptr<void> owner,
+                         ArrayOwnerKind ownerKind) {
+    return Array(ArrayTypeId::Unicode, itemsize, data, shape, strides, std::move(owner), ownerKind);
+}
+
+size_t Array::computeSizeFromShape(const std::vector<size_t>& shape) {
+    return checkedProduct(shape, "Array::computeSizeFromShape");
+}
 
 void Array::setArrayMembersAsNull() {
-    this->pyArray = py::none();
+    this->_owner.reset();
+    this->_ownerKind = ArrayOwnerKind::None;
+    this->_data = nullptr;
+    this->_dtype = {};
     this->_dimensions = 0;
     this->_size = 0;
+    this->_shape.clear();
+    this->_strides.clear();
     this->_must = nullptr;
 }
 
+void Array::setArrayMembersUsing(ArrayTypeId typeId,
+                                 size_t itemsize,
+                                 void* data,
+                                 const std::vector<size_t>& shape,
+                                 const std::vector<size_t>& strides,
+                                 std::shared_ptr<void> owner,
+                                 ArrayOwnerKind ownerKind) {
+    if (shape.size() != strides.size()) {
+        throw std::invalid_argument("Array: shape and strides must have the same rank");
+    }
+    makeSignedCompatible(shape, "Array");
+    makeSignedCompatible(strides, "Array");
 
-// Array::Array(py::none none) {
-//     this->setArrayMembersAsNull();
-// }
-
-
-Array::Array(const py::array& other) {
-    this->setArrayMembersUsing(other);
-}
-
-
-std::vector<size_t> castToUnsignedVector(const std::vector<ssize_t>& signedVec) {
-    std::vector<size_t> unsignedVec(signedVec.size());
-
-    std::transform(signedVec.begin(), signedVec.end(), unsignedVec.begin(),
-                [](ssize_t val) -> size_t {
-                    if (val < 0) {
-                        throw std::overflow_error("Cannot convert negative ssize_t to size_t");
-                    }
-                    return static_cast<size_t>(val);
-                });
-    return unsignedVec;
-}
-
-void Array::setArrayMembersUsing(const py::array& pyarray) {
-    py::buffer_info info = pyarray.request();
-    this->pyArray = pyarray;
-    this->_dimensions = static_cast<size_t>(info.ndim);
-    this->_size = static_cast<size_t>(info.size);
-    this->_shape = castToUnsignedVector(info.shape);
-    this->_strides = castToUnsignedVector(info.strides);
+    this->_owner = std::move(owner);
+    this->_ownerKind = this->_owner ? ownerKind : ArrayOwnerKind::None;
+    this->_data = static_cast<std::uint8_t*>(data);
+    this->_dtype = {typeId, itemsize};
+    this->_dimensions = shape.size();
+    this->_size = computeSizeFromShape(shape);
+    this->_shape = shape;
+    this->_strides = strides;
     this->_must = nullptr;
+
+    if (typeId == ArrayTypeId::None) {
+        this->_data = nullptr;
+        this->_ownerKind = ArrayOwnerKind::None;
+        this->_shape.clear();
+        this->_strides.clear();
+        this->_dimensions = 0;
+        this->_size = 0;
+        this->_dtype.itemsize = 0;
+        return;
+    }
+
+    if (itemsize == 0 && typeId != ArrayTypeId::Bytes && typeId != ArrayTypeId::Unicode) {
+        throw std::invalid_argument("Array: itemsize must be positive for non-empty dtypes");
+    }
+
+    if (this->_size > 0 && this->_data == nullptr) {
+        throw std::invalid_argument("Array: data pointer must not be null when size > 0");
+    }
 }
-
-
-
 
 Array::Array(const std::string& str) {
-    Array array = arrayfactory::arrayFromString(str);
-    this->setArrayMembersUsing(array.pyArray);
+    const size_t byteCount = str.size();
+    auto owner = allocateBytes(byteCount, false);
+    if (byteCount != 0) {
+        std::memcpy(owner.get(), str.data(), byteCount);
+    }
+    this->setArrayMembersUsing(
+        ArrayTypeId::Bytes,
+        byteCount,
+        owner.get(),
+        {1},
+        {byteCount},
+        owner,
+        ArrayOwnerKind::ManagedBuffer);
 }
 
-Array::Array(const char* str) {
-    Array array = arrayfactory::arrayFromString(std::string(str));
-    this->setArrayMembersUsing(array.pyArray);
+Array::Array(const char* str) : Array(std::string(str == nullptr ? "" : str)) {}
+
+Array::Array(const Array& other) = default;
+
+template <typename T>
+Array Array::makeScalar(T scalar) {
+    auto owner = allocateBytes(sizeof(T), false);
+    *static_cast<T*>(owner.get()) = scalar;
+    return Array(typeIdFor<T>(), sizeof(T), owner.get(), {1}, {sizeof(T)}, owner, ArrayOwnerKind::ManagedBuffer);
 }
 
-
-Array::Array(const Array& other) : pyArray(other.pyArray) {
-    this->setArrayMembersUsing(pyArray);
-}
-
-
-// TODO : reduce this boilerplate code
-Array::Array(int8_t scalar) {
-    py::array arr = py::array_t<int8_t>({1});
-    auto buffer = arr.mutable_unchecked<int8_t>();
-    buffer(0) = scalar;
-    this->setArrayMembersUsing(arr);
-}
-
-Array::Array(int16_t scalar) {
-    py::array arr = py::array_t<int16_t>({1});
-    auto buffer = arr.mutable_unchecked<int16_t>();
-    buffer(0) = scalar;
-    this->setArrayMembersUsing(arr);
-}
-
-Array::Array(int32_t scalar) {
-    py::array arr = py::array_t<int32_t>({1});
-    auto buffer = arr.mutable_unchecked<int32_t>();
-    buffer(0) = scalar;
-    this->setArrayMembersUsing(arr);
-}
-
-Array::Array(int64_t scalar) {
-    py::array arr = py::array_t<int64_t>({1});
-    auto buffer = arr.mutable_unchecked<int64_t>();
-    buffer(0) = scalar;
-    this->setArrayMembersUsing(arr);
-}
-
-Array::Array(uint8_t scalar) {
-    py::array arr = py::array_t<uint8_t>({1});
-    auto buffer = arr.mutable_unchecked<uint8_t>();
-    buffer(0) = scalar;
-    this->setArrayMembersUsing(arr);
-}
-
-Array::Array(uint16_t scalar) {
-    py::array arr = py::array_t<uint16_t>({1});
-    auto buffer = arr.mutable_unchecked<uint16_t>();
-    buffer(0) = scalar;
-    this->setArrayMembersUsing(arr);
-}
-
-Array::Array(uint32_t scalar) {
-    py::array arr = py::array_t<uint32_t>({1});
-    auto buffer = arr.mutable_unchecked<uint32_t>();
-    buffer(0) = scalar;
-    this->setArrayMembersUsing(arr);
-}
-
-Array::Array(uint64_t scalar) {
-    py::array arr = py::array_t<uint64_t>({1});
-    auto buffer = arr.mutable_unchecked<uint64_t>();
-    buffer(0) = scalar;
-    this->setArrayMembersUsing(arr);
-}
-
-Array::Array(float scalar) {
-    py::array arr = py::array_t<float>({1});
-    auto buffer = arr.mutable_unchecked<float>();
-    buffer(0) = scalar;
-    this->setArrayMembersUsing(arr);
-}
-
-Array::Array(double scalar) {
-    py::array arr = py::array_t<double>({1});
-    auto buffer = arr.mutable_unchecked<double>();
-    buffer(0) = scalar;
-    this->setArrayMembersUsing(arr);
-}
-
-Array::Array(bool scalar) {
-    py::array arr = py::array_t<bool>({1});
-    auto buffer = arr.mutable_unchecked<bool>();
-    buffer(0) = scalar;
-    this->setArrayMembersUsing(arr);
-}
-
-
+Array::Array(int8_t scalar) : Array(makeScalar<int8_t>(scalar)) {}
+Array::Array(int16_t scalar) : Array(makeScalar<int16_t>(scalar)) {}
+Array::Array(int32_t scalar) : Array(makeScalar<int32_t>(scalar)) {}
+Array::Array(int64_t scalar) : Array(makeScalar<int64_t>(scalar)) {}
+Array::Array(uint8_t scalar) : Array(makeScalar<uint8_t>(scalar)) {}
+Array::Array(uint16_t scalar) : Array(makeScalar<uint16_t>(scalar)) {}
+Array::Array(uint32_t scalar) : Array(makeScalar<uint32_t>(scalar)) {}
+Array::Array(uint64_t scalar) : Array(makeScalar<uint64_t>(scalar)) {}
+Array::Array(float scalar) : Array(makeScalar<float>(scalar)) {}
+Array::Array(double scalar) : Array(makeScalar<double>(scalar)) {}
+Array::Array(bool scalar) : Array(makeScalar<bool>(scalar)) {}
 
 Array::Assertions& Array::must() const {
-    if (!_must) {
-        _must = std::make_shared<Assertions>(*this);  // Lazy initialization
+    if (!this->_must) {
+        this->_must = std::make_shared<Assertions>(*this);
     }
-    return *_must;
+    return *this->_must;
 }
 
 std::shared_ptr<Data> Array::clone() const {
@@ -302,42 +438,73 @@ std::shared_ptr<Data> Array::copy(bool deep) const {
         return this->clone();
     }
 
-    py::gil_scoped_acquire acquireGil;
-    py::array copiedArray = this->pyArray.attr("copy")("K").cast<py::array>();
-    return std::make_shared<Array>(copiedArray);
-}
+    if (this->isNone()) {
+        return std::make_shared<Array>();
+    }
 
+    const char order = this->isContiguousInStyleFortran() && !this->isContiguousInStyleC() ? 'F' : 'C';
+
+    if (this->hasString()) {
+        return std::make_shared<Array>(makeDeepCopyString(*this, order));
+    }
+
+    if (this->hasDataOfType<bool>()) {
+        return std::make_shared<Array>(makeDeepCopyImpl<bool>(*this, order));
+    }
+    if (this->hasDataOfType<int8_t>()) {
+        return std::make_shared<Array>(makeDeepCopyImpl<int8_t>(*this, order));
+    }
+    if (this->hasDataOfType<int16_t>()) {
+        return std::make_shared<Array>(makeDeepCopyImpl<int16_t>(*this, order));
+    }
+    if (this->hasDataOfType<int32_t>()) {
+        return std::make_shared<Array>(makeDeepCopyImpl<int32_t>(*this, order));
+    }
+    if (this->hasDataOfType<int64_t>()) {
+        return std::make_shared<Array>(makeDeepCopyImpl<int64_t>(*this, order));
+    }
+    if (this->hasDataOfType<uint8_t>()) {
+        return std::make_shared<Array>(makeDeepCopyImpl<uint8_t>(*this, order));
+    }
+    if (this->hasDataOfType<uint16_t>()) {
+        return std::make_shared<Array>(makeDeepCopyImpl<uint16_t>(*this, order));
+    }
+    if (this->hasDataOfType<uint32_t>()) {
+        return std::make_shared<Array>(makeDeepCopyImpl<uint32_t>(*this, order));
+    }
+    if (this->hasDataOfType<uint64_t>()) {
+        return std::make_shared<Array>(makeDeepCopyImpl<uint64_t>(*this, order));
+    }
+    if (this->hasDataOfType<float>()) {
+        return std::make_shared<Array>(makeDeepCopyImpl<float>(*this, order));
+    }
+    if (this->hasDataOfType<double>()) {
+        return std::make_shared<Array>(makeDeepCopyImpl<double>(*this, order));
+    }
+
+    throw std::runtime_error("Array::copy unsupported dtype");
+}
 
 bool Array::hasString() const {
-    py::dtype dtype = pyArray.dtype();
-    char kind = dtype.kind();
-    return (kind == 'U' || kind == 'S');
+    return this->_dtype.isString();
 }
-
 
 bool Array::isNone() const {
-    auto buffer = pyArray.request();
-    auto ptr = static_cast<py::object *>(buffer.ptr);
-    ssize_t size = buffer.size;
-
-    if (size < 1) {
-        return true;
-    } else if (size == 1) {
-        return ptr[0].is_none();
-    }
-    return false;
+    return this->_dtype.id == ArrayTypeId::None || this->_size < 1;
 }
 
-
 bool Array::isScalar() const {
-    if (this->isNone()) return false;
-    if (this->hasString()) return false;
-    if (this->size() == 1) return true;
-    return false;
+    if (this->isNone()) {
+        return false;
+    }
+    if (this->hasString()) {
+        return false;
+    }
+    return this->size() == 1;
 }
 
 std::string Array::dtype() const {
-    return this->pyArray.dtype().attr("name").cast<std::string>();
+    return this->_dtype.name();
 }
 
 std::shared_ptr<Data> Array::full(
@@ -348,8 +515,80 @@ std::shared_ptr<Data> Array::full(
     return fullFromDtype(shape, value, dtypeName, order, "Array::full");
 }
 
+size_t Array::getByteOffsetFromIndices(const std::vector<size_t>& indices) const {
+    if (indices.size() != this->_dimensions) {
+        throw std::runtime_error("Array: wrong number of indices");
+    }
+
+    size_t offset = 0;
+    for (size_t i = 0; i < this->_dimensions; ++i) {
+        if (indices[i] >= this->_shape[i]) {
+            throw std::runtime_error("Array: index out of bounds");
+        }
+        if (this->_strides[i] != 0 && indices[i] > std::numeric_limits<size_t>::max() / this->_strides[i]) {
+            throw std::overflow_error("Array: offset overflow");
+        }
+        offset += indices[i] * this->_strides[i];
+    }
+    return offset;
+}
+
+size_t Array::getByteOffsetFromFlatIndex(size_t flatIndex) const {
+    if (this->_dimensions == 0) {
+        return 0;
+    }
+
+    size_t offset = 0;
+    for (size_t j = 0; j < this->_dimensions; ++j) {
+        const size_t dim = this->_dimensions - 1 - j;
+        const size_t axisExtent = this->_shape[dim];
+        const size_t index = axisExtent == 0 ? 0 : flatIndex % axisExtent;
+        offset += index * this->_strides[dim];
+        flatIndex = axisExtent == 0 ? 0 : flatIndex / axisExtent;
+    }
+    return offset;
+}
+
 std::shared_ptr<Data> Array::ravel(const std::string& order) const {
-    py::array flattened = this->pyArray.attr("ravel")(py::arg("order") = order).cast<py::array>();
+    if (this->isNone()) {
+        return this->clone();
+    }
+
+    if (order.empty()) {
+        throw std::invalid_argument("Array::ravel: order must not be empty");
+    }
+
+    char normalizedOrder = static_cast<char>(std::toupper(static_cast<unsigned char>(order[0])));
+    if (normalizedOrder == 'A') {
+        normalizedOrder = this->isContiguousInStyleFortran() && !this->isContiguousInStyleC() ? 'F' : 'C';
+    }
+    if (normalizedOrder == 'K') {
+        if (this->isContiguous()) {
+        return std::make_shared<Array>(
+                Array(this->_dtype.id, this->_dtype.itemsize, this->_data, {this->_size}, {this->_dtype.itemsize}, this->_owner, this->_ownerKind));
+        }
+        normalizedOrder = 'C';
+    }
+    normalizeOrder(normalizedOrder, "Array::ravel");
+
+    if ((normalizedOrder == 'C' && this->isContiguousInStyleC()) ||
+        (normalizedOrder == 'F' && this->isContiguousInStyleFortran())) {
+        return std::make_shared<Array>(
+            Array(this->_dtype.id, this->_dtype.itemsize, this->_data, {this->_size}, {this->_dtype.itemsize}, this->_owner, this->_ownerKind));
+    }
+
+    const size_t byteCount = this->_size * this->_dtype.itemsize;
+    auto owner = allocateBytes(byteCount, false);
+    Array flattened(this->_dtype.id, this->_dtype.itemsize, owner.get(), {this->_size}, {this->_dtype.itemsize}, owner);
+
+    auto* destination = static_cast<std::uint8_t*>(flattened.rawData());
+    const auto* source = static_cast<const std::uint8_t*>(this->rawData());
+    for (size_t i = 0; i < this->_size; ++i) {
+        const auto indices = indicesFromFlatIndex(i, this->_shape, normalizedOrder, "Array::ravel");
+        const size_t sourceOffset = this->getByteOffsetFromIndices(indices);
+        std::memcpy(destination + i * this->_dtype.itemsize, source + sourceOffset, this->_dtype.itemsize);
+    }
+
     return std::make_shared<Array>(flattened);
 }
 
@@ -378,91 +617,114 @@ std::shared_ptr<Data> Array::take(int64_t index, size_t axis) const {
         throw std::runtime_error("Array::take: index out of bounds");
     }
 
-    py::tuple indexTuple(this->dimensions());
-    for (size_t i = 0; i < this->dimensions(); ++i) {
-        if (this->dimensions() == 1 && i == axis) {
-            indexTuple[static_cast<ssize_t>(i)] = py::slice(
-                py::int_(normalizedIndex),
-                py::int_(normalizedIndex + 1),
-                py::int_(1));
-        } else if (i == axis) {
-            indexTuple[static_cast<ssize_t>(i)] = py::int_(normalizedIndex);
-        } else {
-            indexTuple[static_cast<ssize_t>(i)] = py::slice(py::none(), py::none(), py::none());
-        }
+    std::vector<size_t> newShape = this->_shape;
+    std::vector<size_t> newStrides = this->_strides;
+    std::uint8_t* newData = this->_data + static_cast<size_t>(normalizedIndex) * this->_strides[axis];
+
+    if (this->dimensions() == 1) {
+        newShape = {1};
+        newStrides = {this->_dtype.itemsize};
+    } else {
+        newShape.erase(newShape.begin() + static_cast<ptrdiff_t>(axis));
+        newStrides.erase(newStrides.begin() + static_cast<ptrdiff_t>(axis));
     }
 
-    py::array output = this->pyArray[indexTuple].cast<py::array>();
-    return std::make_shared<Array>(output);
+    return std::make_shared<Array>(
+        Array(this->_dtype.id, this->_dtype.itemsize, newData, newShape, newStrides, this->_owner, this->_ownerKind));
 }
 
 int64_t Array::itemAsInt64(const std::vector<size_t>& indices) const {
-    if (this->dimensions() == 0) {
-        if (!indices.empty()) {
-            throw std::runtime_error("Array::itemAsInt64: scalar payload expects empty indices");
-        }
-        return py::cast<int64_t>(this->pyArray);
-    }
+    const size_t byteOffset = this->dimensions() == 0 ? 0 : this->getByteOffsetFromIndices(indices);
+    const auto* bytes = static_cast<const std::uint8_t*>(this->rawData()) + byteOffset;
 
-    if (indices.size() != this->dimensions()) {
-        throw std::runtime_error("Array::itemAsInt64: wrong number of indices");
-    }
-    const auto currentShape = this->shape();
-    for (size_t i = 0; i < indices.size(); ++i) {
-        if (indices[i] >= currentShape[i]) {
-            throw std::runtime_error("Array::itemAsInt64: index out of bounds");
-        }
-    }
+    if (this->hasDataOfType<bool>()) return static_cast<int64_t>(*reinterpret_cast<const bool*>(bytes));
+    if (this->hasDataOfType<int8_t>()) return static_cast<int64_t>(*reinterpret_cast<const int8_t*>(bytes));
+    if (this->hasDataOfType<int16_t>()) return static_cast<int64_t>(*reinterpret_cast<const int16_t*>(bytes));
+    if (this->hasDataOfType<int32_t>()) return static_cast<int64_t>(*reinterpret_cast<const int32_t*>(bytes));
+    if (this->hasDataOfType<int64_t>()) return *reinterpret_cast<const int64_t*>(bytes);
+    if (this->hasDataOfType<uint8_t>()) return static_cast<int64_t>(*reinterpret_cast<const uint8_t*>(bytes));
+    if (this->hasDataOfType<uint16_t>()) return static_cast<int64_t>(*reinterpret_cast<const uint16_t*>(bytes));
+    if (this->hasDataOfType<uint32_t>()) return static_cast<int64_t>(*reinterpret_cast<const uint32_t*>(bytes));
+    if (this->hasDataOfType<uint64_t>()) return static_cast<int64_t>(*reinterpret_cast<const uint64_t*>(bytes));
+    if (this->hasDataOfType<float>()) return static_cast<int64_t>(*reinterpret_cast<const float*>(bytes));
+    if (this->hasDataOfType<double>()) return static_cast<int64_t>(*reinterpret_cast<const double*>(bytes));
 
-    py::tuple indexTuple = toPyIndexTuple(indices, this->dimensions(), "Array::itemAsInt64");
-    py::object value = this->pyArray[indexTuple];
-    return py::cast<int64_t>(value);
+    throw std::runtime_error("Array::itemAsInt64: unsupported dtype");
 }
 
 void Array::setItemFromInt64(const std::vector<size_t>& indices, int64_t value) {
-    if (this->dimensions() == 0) {
-        if (!indices.empty()) {
-            throw std::runtime_error("Array::setItemFromInt64: scalar payload expects empty indices");
-        }
-        this->pyArray[py::tuple()] = py::int_(value);
+    const size_t byteOffset = this->dimensions() == 0 ? 0 : this->getByteOffsetFromIndices(indices);
+    auto* bytes = static_cast<std::uint8_t*>(this->rawData()) + byteOffset;
+
+    if (this->hasDataOfType<bool>()) {
+        *reinterpret_cast<bool*>(bytes) = static_cast<bool>(value);
+        return;
+    }
+    if (this->hasDataOfType<int8_t>()) {
+        *reinterpret_cast<int8_t*>(bytes) = static_cast<int8_t>(value);
+        return;
+    }
+    if (this->hasDataOfType<int16_t>()) {
+        *reinterpret_cast<int16_t*>(bytes) = static_cast<int16_t>(value);
+        return;
+    }
+    if (this->hasDataOfType<int32_t>()) {
+        *reinterpret_cast<int32_t*>(bytes) = static_cast<int32_t>(value);
+        return;
+    }
+    if (this->hasDataOfType<int64_t>()) {
+        *reinterpret_cast<int64_t*>(bytes) = value;
+        return;
+    }
+    if (this->hasDataOfType<uint8_t>()) {
+        *reinterpret_cast<uint8_t*>(bytes) = static_cast<uint8_t>(value);
+        return;
+    }
+    if (this->hasDataOfType<uint16_t>()) {
+        *reinterpret_cast<uint16_t*>(bytes) = static_cast<uint16_t>(value);
+        return;
+    }
+    if (this->hasDataOfType<uint32_t>()) {
+        *reinterpret_cast<uint32_t*>(bytes) = static_cast<uint32_t>(value);
+        return;
+    }
+    if (this->hasDataOfType<uint64_t>()) {
+        *reinterpret_cast<uint64_t*>(bytes) = static_cast<uint64_t>(value);
+        return;
+    }
+    if (this->hasDataOfType<float>()) {
+        *reinterpret_cast<float*>(bytes) = static_cast<float>(value);
+        return;
+    }
+    if (this->hasDataOfType<double>()) {
+        *reinterpret_cast<double*>(bytes) = static_cast<double>(value);
         return;
     }
 
-    if (indices.size() != this->dimensions()) {
-        throw std::runtime_error("Array::setItemFromInt64: wrong number of indices");
-    }
-    const auto currentShape = this->shape();
-    for (size_t i = 0; i < indices.size(); ++i) {
-        if (indices[i] >= currentShape[i]) {
-            throw std::runtime_error("Array::setItemFromInt64: index out of bounds");
-        }
-    }
-
-    py::tuple indexTuple = toPyIndexTuple(indices, this->dimensions(), "Array::setItemFromInt64");
-    this->pyArray[indexTuple] = py::int_(value);
+    throw std::runtime_error("Array::setItemFromInt64: unsupported dtype");
 }
-
 
 bool Array::isContiguous() const {
     return this->isContiguousInStyleC() || this->isContiguousInStyleFortran();
 }
 
-
 bool Array::isContiguousInStyleC() const {
     std::vector<size_t> strides = this->strides();
     std::vector<size_t> shape = this->shape();
-    size_t expectedStride = static_cast<size_t>(pyArray.itemsize());
+    size_t expectedStride = this->_dtype.itemsize;
     size_t dims = this->dimensions();
 
-    if (dims == 0) return true;
+    if (dims == 0) {
+        return true;
+    }
 
     for (size_t j = 0; j < dims; ++j) {
         size_t dim = dims - 1 - j;
         if (strides[dim] != expectedStride) {
             return false;
         }
-        size_t currentShape = shape[dim];
-        if (currentShape > 0 && expectedStride > (SIZE_MAX / currentShape)) {  
+        const size_t currentShape = shape[dim];
+        if (currentShape > 0 && expectedStride > (SIZE_MAX / currentShape)) {
             throw std::overflow_error("expectedStride overflow in isContiguousInStyleC");
         }
         expectedStride *= currentShape;
@@ -470,11 +732,10 @@ bool Array::isContiguousInStyleC() const {
     return true;
 }
 
-
 bool Array::isContiguousInStyleFortran() const {
     std::vector<size_t> strides = this->strides();
     std::vector<size_t> shape = this->shape();
-    size_t expectedStride = static_cast<size_t>(pyArray.itemsize());
+    size_t expectedStride = this->_dtype.itemsize;
 
     for (size_t i = 0; i < this->dimensions(); ++i) {
         if (strides[i] != expectedStride) {
@@ -485,108 +746,37 @@ bool Array::isContiguousInStyleFortran() const {
     return true;
 }
 
-
 std::string Array::info() const {
-
     std::string txt;
-    py::dtype dtype = pyArray.dtype();
-    char kind = dtype.kind();
-    std::string str_dtype = std::string(py::str(dtype));    
-
-    if (kind == 'S' || kind == 'U') {
-        txt += "Array dtype: " + str_dtype + "\n";
+    if (this->hasString()) {
+        txt += "Array dtype: " + this->dtype() + "\n";
         txt += this->extractString();
+        return txt;
     }
-    
-    else {
-        txt += "Array dtype: " + str_dtype + " ("+
-               std::string(1,dtype.byteorder()) + 
-               std::string(1,kind) + 
-               std::to_string(dtype.itemsize())+")\n";
-        if (pyArray.owndata()) {
-            txt += "owns its data\n";
-        } else {
-            txt += "data is a view\n";
-        }
-        if (pyArray.flags() & py::array::c_style) {
-            txt += "C contiguous\n";
-        } else {
-            txt += "C non-contiguous\n";
-        }
-        if (pyArray.flags() & py::array::f_style) {
-            txt += "Fortran contiguous\n";
-        } else {
-            txt += "Fortran non-contiguous\n";
-        }
-        txt += "shape: ";
-        ssize_t total_npts = 1;
-        for (ssize_t dim = 0; dim < pyArray.ndim(); dim++)
-        {
-            if (dim>0) txt += "x";
-            ssize_t shape_dim = pyArray.shape(dim);
-            total_npts *= shape_dim;
-            txt += std::to_string(shape_dim);
-        }
-        txt += " ="+ std::to_string(total_npts) +"\n";
-        
-        txt += this->getPrintString();
-    }
-    return txt;
 
+    txt += "Array dtype: " + this->dtype() + "\n";
+    txt += this->_owner ? "owns or shares managed data\n" : "data references unmanaged memory\n";
+    txt += this->isContiguousInStyleC() ? "C contiguous\n" : "C non-contiguous\n";
+    txt += this->isContiguousInStyleFortran() ? "Fortran contiguous\n" : "Fortran non-contiguous\n";
+    txt += "shape: ";
+
+    size_t total = 1;
+    for (size_t dim = 0; dim < this->_shape.size(); ++dim) {
+        if (dim > 0) {
+            txt += "x";
+        }
+        total *= this->_shape[dim];
+        txt += std::to_string(this->_shape[dim]);
+    }
+    txt += " =" + std::to_string(total) + "\n";
+    txt += this->getPrintString();
+    return txt;
 }
 
 std::string Array::shortInfo() const {
-
-    std::string txt;
-    py::dtype dtype = pyArray.dtype();
-    char kind = dtype.kind();
-    std::string str_dtype = std::string(py::str(dtype));    
-
-    txt += "Array " + str_dtype + " ("+
-            std::string(1,dtype.byteorder()) + 
-            std::string(1,kind) + 
-            std::to_string(dtype.itemsize())+") ";
-
-    size_t sizeOfArray = this->size();
-    
-    if ( sizeOfArray < 7 ) {
-        txt += this->getPrintString(30);
+    std::string txt = "Array " + this->dtype();
+    if (this->size() < 7) {
+        txt += " " + this->getPrintString(30);
     }
-    
     return txt;
 }
-
-/*
-    template instantiations
-*/
-
-
-template <typename ArrayType, typename T, size_t... DIMS>
-void instantiateAccessors(std::index_sequence<DIMS...>) {
-    (utils::forceSymbol(&ArrayType::template getAccessorOfReadOnlyData<T, static_cast<ssize_t>(DIMS)>), ...);
-    (utils::forceSymbol(&ArrayType::template getAccessorOfModifiableData<T, static_cast<ssize_t>(DIMS)>), ...);
-}
-
-template <typename... T>
-struct Instantiator {
-    template <typename... U>
-    void operator()() const {
-        constexpr size_t MaxDims = 10; // Adjust this for higher dimensions
-        constexpr auto dims = std::make_index_sequence<MaxDims>{}; // Generate [0, 1, ..., MaxDims-1]
-
-        // Loop through all types and instantiate accessors for all dimensions
-        (instantiateAccessors<Array, U>(dims), ...);
-    }
-};
-
-template void utils::instantiateFromTypeList<Instantiator, utils::ScalarTypes>();
-
-template <typename... T>
-struct InstantiatorMethodScalar {
-    template <typename... U>
-    void operator()() const {
-        (utils::forceSymbol(&Array::template hasDataOfType<U>), ...);
-    }
-};
-
-template void utils::instantiateFromTypeList<InstantiatorMethodScalar, utils::ScalarTypes>();

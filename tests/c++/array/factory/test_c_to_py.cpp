@@ -1,5 +1,7 @@
 # include "test_c_to_py.hpp"
 
+# include <pybind11/pybind11.h>
+
 using namespace arrayfactory;
 namespace py = pybind11;
 

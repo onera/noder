@@ -1,6 +1,9 @@
 # include "test_node_factory.hpp"
 
+# include <pybind11/pybind11.h>
+
 using namespace std::string_literals;
+namespace py = pybind11;
 
 void test_newNodeNoArgs() {
     auto node = newNode();

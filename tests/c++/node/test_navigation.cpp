@@ -1,4 +1,8 @@
 # include "test_navigation.hpp"
+
+# include <pybind11/pybind11.h>
+
+namespace py = pybind11;
 # include <array/array.hpp>
 
 using namespace std::string_literals;

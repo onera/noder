@@ -1,4 +1,7 @@
 # include <array/factory/c_to_py.hpp>
+# include "array/array_numpy_bridge.hpp"
+
+# include <pybind11/pybind11.h>
 
 
 namespace py = pybind11;
@@ -53,8 +56,8 @@ void test_ArrayPrintWithNonContiguousArray() {
     Array contiguousArray = arrayfactory::toArray2D(&carray[0][0], 3, 3);
     py::slice rowSlice(1, 3, 1); 
     py::slice colSlice(1, 3, 1);
-    py::array nonContiguousPyArray = contiguousArray.getPyArray()[py::make_tuple(rowSlice, colSlice)];
-    Array nonContiguousArray = Array(nonContiguousPyArray);
+    py::array nonContiguousPyArray = arraybridge::toPyArray(contiguousArray)[py::make_tuple(rowSlice, colSlice)];
+    Array nonContiguousArray = arraybridge::arrayFromPyArray(nonContiguousPyArray);
 
     if (nonContiguousArray.isContiguous()) {
         throw py::value_error("Expected non-contiguous array");

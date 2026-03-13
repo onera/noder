@@ -1,47 +1,49 @@
-# include "array/factory/vectors.hpp"
+#include "array/factory/vectors.hpp"
+
+#include "array/factory/matrices.hpp"
+
+#include <cmath>
+#include <limits>
+#include <stdexcept>
 
 namespace arrayfactory {
 
     template <typename T>
     Array uniformFromStep(const double& start, const double& stop, const double& step) {
-        constexpr double ε = std::numeric_limits<double>::epsilon();
+        constexpr double epsilon = std::numeric_limits<double>::epsilon();
 
-        if (std::abs(step) < ε) {
+        if (std::abs(step) < epsilon) {
             throw std::invalid_argument("step must not be zero");
         }
 
-        if (((step < 0) && (start < stop)) || ((step > 0) && (start > stop)) ) {
+        if (((step < 0) && (start < stop)) || ((step > 0) && (start > stop))) {
             throw std::invalid_argument("incoherent set of start, stop, step");
         }
 
-
-        ssize_t ssize = static_cast<ssize_t>((stop - start) / step);
-        py::array_t<T> pyarray(ssize);
-
-        T* buffer = static_cast<T*>(pyarray.mutable_data());
-        for (size_t i = 0; i < static_cast<size_t>(ssize); ++i) {
+        const ssize_t signedSize = static_cast<ssize_t>((stop - start) / step);
+        Array array = empty<T>({static_cast<size_t>(signedSize)}, 'C');
+        T* buffer = array.getPointerOfModifiableDataFast<T>();
+        for (size_t i = 0; i < static_cast<size_t>(signedSize); ++i) {
             buffer[i] = static_cast<T>(start + static_cast<double>(i) * step);
         }
-
-        Array array(pyarray);
 
         return array;
     }
 
     template <typename T>
     Array uniformFromCount(const double& start,
-                   const double& stop,
-                   const size_t& num,
-                   const bool& endpoint) {
+                           const double& stop,
+                           const size_t& num,
+                           const bool& endpoint) {
 
-        if (num < 2) { 
+        if (num < 2) {
             throw std::invalid_argument("num must be at least 2");
         }
 
-        py::array_t<T> pyarray(static_cast<ssize_t>(num));
-        T* buffer = static_cast<T*>(pyarray.mutable_data());
-        double floatnum = static_cast<double>(num);
-        double step = (endpoint && floatnum > 1) ? (stop - start) / (floatnum - 1) : (stop - start) / floatnum;
+        Array array = empty<T>({num}, 'C');
+        T* buffer = array.getPointerOfModifiableDataFast<T>();
+        const double floatNum = static_cast<double>(num);
+        const double step = (endpoint && floatNum > 1) ? (stop - start) / (floatNum - 1) : (stop - start) / floatNum;
 
         for (size_t i = 0; i < num; ++i) {
             buffer[i] = static_cast<T>(start + static_cast<double>(i) * step);
@@ -49,14 +51,9 @@ namespace arrayfactory {
         if (endpoint && num > 1) {
             buffer[num - 1] = static_cast<T>(stop);
         }
-        Array array(pyarray);
         return array;
     }
-} 
-
-/*
-    templates instantiations
-*/
+}
 
 template <typename... T>
 struct InstantiatorFloatingAndIntegralTypes {

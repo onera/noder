@@ -1,44 +1,27 @@
-# include "array/factory/strings.hpp"
+#include "array/factory/strings.hpp"
 
+#include <cstring>
 
 namespace arrayfactory {
 
-    namespace py = pybind11;
-
     Array arrayFromString(const std::string& str) {
-
-        size_t stringSize = str.length();  
-
-        std::vector<char> buffer(stringSize);
-        std::memcpy(buffer.data(), str.c_str(), stringSize);
-
-        py::array pyArray(py::dtype("S"+std::to_string(stringSize)),
-                          {1}, // shape: we do not allow multi-dimensional string arrays
-                          buffer.data());
-
-        Array array(pyArray);
-
-        return array;
+        return Array(str);
     }
 
     Array arrayFromUnicodeString(const std::string& str) {
+        std::u32string utf32Str = u32stringFromString(str);
+        const size_t stringSize = utf32Str.length();
+        const size_t byteCount = stringSize * sizeof(char32_t);
 
-        std::u32string utf32_str = u32stringFromString(str);
+        std::shared_ptr<void> owner;
+        if (byteCount != 0) {
+            owner = std::shared_ptr<void>(new std::uint8_t[byteCount], [](void* ptr) {
+                delete[] static_cast<std::uint8_t*>(ptr);
+            });
+            std::memcpy(owner.get(), utf32Str.data(), byteCount);
+        }
 
-        size_t stringSize = utf32_str.length();
-        auto data_ptr = reinterpret_cast<const char32_t*>(utf32_str.data());
-
-        py::array pyArray(
-            py::dtype("U" + std::to_string(stringSize)), 
-            {1},                             // shape
-            {sizeof(char32_t) * stringSize}, // Strides
-            data_ptr                         
-        );
-
-        Array array(pyArray);
-
-        return array;
-
+        return Array::unicodeView(owner.get(), byteCount, {1}, {byteCount}, owner);
     }
 
     std::u32string u32stringFromString(const std::string& str) {
@@ -46,4 +29,4 @@ namespace arrayfactory {
         return converter.from_bytes(str);
     }
 
-} 
+}

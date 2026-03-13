@@ -1,4 +1,9 @@
 # include "test_array_data_accessors.hpp"
+# include "array/array_numpy_bridge.hpp"
+
+# include <pybind11/pybind11.h>
+
+namespace py = pybind11;
 
 template <typename T>
 void test_scalarSlicingProducesScalar() {
@@ -73,9 +78,9 @@ void test_getAccessorOfReadOnlyData() {
                                4, 5, 6,
                                7, 8, 9};
 
-    Array array = Array(py::array_t<T>({3, 3}, expected.data()));
-    
-    auto data = array.getAccessorOfReadOnlyData<T,2>();
+    Array array = arraybridge::arrayFromPyArray(py::array_t<T>({3, 3}, expected.data()));
+    py::array pyArray = arraybridge::toPyArray(array);
+    auto data = pyArray.unchecked<T, 2>();
 
     size_t flatIndex;
     for (size_t i = 0; i < array.shape()[0]; i++)
@@ -99,9 +104,9 @@ void test_getAccessorOfModifiableData() {
                                  4, 5, 6,
                                  7, 8, 9};
 
-    Array array = Array(py::array_t<int>({3, 3}, expected.data()));
-    
-    auto data = array.getAccessorOfModifiableData<int,2>();
+    Array array = arraybridge::arrayFromPyArray(py::array_t<int>({3, 3}, expected.data()));
+    py::array pyArray = arraybridge::toPyArray(array);
+    auto data = pyArray.mutable_unchecked<int, 2>();
 
     data(1,1) = 0;
     expected[4] = 0;
@@ -248,8 +253,6 @@ struct InstantiatorAccessors {
     void operator()() const {
         (utils::forceSymbol(&test_getAccessorOfReadOnlyData<U>), ...);
         (utils::forceSymbol(&test_getAccessorOfModifiableData<U>), ...);
-        (utils::forceSymbol(&Array::template getAccessorOfReadOnlyData<U, 2>), ...);
-        (utils::forceSymbol(&Array::template getAccessorOfModifiableData<U, 2>), ...);
     }
 };
 

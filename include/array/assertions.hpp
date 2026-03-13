@@ -1,6 +1,8 @@
 #ifndef ARRAY_ASSERTIONS_HPP
 #define ARRAY_ASSERTIONS_HPP
 
+#include <stdexcept>
+
 #include "array/array.hpp"
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
@@ -17,7 +19,7 @@ public:
         size_t arraySize = array.size();
         size_t otherSize = static_cast<size_t>(other.size());
         if (arraySize != otherSize) {
-            throw py::value_error(
+            throw std::invalid_argument(
                 "Array size ("+std::to_string(arraySize)+
                 ") was not equal to "+std::to_string(otherSize));
         }
@@ -34,14 +36,14 @@ public:
         if (!array.hasDataOfType<T>()) {
             std::string msg = "Wrong requested type ";
             msg += utils::getTypeName<T>();
-            throw py::type_error(msg);    
+            throw std::invalid_argument(msg);
         }
     }
 
     template <size_t N>
     void haveDataOfDimensions() const {
         if (N != array.dimensions()) {
-            throw py::type_error(
+            throw std::invalid_argument(
                 "Expected dimensions: " + std::to_string(N) +
                 ", but got: " + std::to_string(array.dimensions())
             );
@@ -52,9 +54,9 @@ public:
     void haveValidDataTypeForSettingScalar() const {
         try {
             this->haveDataOfType<T>();
-        } catch (const py::type_error& e) {
+        } catch (const std::invalid_argument& e) {
             if (array.hasString()) {
-                throw py::type_error("cannot assign a scalar to an array containing a string");
+                throw std::invalid_argument("cannot assign a scalar to an array containing a string");
             }
             throw e;
         }

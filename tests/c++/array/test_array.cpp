@@ -1,4 +1,9 @@
 # include "test_array.hpp"
+# include "array/array_numpy_bridge.hpp"
+
+# include <pybind11/pybind11.h>
+
+namespace py = pybind11;
 
 void test_constructorEmpty() {
     Array array;
@@ -7,7 +12,7 @@ void test_constructorEmpty() {
 void test_constructorPyArray() {
     int rawArray[3] = {1, 2, 3};
     py::array_t<int> pyArray = py::array_t<int>({3}, rawArray);
-    Array array(pyArray);
+    Array array = arraybridge::arrayFromPyArray(pyArray);
 }
 
 void test_constructorString() {
@@ -43,7 +48,7 @@ void test_getFlatIndex() {
 
 void test_getPyArray() {
     Array array = arrayfactory::zeros<int16_t>({2, 3});
-    py::array pyArray = array.getPyArray();
+    py::array pyArray = arraybridge::toPyArray(array);
     if (pyArray.ndim() != 2) {
         throw py::value_error("getPyArray expected 2 dimensions");
     }
@@ -276,8 +281,8 @@ void test_contiguity() {
         py::slice rowSlice(1, 3, 1);
         py::slice colSlice(1, 3, 1);
         //  equivalent to Python's contiguousArray[1:3, 1:3]
-        py::array nonContiguousPyArray = contiguousArray.getPyArray()[py::make_tuple(rowSlice, colSlice)];
-        Array nonContiguousArray = Array(nonContiguousPyArray);
+        py::array nonContiguousPyArray = arraybridge::toPyArray(contiguousArray)[py::make_tuple(rowSlice, colSlice)];
+        Array nonContiguousArray = arraybridge::arrayFromPyArray(nonContiguousPyArray);
 
         if (nonContiguousArray.isContiguous()) {
             throw py::value_error("Expected non-contiguous array");

@@ -1,35 +1,21 @@
-# ifndef ARRAYS_MATRICES_HPP
-# define ARRAYS_MATRICES_HPP
+#ifndef ARRAYS_MATRICES_HPP
+#define ARRAYS_MATRICES_HPP
 
-# include <iostream>
-# include <array>
-# include <vector>
-# include <string>
-# include <cstdint>
-# include <tuple>
-# include <utility>
-# include <type_traits>
-# include <algorithm>
-# include <stdexcept>
-# include <pybind11/numpy.h>
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <tuple>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
-# include "array/array.hpp"
-
-
-/* 
-    For mixed Python/C++ projects, it is possible to directly call numpy 
-    array makers using pybind11 capacity to call Python interpreter, e.g.:
-    
-    py::array pyarray = py::module::import("numpy").attr("zeros")(py::make_tuple(3, 4));
-
-    However, calling Python from C++ is more costly than directly calling pure
-    C++ functions, so it is preferred to use the array makers proposed in this
-    module when suitable.
-*/
+#include "array/array.hpp"
 
 namespace arrayfactory {
-
-    namespace py = pybind11;
 
     /** @brief Allocate an array of shape @p shape filled with @p fill_value. */
     template <typename T>
@@ -55,10 +41,33 @@ namespace arrayfactory {
     template <typename T>
     Array ones(const std::vector<size_t>& shape, const char order = 'C');
 
+    namespace detail {
+        inline size_t checkedByteCount(const std::vector<size_t>& shape, size_t itemsize) {
+            size_t count = 1;
+            for (size_t extent : shape) {
+                if (extent != 0 && count > std::numeric_limits<size_t>::max() / extent) {
+                    throw std::overflow_error("arrayfactory::empty: shape product overflow");
+                }
+                count *= extent;
+            }
+            if (count != 0 && itemsize > std::numeric_limits<size_t>::max() / count) {
+                throw std::overflow_error("arrayfactory::empty: byte-size overflow");
+            }
+            return count * itemsize;
+        }
 
-}
+        inline std::shared_ptr<void> allocateBytes(size_t byteCount) {
+            if (byteCount == 0) {
+                return nullptr;
+            }
+            return std::shared_ptr<void>(new std::uint8_t[byteCount], [](void* ptr) {
+                delete[] static_cast<std::uint8_t*>(ptr);
+            });
+        }
+    } // namespace detail
 
-// Template implementations kept in header to avoid cross-TU symbol issues.
+} // namespace arrayfactory
+
 namespace arrayfactory {
 
     template <typename T>
@@ -79,8 +88,10 @@ namespace arrayfactory {
         } else {
             throw std::invalid_argument("order must be either 'C' or 'F'");
         }
-        py::array pyarray = py::array(py::dtype::of<T>(), shape, strides);
-        return Array(pyarray);
+
+        const size_t byteCount = detail::checkedByteCount(shape, sizeof(T));
+        auto owner = detail::allocateBytes(byteCount);
+        return Array(Array::typeIdFor<T>(), sizeof(T), owner.get(), shape, strides, owner);
     }
 
     template <typename T>
@@ -118,4 +129,4 @@ namespace arrayfactory {
     }
 }
 
-# endif 
+#endif

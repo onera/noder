@@ -1,4 +1,9 @@
 # include "test_strings.hpp"
+# include "array/array_numpy_bridge.hpp"
+
+# include <pybind11/pybind11.h>
+
+namespace py = pybind11;
 
 using namespace arrayfactory;
 
@@ -23,7 +28,7 @@ void test_arrayFromString() {
 void test_arrayFromUnicodeString() {
     std::string testString = "ρω";
     Array result = arrayFromUnicodeString(testString);
-    py::dtype dtype = result.getPyArray().dtype();
+    py::dtype dtype = arraybridge::toPyArray(result).dtype();
     if (dtype.kind() != 'U') {
         throw py::value_error("arrayFromUnicodeString failed: wrong dtype");
     }

@@ -1,5 +1,9 @@
 # include "test_node_group.hpp"
 
+# include <pybind11/pybind11.h>
+
+namespace py = pybind11;
+
 void test_operator_plus_attachToFirstParent() {
     auto a = newNode("a");
     auto b = newNode("b");

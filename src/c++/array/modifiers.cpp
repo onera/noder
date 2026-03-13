@@ -25,8 +25,31 @@ Array& Array::operator=(const double& scalar) { return this->setElementsAs<doubl
 template <>
 Array& Array::operator=(const bool& scalar) { return this->setElementsAs<bool>(scalar);}
 
-template <>
 Array& Array::operator=(const Array& other) {
+    if (this == &other) {
+        return *this;
+    }
+
+    // Preserve real copy-assignment semantics for empty/null arrays and shape/type changes.
+    if (this->_dtype.id == ArrayTypeId::None ||
+        this->_size == 0 ||
+        this->_dtype.id != other._dtype.id ||
+        this->_size != other._size ||
+        this->hasString() ||
+        other.hasString()) {
+
+        this->_owner = other._owner;
+        this->_ownerKind = other._ownerKind;
+        this->_data = other._data;
+        this->_dtype = other._dtype;
+        this->_dimensions = other._dimensions;
+        this->_size = other._size;
+        this->_shape = other._shape;
+        this->_strides = other._strides;
+        this->_must = nullptr;
+        return *this;
+    }
+
     if      (hasDataOfType<int8_t>())   { return this->setElementsFrom<int8_t>(other);}
     else if (hasDataOfType<int16_t>())  { return this->setElementsFrom<int16_t>(other);}
     else if (hasDataOfType<int32_t>())  { return this->setElementsFrom<int32_t>(other);}

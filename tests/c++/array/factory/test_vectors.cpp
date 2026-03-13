@@ -1,6 +1,9 @@
 # include "test_vectors.hpp"
 
+# include <pybind11/pybind11.h>
+
 using namespace arrayfactory;
+namespace py = pybind11;
 
 
 /*

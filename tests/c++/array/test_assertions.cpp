@@ -1,5 +1,9 @@
 # include "test_assertions.hpp"
 
+# include <pybind11/numpy.h>
+
+namespace py = pybind11;
+
 /*
     template instantiations
 */
@@ -30,7 +34,7 @@ void test_assertSameSizeAsVector() {
         auto other = std::vector<float>({1,2,3});
         try {
             array.must().haveSameSizeAs(other);
-        } catch (const py::value_error& e) {
+        } catch (const std::invalid_argument& e) {
             std::string expectedMessage = "Array size (4) was not equal to 3";
             assert(std::string(e.what()) == expectedMessage && "Incorrect error message");
             std::cout << "Test passed: Caught expected error: " << e.what() << std::endl;
@@ -50,7 +54,7 @@ void test_assertSameSizeAsArray() {
         auto other = arrayfactory::uniformFromStep<int8_t>(1,4,1);
         try {
             array.must().haveSameSizeAs(other);
-        } catch (const py::value_error& e) {
+        } catch (const std::invalid_argument& e) {
             std::string expectedMessage = "Array size (4) was not equal to 3";
             assert(std::string(e.what()) == expectedMessage && "Incorrect error message");
             std::cout << "Test passed: Caught expected error: " << e.what() << std::endl;
@@ -74,7 +78,7 @@ void test_assertSameSizeAsPyArray() {
         
         try {
             array.must().haveSameSizeAs(other);
-        } catch (const py::value_error& e) {
+        } catch (const std::invalid_argument& e) {
             std::string expectedMessage = "Array size (4) was not equal to 3";
             assert(std::string(e.what()) == expectedMessage && "Incorrect error message");
             std::cout << "Test passed: Caught expected error: " << e.what() << std::endl;
@@ -112,7 +116,7 @@ void test_mustHaveDataOfTypeCatchExpectedError() {
     try {
         Array array = arrayfactory::zeros<int>({3});
         array.must().haveDataOfType<float>();
-    } catch (const py::type_error& e) {
+    } catch (const std::invalid_argument& e) {
         std::string expectedErrorMessageStart = "Wrong requested type";
         if ( !utils::stringStartsWith(e.what(), expectedErrorMessageStart) ) {
             throw e;
@@ -144,7 +148,7 @@ void test_mustHaveDataOfDimensionsCatchExpectedError() {
  
     try {
         array.must().haveDataOfDimensions<2>();
-    } catch (const py::type_error& e) {
+    } catch (const std::invalid_argument& e) {
         std::string expectedErrorMessageStart = "Expected dimensions";
         if ( !utils::stringStartsWith(e.what(), expectedErrorMessageStart) ) {
             throw e;
@@ -164,7 +168,7 @@ void test_mustHaveValidDataTypeForSettingScalarCatchExpectedError() {
 
     try {
         array.must().haveValidDataTypeForSettingScalar<int>();
-    } catch (const py::type_error& e) {
+    } catch (const std::invalid_argument& e) {
         if (std::string(e.what()) != std::string("cannot assign a scalar to an array containing a string")) {
             throw e;
         }
