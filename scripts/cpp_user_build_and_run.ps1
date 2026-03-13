@@ -1,23 +1,28 @@
-# usage:
+# Execution:
 # Set-ExecutionPolicy -Scope Process Bypass
-# .\cpp_user_build_and_run.ps1
+# .\build-and-run.ps1
 
 $ErrorActionPreference = 'Stop'
 
-function Py([string]$code) {
-    (& python -c $code).Trim()
+$NoderDir = if ($env:NODER_DIR) {
+    $env:NODER_DIR
+} else {
+    'C:\Users\aero_\AppData\Local\noder\dist\dev\noder'
 }
 
-$NoderDir = Py "import importlib.util, pathlib; spec=importlib.util.find_spec('noder'); print(pathlib.Path(list(spec.submodule_search_locations)[0]))"
-$Pybind11Include = Py "import pybind11; print(pybind11.get_include())"
-$PythonInclude = Py "import sysconfig; print(sysconfig.get_path('include'))"
-$PythonBase = Py "import sys; print(sys.base_prefix)"
-$PythonLib = Py "import sys; print(f'python{sys.version_info.major}{sys.version_info.minor}.lib')"
-$PythonLibDir = Join-Path $PythonBase 'libs'
+if (-not (Test-Path $NoderDir)) {
+    throw "noder package directory not found: $NoderDir"
+}
 
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+if (-not (Test-Path $vswhere)) {
+    throw "vswhere.exe not found at $vswhere"
+}
+
 $vsPath = (& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath).Trim()
-if (-not $vsPath) { throw 'Visual Studio Build Tools with C++ support were not found.' }
+if (-not $vsPath) {
+    throw 'Visual Studio Build Tools with C++ support were not found.'
+}
 
 $vsDevCmd = Join-Path $vsPath 'Common7\Tools\VsDevCmd.bat'
 cmd /c "`"$vsDevCmd`" -arch=x64 && set" | ForEach-Object {
@@ -26,23 +31,25 @@ cmd /c "`"$vsDevCmd`" -arch=x64 && set" | ForEach-Object {
     }
 }
 
+Remove-Item .\main.obj, .\main.exe, .\hello_noder.cgns -Force -ErrorAction SilentlyContinue
+
 & cl.exe `
   /nologo /std:c++17 /EHsc /MD /DENABLE_HDF5_IO `
   /I "$NoderDir\include" `
-  /I "$PythonInclude" `
-  /I "$Pybind11Include" `
   main.cpp `
   /link `
   "/LIBPATH:$NoderDir" core_shared.lib `
-  "/LIBPATH:$PythonLibDir" $PythonLib `
   /OUT:main.exe
 
-if ($LASTEXITCODE -ne 0) { throw "Compilation failed with exit code $LASTEXITCODE" }
+if ($LASTEXITCODE -ne 0) {
+    throw "Compilation failed with exit code $LASTEXITCODE"
+}
 
-$env:PATH = "$NoderDir;$PythonBase;$env:PATH"
+$env:PATH = "$NoderDir;$env:PATH"
 
 & .\main.exe
-if ($LASTEXITCODE -ne 0) { throw "Execution failed with exit code $LASTEXITCODE" }
+if ($LASTEXITCODE -ne 0) {
+    throw "Execution failed with exit code $LASTEXITCODE"
+}
 
 Get-Item .\hello_noder.cgns
-
