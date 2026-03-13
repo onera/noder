@@ -1,6 +1,7 @@
 # ifndef TEST_ARRAY_DATA_ACCESSORS_PYBIND_HPP
 # define TEST_ARRAY_DATA_ACCESSORS_PYBIND_HPP
 
+# include "utils/template_binder.hpp"
 # include "test_array_data_accessors.hpp"
 
 void bindTestsOfArrayDataAccessors(py::module_ &m) {

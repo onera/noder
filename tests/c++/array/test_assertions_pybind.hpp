@@ -1,6 +1,7 @@
 # ifndef TEST_ARRAY_ASSERTIONS_PYBIND_HPP
 # define TEST_ARRAY_ASSERTIONS_PYBIND_HPP
 
+# include "utils/template_binder.hpp"
 # include "test_assertions.hpp"
 
 void bindTestsOfArrayAssertions(py::module_ &m) {

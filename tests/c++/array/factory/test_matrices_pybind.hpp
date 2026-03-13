@@ -1,6 +1,7 @@
 # ifndef TEST_ARRAY_FACTORY_MATRICES_PYBIND_HPP
 # define TEST_ARRAY_FACTORY_MATRICES_PYBIND_HPP
 
+# include "utils/template_binder.hpp"
 # include "test_matrices.hpp"
 
 void bindTestsOfFactoryOfMatricesArrays(py::module_ &m) {

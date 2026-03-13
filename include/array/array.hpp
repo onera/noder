@@ -19,7 +19,6 @@
 # include "utils/compat.hpp"
 # include "utils/comparator.hpp"
 # include "utils/template_instantiator.hpp"
-# include "utils/template_binder.hpp"
 # include "utils/string.hpp"
 
 # include "data/data.hpp"

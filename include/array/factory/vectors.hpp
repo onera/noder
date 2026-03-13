@@ -6,8 +6,6 @@
 # include <vector>
 # include <string>
 # include <cstdint>
-# include <pybind11/numpy.h>
-
 # include "array/array.hpp"
 
 namespace arrayfactory {

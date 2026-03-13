@@ -2,6 +2,7 @@
 # define ARRAY_FACTORY_MATRICES_PYBIND_HPP
 
 # include <pybind11/pybind11.h>
+# include "utils/template_binder.hpp"
 # include "array/factory/matrices.hpp"
 
 

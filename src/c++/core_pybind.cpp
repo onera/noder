@@ -7,6 +7,7 @@
 
 #ifdef ENABLE_HDF5_IO
 #include "io/io.hpp"
+#include "io/io_numpy.hpp"
 #endif
 
 

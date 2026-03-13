@@ -1,6 +1,7 @@
 # ifndef TEST_ARRAY_FACTORY_VECTORS_PYBIND_HPP
 # define TEST_ARRAY_FACTORY_VECTORS_PYBIND_HPP
 
+# include "utils/template_binder.hpp"
 # include "test_vectors.hpp"
 
 void bindTestsOfFactoryOfVectorArrays(py::module_ &m) {

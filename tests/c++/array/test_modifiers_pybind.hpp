@@ -1,6 +1,7 @@
 # ifndef TEST_ARRAY_MODIFIERS_PYBIND_HPP
 # define TEST_ARRAY_MODIFIERS_PYBIND_HPP
 
+# include "utils/template_binder.hpp"
 # include "test_modifiers.hpp"
 
 

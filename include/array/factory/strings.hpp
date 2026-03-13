@@ -9,8 +9,6 @@
 #include <cstdint>
 #include <codecvt>
 #include <locale>
-#include <pybind11/numpy.h>
-
 # include "array/array.hpp"
 
 namespace arrayfactory {

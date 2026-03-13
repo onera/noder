@@ -1,6 +1,7 @@
 # ifndef TEST_ARRAY_FACTORY_C_TO_PY_PYBIND_HPP
 # define TEST_ARRAY_FACTORY_C_TO_PY_PYBIND_HPP
 
+# include "utils/template_binder.hpp"
 # include "test_c_to_py.hpp"
 
 void bindTestsOfFactoryOfArraysFromCToPy(py::module_ &m) {

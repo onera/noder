@@ -1,6 +1,7 @@
 # ifndef TEST_ARRAY_COMPARISONS_PYBIND_HPP
 # define TEST_ARRAY_COMPARISONS_PYBIND_HPP
 
+# include "utils/template_binder.hpp"
 # include "test_comparisons.hpp"
 
 void bindTestsOfArrayComparisons(py::module_ &m) {

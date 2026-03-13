@@ -3,6 +3,7 @@
 
 # include <pybind11/pybind11.h>
 
+# include "utils/template_binder.hpp"
 # include "test_array.hpp"
 # include "factory/test_factory_pybind.hpp"
 # include "test_printer_pybind.hpp"
