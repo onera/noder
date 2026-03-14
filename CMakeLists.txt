@@ -190,8 +190,12 @@ include_directories(
 file(GLOB_RECURSE CPP_FILES "src/c++/*.cpp")
 file(GLOB_RECURSE HPP_FILES "include/*.hpp")
 file(GLOB_RECURSE PYBIND_CPP_FILES "src/c++/*_pybind.cpp")
+set(CORE_PYTHON_ONLY_SRC
+    ${CMAKE_SOURCE_DIR}/src/c++/io/cgns/node_pycgns_converter.cpp
+)
 set(CORE_SHARED_SRC ${CPP_FILES} ${HPP_FILES})
 list(REMOVE_ITEM CORE_SHARED_SRC ${PYBIND_CPP_FILES})
+list(REMOVE_ITEM CORE_SHARED_SRC ${CORE_PYTHON_ONLY_SRC})
 
 if (MSVC)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
@@ -228,7 +232,6 @@ elseif(UNIX OR MSVC)
 endif()
 
 target_compile_definitions(core_shared PRIVATE BUILDING_NODE_LIBRARY)
-target_link_libraries(core_shared PUBLIC pybind11::module)
 
 
 if(ENABLE_HDF5_IO)
@@ -237,13 +240,21 @@ if(ENABLE_HDF5_IO)
     if(MSVC)
         # Copy HDF5 DLLs into the wheel output directory so they're bundled in the .whl
         set(HDF5_DLL "${HDF5_ROOT}/bin/hdf5.dll")
+        if(DEFINED HDF5_C_LIBRARY AND EXISTS "${HDF5_C_LIBRARY}")
+            set(HDF5_IMPLIB "${HDF5_C_LIBRARY}")
+        else()
+            set(HDF5_IMPLIB "${HDF5_ROOT}/lib/hdf5.lib")
+        endif()
         if(EXISTS "${HDF5_DLL}")
             message(STATUS "Copying HDF5 DLL: ${HDF5_DLL}")
             file(COPY "${HDF5_DLL}" DESTINATION ${VERSIONED_OUTPUT_DIR})
             set(HDF5_DLL_IN_OUTPUT "${VERSIONED_OUTPUT_DIR}/hdf5.dll")
         else()
             message(FATAL_ERROR "Required HDF5 DLL not found: ${HDF5_DLL}")
-        endif()        
+        endif()
+        if(NOT EXISTS "${HDF5_IMPLIB}")
+            message(FATAL_ERROR "Required HDF5 import library not found: ${HDF5_IMPLIB}")
+        endif()
     endif()
 
     if(UNIX AND NOT APPLE)
@@ -282,11 +293,16 @@ endif()
 
 pybind11_add_module(core MODULE
     src/c++/core_pybind.cpp
+    ${CORE_PYTHON_ONLY_SRC}
 )
 target_link_libraries(core PRIVATE core_shared)
 add_dependencies(core core_shared)
 if(APPLE)
     target_link_options(core PRIVATE "-Wl,-force_load,$<TARGET_FILE:core_shared>")
+endif()
+if(ENABLE_HDF5_IO)
+    target_include_directories(core PRIVATE ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(core PRIVATE ${HDF5_LIBRARIES})
 endif()
 
 pybind11_add_module(_cgns MODULE src/c++/cgns_pybind.cpp)
@@ -299,6 +315,7 @@ endif()
 install(TARGETS core_shared EXPORT noderTargets DESTINATION ${NODER_PACKAGE_DIR})
 if(MSVC AND ENABLE_HDF5_IO)
     install(FILES "${HDF5_DLL_IN_OUTPUT}" DESTINATION ${NODER_PACKAGE_DIR})
+    install(FILES "${HDF5_IMPLIB}" DESTINATION ${NODER_PACKAGE_DIR})
 endif()
 
 install(TARGETS core DESTINATION ${NODER_PACKAGE_DIR})

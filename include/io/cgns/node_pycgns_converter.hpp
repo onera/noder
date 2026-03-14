@@ -15,13 +15,13 @@ namespace py = pybind11;
  * @param node Root node to convert.
  * @return Nested list representation.
  */
-NODE_EXPORT py::list nodeToPyCGNS(const std::shared_ptr<Node>& node);
+py::list nodeToPyCGNS(const std::shared_ptr<Node>& node);
 
 /**
  * @brief Convert a Python CGNS-like nested list to a Node hierarchy.
  * @param pyList Nested list representation.
  * @return Converted root node.
  */
-NODE_EXPORT std::shared_ptr<Node> pyCGNSToNode(const py::list& pyList);
+std::shared_ptr<Node> pyCGNSToNode(const py::list& pyList);
 
 # endif

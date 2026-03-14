@@ -2,21 +2,21 @@
 
 include(CMakeFindDependencyMacro)
 
-find_dependency(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
-
-if(NOT pybind11_FOUND)
-    execute_process(
-        COMMAND "${Python3_EXECUTABLE}" -m pybind11 --cmakedir
-        OUTPUT_VARIABLE _noder_pybind11_cmakedir
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        RESULT_VARIABLE _noder_pybind11_status
-    )
-    if(_noder_pybind11_status EQUAL 0 AND EXISTS "${_noder_pybind11_cmakedir}")
-        list(PREPEND CMAKE_PREFIX_PATH "${_noder_pybind11_cmakedir}")
+if("@ENABLE_HDF5_IO@" STREQUAL "ON" AND WIN32)
+    set(_noder_hdf5_dll "${PACKAGE_PREFIX_DIR}/noder/hdf5.dll")
+    set(_noder_hdf5_implib "${PACKAGE_PREFIX_DIR}/noder/hdf5.lib")
+    if(EXISTS "${_noder_hdf5_dll}" AND EXISTS "${_noder_hdf5_implib}")
+        if(NOT TARGET hdf5::hdf5-shared)
+            add_library(hdf5::hdf5-shared SHARED IMPORTED)
+            set_target_properties(hdf5::hdf5-shared PROPERTIES
+                IMPORTED_IMPLIB "${_noder_hdf5_implib}"
+                IMPORTED_LOCATION "${_noder_hdf5_dll}"
+            )
+        endif()
+    else()
+        find_dependency(HDF5 REQUIRED COMPONENTS C)
     endif()
 endif()
-
-find_dependency(pybind11 CONFIG REQUIRED)
 
 include("${CMAKE_CURRENT_LIST_DIR}/noderTargets.cmake")
 
