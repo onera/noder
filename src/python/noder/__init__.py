@@ -6,10 +6,16 @@ noder: Node-Oriented Data Extraction & Representation
 import sys
 import os
 import glob
+from pathlib import Path
 
 from ._version import version as __version__
 
-__all__ = ["__version__"]
+__all__ = [
+    "__version__",
+    "get_package_dir",
+    "get_include_dir",
+    "get_cmake_dir",
+]
 
 
 
@@ -28,6 +34,18 @@ def zeros(*args,**kwargs):
     return builder(*args,**kwargs)
 
 factory.zeros = zeros
+
+
+def get_package_dir() -> str:
+    return str(Path(__file__).resolve().parent)
+
+
+def get_include_dir() -> str:
+    return str(Path(get_package_dir()) / "include")
+
+
+def get_cmake_dir() -> str:
+    return str(Path(get_package_dir()) / "cmake")
 
 # obsolete if using bundling:
 # def find_hdf5_dll_dir():

@@ -12,6 +12,13 @@ if(NOT DEFINED CMAKE_INSTALL_DIR)
     set(CMAKE_INSTALL_DIR "${CURRENT_DIR}/dist/dev")
 endif()
 
+if(DEFINED SKBUILD_PROJECT_VERSION)
+    string(REGEX MATCH "^[0-9]+(\\.[0-9]+){0,3}" NODER_CMAKE_PACKAGE_VERSION "${SKBUILD_PROJECT_VERSION}")
+endif()
+if(NOT NODER_CMAKE_PACKAGE_VERSION)
+    set(NODER_CMAKE_PACKAGE_VERSION "0.0.0")
+endif()
+
 project(${SKBUILD_PROJECT_NAME} LANGUAGES C CXX)
 
 set(CMAKE_BUILD_TYPE Release)
@@ -154,6 +161,7 @@ else()
 endif()
 
 if (HDF5_FOUND)
+    include_directories(${HDF5_INCLUDE_DIRS})
     message(STATUS "    HDF5_INCLUDE_DIRS: ${HDF5_INCLUDE_DIRS}")
     message(STATUS "    HDF5_LIBRARIES: ${HDF5_LIBRARIES}")
 elseif(MSVC)
@@ -167,6 +175,11 @@ mark_as_advanced(HDF5_FOUND)
 set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install")
 set(CMAKE_INSTALL_LIBDIR "${CMAKE_INSTALL_PREFIX}/lib")
 set(CMAKE_INSTALL_INCLUDEDIR "${CMAKE_INSTALL_PREFIX}/include")
+set(NODER_PACKAGE_DIR "${SKBUILD_PROJECT_NAME}")
+set(NODER_INCLUDE_INSTALL_DIR "${NODER_PACKAGE_DIR}/include")
+set(NODER_CMAKE_INSTALL_DIR "${NODER_PACKAGE_DIR}/cmake")
+
+include(CMakePackageConfigHelpers)
 
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
@@ -179,7 +192,6 @@ file(GLOB_RECURSE HPP_FILES "include/*.hpp")
 file(GLOB_RECURSE PYBIND_CPP_FILES "src/c++/*_pybind.cpp")
 set(CORE_SHARED_SRC ${CPP_FILES} ${HPP_FILES})
 list(REMOVE_ITEM CORE_SHARED_SRC ${PYBIND_CPP_FILES})
-list(REMOVE_ITEM CORE_SHARED_SRC "${CMAKE_SOURCE_DIR}/src/c++/io/cgns/node_pycgns_converter.cpp")
 
 if (MSVC)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
@@ -195,6 +207,14 @@ set_target_properties(core_shared PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${VERSIONED_OUTPUT_DIR}"
 )
 
+target_include_directories(core_shared
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${NODER_INCLUDE_INSTALL_DIR}>
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/c++
+)
+
 if(APPLE)
     set_target_properties(core_shared PROPERTIES
         INSTALL_RPATH "@loader_path"
@@ -207,12 +227,13 @@ elseif(UNIX OR MSVC)
     )
 endif()
 
-target_compile_definitions(core_shared PUBLIC BUILDING_NODE_LIBRARY)
+target_compile_definitions(core_shared PRIVATE BUILDING_NODE_LIBRARY)
+target_link_libraries(core_shared PUBLIC pybind11::module)
 
 
 if(ENABLE_HDF5_IO)
-    target_include_directories(core_shared PUBLIC ${HDF5_INCLUDE_DIRS})
-    target_link_libraries(core_shared PUBLIC ${HDF5_LIBRARIES})
+    target_include_directories(core_shared PRIVATE ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(core_shared PRIVATE ${HDF5_LIBRARIES})
     if(MSVC)
         # Copy HDF5 DLLs into the wheel output directory so they're bundled in the .whl
         set(HDF5_DLL "${HDF5_ROOT}/bin/hdf5.dll")
@@ -256,12 +277,11 @@ if(ENABLE_HDF5_IO)
 endif()
 
 if(ENABLE_MPI)
-    target_link_libraries(core_shared PUBLIC ${MPI_CXX_LIBRARIES})
+    target_link_libraries(core_shared PRIVATE ${MPI_CXX_LIBRARIES})
 endif()
 
 pybind11_add_module(core MODULE
     src/c++/core_pybind.cpp
-    src/c++/io/cgns/node_pycgns_converter.cpp
 )
 target_link_libraries(core PRIVATE core_shared)
 add_dependencies(core core_shared)
@@ -276,16 +296,42 @@ if(APPLE)
     target_link_options(_cgns PRIVATE "-Wl,-force_load,$<TARGET_FILE:core_shared>")
 endif()
 
-install(TARGETS core_shared DESTINATION ${SKBUILD_PROJECT_NAME})
+install(TARGETS core_shared EXPORT noderTargets DESTINATION ${NODER_PACKAGE_DIR})
 if(MSVC AND ENABLE_HDF5_IO)
-    install(FILES "${HDF5_DLL_IN_OUTPUT}" DESTINATION ${SKBUILD_PROJECT_NAME})
+    install(FILES "${HDF5_DLL_IN_OUTPUT}" DESTINATION ${NODER_PACKAGE_DIR})
 endif()
 
-install(TARGETS core DESTINATION ${SKBUILD_PROJECT_NAME})
-install(TARGETS _cgns DESTINATION ${SKBUILD_PROJECT_NAME})
-install(FILES README.md LICENSE DESTINATION ${SKBUILD_PROJECT_NAME})
-install(DIRECTORY src/python/noder/ DESTINATION ${SKBUILD_PROJECT_NAME} FILES_MATCHING PATTERN "*.py*")
-install(DIRECTORY include DESTINATION ${SKBUILD_PROJECT_NAME})
+install(TARGETS core DESTINATION ${NODER_PACKAGE_DIR})
+install(TARGETS _cgns DESTINATION ${NODER_PACKAGE_DIR})
+install(FILES README.md LICENSE DESTINATION ${NODER_PACKAGE_DIR})
+install(DIRECTORY src/python/noder/ DESTINATION ${NODER_PACKAGE_DIR} FILES_MATCHING PATTERN "*.py*")
+install(DIRECTORY include DESTINATION ${NODER_PACKAGE_DIR})
+
+configure_package_config_file(
+    ${CMAKE_SOURCE_DIR}/cmake/noderConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/noderConfig.cmake
+    INSTALL_DESTINATION ${NODER_CMAKE_INSTALL_DIR}
+    PATH_VARS NODER_PACKAGE_DIR NODER_INCLUDE_INSTALL_DIR
+)
+
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/noderConfigVersion.cmake
+    VERSION ${NODER_CMAKE_PACKAGE_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+install(EXPORT noderTargets
+    FILE noderTargets.cmake
+    NAMESPACE noder::
+    DESTINATION ${NODER_CMAKE_INSTALL_DIR}
+)
+
+install(
+    FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/noderConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/noderConfigVersion.cmake
+    DESTINATION ${NODER_CMAKE_INSTALL_DIR}
+)
 
 # option(ENABLE_TESTS "Enable test compilation" ON)
 # if(ENABLE_TESTS)
@@ -326,6 +372,6 @@ if(ENABLE_TESTS)
         target_link_options(tests PRIVATE "-Wl,-force_load,$<TARGET_FILE:core_shared>")
     endif()
 
-    install(TARGETS tests DESTINATION ${SKBUILD_PROJECT_NAME})
-    install(DIRECTORY tests DESTINATION ${SKBUILD_PROJECT_NAME})
+    install(TARGETS tests DESTINATION ${NODER_PACKAGE_DIR})
+    install(DIRECTORY tests DESTINATION ${NODER_PACKAGE_DIR})
 endif()

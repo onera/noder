@@ -29,6 +29,7 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
   "numpy",
+  "pybind11>=2.12",
 ]
 
 [project.optional-dependencies]
@@ -66,6 +67,8 @@ sdist.include = [
   "src/python/noder/_version.py",
   "src/python/noder",
   "src/python/noder/**",
+  "cmake",
+  "cmake/**",
   "include",
   "tests",
 ]
@@ -110,6 +113,7 @@ noder = [
   "**/*.so",
   "**/*.py",
   "**/*.pyi",
+  "**/*.cmake",
   ]
 
 
