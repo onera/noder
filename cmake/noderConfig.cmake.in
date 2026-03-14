@@ -1,0 +1,30 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+find_dependency(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
+
+if(NOT pybind11_FOUND)
+    execute_process(
+        COMMAND "${Python3_EXECUTABLE}" -m pybind11 --cmakedir
+        OUTPUT_VARIABLE _noder_pybind11_cmakedir
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE _noder_pybind11_status
+    )
+    if(_noder_pybind11_status EQUAL 0 AND EXISTS "${_noder_pybind11_cmakedir}")
+        list(PREPEND CMAKE_PREFIX_PATH "${_noder_pybind11_cmakedir}")
+    endif()
+endif()
+
+find_dependency(pybind11 CONFIG REQUIRED)
+
+include("${CMAKE_CURRENT_LIST_DIR}/noderTargets.cmake")
+
+set_and_check(noder_PACKAGE_DIR "@PACKAGE_NODER_PACKAGE_DIR@")
+set_and_check(noder_INCLUDE_DIR "@PACKAGE_NODER_INCLUDE_INSTALL_DIR@")
+set(noder_CMAKE_DIR "${CMAKE_CURRENT_LIST_DIR}")
+
+if(TARGET noder::core_shared AND NOT TARGET noder::core_library)
+    add_library(noder::core_library INTERFACE IMPORTED)
+    target_link_libraries(noder::core_library INTERFACE noder::core_shared)
+endif()
