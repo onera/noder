@@ -1,5 +1,4 @@
 from __future__ import annotations
-import collections.abc
 import typing
 from . import factory
 from . import io
@@ -25,11 +24,11 @@ class Array(Data):
         ...
     def extractString(self) -> str:
         ...
-    def getFlatIndex(self, arg0: collections.abc.Sequence[typing.SupportsInt | typing.SupportsIndex]) -> int:
+    def getFlatIndex(self, arg0: list[int]) -> int:
         ...
-    def getItemAtIndex(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> typing.Any:
+    def getItemAtIndex(self, arg0: int) -> typing.Any:
         ...
-    def getPrintString(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> str:
+    def getPrintString(self, arg0: int) -> str:
         ...
     def getPyArray(self) -> typing.Any:
         ...
@@ -47,7 +46,7 @@ class Array(Data):
         ...
     def isScalar(self) -> bool:
         ...
-    def print(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
+    def print(self, arg0: int) -> None:
         ...
     def shape(self) -> list[int]:
         ...
@@ -134,251 +133,251 @@ class Navigation:
     
     See C++ counterpart: :ref:`cpp-navigation-class`.
     """
-    def all_by_and(self, name: str = '', type: str = '', data: typing.Any = '', depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_and(self, name: str = '', type: str = '', data: typing.Any = '', depth: int = 100) -> list[Node]:
         """
         get all nodes by and condition using name, type and data recursively (string or scalar)
         """
-    def all_by_and_bool(self, name: str = '', type: str = '', data: bool, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_and_bool(self, name: str = '', type: str = '', data: bool, depth: int = 100) -> list[Node]:
         """
         Get all nodes by name/type and scalar data recursively (typed overload)
         """
-    def all_by_and_double(self, name: str = '', type: str = '', data: typing.SupportsFloat | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_and_double(self, name: str = '', type: str = '', data: float, depth: int = 100) -> list[Node]:
         """
         Get all nodes by name/type and scalar data recursively (typed overload)
         """
-    def all_by_and_float(self, name: str = '', type: str = '', data: typing.SupportsFloat | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_and_float(self, name: str = '', type: str = '', data: float, depth: int = 100) -> list[Node]:
         """
         Get all nodes by name/type and scalar data recursively (typed overload)
         """
-    def all_by_and_int16(self, name: str = '', type: str = '', data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_and_int16(self, name: str = '', type: str = '', data: int, depth: int = 100) -> list[Node]:
         """
         Get all nodes by name/type and scalar data recursively (typed overload)
         """
-    def all_by_and_int32(self, name: str = '', type: str = '', data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_and_int32(self, name: str = '', type: str = '', data: int, depth: int = 100) -> list[Node]:
         """
         Get all nodes by name/type and scalar data recursively (typed overload)
         """
-    def all_by_and_int64(self, name: str = '', type: str = '', data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_and_int64(self, name: str = '', type: str = '', data: int, depth: int = 100) -> list[Node]:
         """
         Get all nodes by name/type and scalar data recursively (typed overload)
         """
-    def all_by_and_int8(self, name: str = '', type: str = '', data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_and_int8(self, name: str = '', type: str = '', data: int, depth: int = 100) -> list[Node]:
         """
         Get all nodes by name/type and scalar data recursively (typed overload)
         """
-    def all_by_and_uint16(self, name: str = '', type: str = '', data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_and_uint16(self, name: str = '', type: str = '', data: int, depth: int = 100) -> list[Node]:
         """
         Get all nodes by name/type and scalar data recursively (typed overload)
         """
-    def all_by_and_uint32(self, name: str = '', type: str = '', data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_and_uint32(self, name: str = '', type: str = '', data: int, depth: int = 100) -> list[Node]:
         """
         Get all nodes by name/type and scalar data recursively (typed overload)
         """
-    def all_by_and_uint64(self, name: str = '', type: str = '', data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_and_uint64(self, name: str = '', type: str = '', data: int, depth: int = 100) -> list[Node]:
         """
         Get all nodes by name/type and scalar data recursively (typed overload)
         """
-    def all_by_and_uint8(self, name: str = '', type: str = '', data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_and_uint8(self, name: str = '', type: str = '', data: int, depth: int = 100) -> list[Node]:
         """
         Get all nodes by name/type and scalar data recursively (typed overload)
         """
-    def all_by_data(self, data: typing.Any, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_data(self, data: typing.Any, depth: int = 100) -> list[Node]:
         """
         get all nodes by exact data recursively (string or scalar)
         """
-    def all_by_data_bool(self, data: bool, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_data_bool(self, data: bool, depth: int = 100) -> list[Node]:
         """
         Get all nodes by scalar data recursively (typed overload)
         """
-    def all_by_data_double(self, data: typing.SupportsFloat | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_data_double(self, data: float, depth: int = 100) -> list[Node]:
         """
         Get all nodes by scalar data recursively (typed overload)
         """
-    def all_by_data_float(self, data: typing.SupportsFloat | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_data_float(self, data: float, depth: int = 100) -> list[Node]:
         """
         Get all nodes by scalar data recursively (typed overload)
         """
-    def all_by_data_glob(self, data_pattern: str, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_data_glob(self, data_pattern: str, depth: int = 100) -> list[Node]:
         """
         get all nodes by glob-pattern data recursively
         """
-    def all_by_data_int16(self, data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_data_int16(self, data: int, depth: int = 100) -> list[Node]:
         """
         Get all nodes by scalar data recursively (typed overload)
         """
-    def all_by_data_int32(self, data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_data_int32(self, data: int, depth: int = 100) -> list[Node]:
         """
         Get all nodes by scalar data recursively (typed overload)
         """
-    def all_by_data_int64(self, data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_data_int64(self, data: int, depth: int = 100) -> list[Node]:
         """
         Get all nodes by scalar data recursively (typed overload)
         """
-    def all_by_data_int8(self, data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_data_int8(self, data: int, depth: int = 100) -> list[Node]:
         """
         Get all nodes by scalar data recursively (typed overload)
         """
-    def all_by_data_uint16(self, data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_data_uint16(self, data: int, depth: int = 100) -> list[Node]:
         """
         Get all nodes by scalar data recursively (typed overload)
         """
-    def all_by_data_uint32(self, data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_data_uint32(self, data: int, depth: int = 100) -> list[Node]:
         """
         Get all nodes by scalar data recursively (typed overload)
         """
-    def all_by_data_uint64(self, data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_data_uint64(self, data: int, depth: int = 100) -> list[Node]:
         """
         Get all nodes by scalar data recursively (typed overload)
         """
-    def all_by_data_uint8(self, data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_data_uint8(self, data: int, depth: int = 100) -> list[Node]:
         """
         Get all nodes by scalar data recursively (typed overload)
         """
-    def all_by_name(self, name: str, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_name(self, name: str, depth: int = 100) -> list[Node]:
         """
         get all nodes by exact name recursively
         """
-    def all_by_name_glob(self, name_pattern: str, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_name_glob(self, name_pattern: str, depth: int = 100) -> list[Node]:
         """
         get all nodes by glob-pattern name recursively
         """
-    def all_by_name_regex(self, name_pattern: str, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_name_regex(self, name_pattern: str, depth: int = 100) -> list[Node]:
         """
         get all nodes by regex-pattern name recursively
         """
-    def all_by_type(self, type: str, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_type(self, type: str, depth: int = 100) -> list[Node]:
         """
         get all nodes by exact type recursively
         """
-    def all_by_type_glob(self, type_pattern: str, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_type_glob(self, type_pattern: str, depth: int = 100) -> list[Node]:
         """
         get all nodes by glob-pattern type recursively
         """
-    def all_by_type_regex(self, type_pattern: str, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+    def all_by_type_regex(self, type_pattern: str, depth: int = 100) -> list[Node]:
         """
         get all nodes by regex-pattern type recursively
         """
-    def by_and(self, name: str = '', type: str = '', data: typing.Any = '', depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_and(self, name: str = '', type: str = '', data: typing.Any = '', depth: int = 100) -> Node:
         """
         get node by and condition using name, type and data recursively (string or scalar)
         """
-    def by_and_bool(self, name: str = '', type: str = '', data: bool, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_and_bool(self, name: str = '', type: str = '', data: bool, depth: int = 100) -> Node:
         """
         Get node by name/type and scalar data recursively (typed overload)
         """
-    def by_and_double(self, name: str = '', type: str = '', data: typing.SupportsFloat | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_and_double(self, name: str = '', type: str = '', data: float, depth: int = 100) -> Node:
         """
         Get node by name/type and scalar data recursively (typed overload)
         """
-    def by_and_float(self, name: str = '', type: str = '', data: typing.SupportsFloat | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_and_float(self, name: str = '', type: str = '', data: float, depth: int = 100) -> Node:
         """
         Get node by name/type and scalar data recursively (typed overload)
         """
-    def by_and_int16(self, name: str = '', type: str = '', data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_and_int16(self, name: str = '', type: str = '', data: int, depth: int = 100) -> Node:
         """
         Get node by name/type and scalar data recursively (typed overload)
         """
-    def by_and_int32(self, name: str = '', type: str = '', data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_and_int32(self, name: str = '', type: str = '', data: int, depth: int = 100) -> Node:
         """
         Get node by name/type and scalar data recursively (typed overload)
         """
-    def by_and_int64(self, name: str = '', type: str = '', data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_and_int64(self, name: str = '', type: str = '', data: int, depth: int = 100) -> Node:
         """
         Get node by name/type and scalar data recursively (typed overload)
         """
-    def by_and_int8(self, name: str = '', type: str = '', data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_and_int8(self, name: str = '', type: str = '', data: int, depth: int = 100) -> Node:
         """
         Get node by name/type and scalar data recursively (typed overload)
         """
-    def by_and_uint16(self, name: str = '', type: str = '', data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_and_uint16(self, name: str = '', type: str = '', data: int, depth: int = 100) -> Node:
         """
         Get node by name/type and scalar data recursively (typed overload)
         """
-    def by_and_uint32(self, name: str = '', type: str = '', data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_and_uint32(self, name: str = '', type: str = '', data: int, depth: int = 100) -> Node:
         """
         Get node by name/type and scalar data recursively (typed overload)
         """
-    def by_and_uint64(self, name: str = '', type: str = '', data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_and_uint64(self, name: str = '', type: str = '', data: int, depth: int = 100) -> Node:
         """
         Get node by name/type and scalar data recursively (typed overload)
         """
-    def by_and_uint8(self, name: str = '', type: str = '', data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_and_uint8(self, name: str = '', type: str = '', data: int, depth: int = 100) -> Node:
         """
         Get node by name/type and scalar data recursively (typed overload)
         """
-    def by_data(self, data: typing.Any, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_data(self, data: typing.Any, depth: int = 100) -> Node:
         """
         get node by exact data recursively (string or scalar)
         """
-    def by_data_bool(self, data: bool, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_data_bool(self, data: bool, depth: int = 100) -> Node:
         """
         Get node by scalar data recursively (typed overload)
         """
-    def by_data_double(self, data: typing.SupportsFloat | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_data_double(self, data: float, depth: int = 100) -> Node:
         """
         Get node by scalar data recursively (typed overload)
         """
-    def by_data_float(self, data: typing.SupportsFloat | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_data_float(self, data: float, depth: int = 100) -> Node:
         """
         Get node by scalar data recursively (typed overload)
         """
-    def by_data_glob(self, data_pattern: str, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_data_glob(self, data_pattern: str, depth: int = 100) -> Node:
         """
         get node by glob-pattern data recursively
         """
-    def by_data_int16(self, data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_data_int16(self, data: int, depth: int = 100) -> Node:
         """
         Get node by scalar data recursively (typed overload)
         """
-    def by_data_int32(self, data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_data_int32(self, data: int, depth: int = 100) -> Node:
         """
         Get node by scalar data recursively (typed overload)
         """
-    def by_data_int64(self, data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_data_int64(self, data: int, depth: int = 100) -> Node:
         """
         Get node by scalar data recursively (typed overload)
         """
-    def by_data_int8(self, data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_data_int8(self, data: int, depth: int = 100) -> Node:
         """
         Get node by scalar data recursively (typed overload)
         """
-    def by_data_uint16(self, data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_data_uint16(self, data: int, depth: int = 100) -> Node:
         """
         Get node by scalar data recursively (typed overload)
         """
-    def by_data_uint32(self, data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_data_uint32(self, data: int, depth: int = 100) -> Node:
         """
         Get node by scalar data recursively (typed overload)
         """
-    def by_data_uint64(self, data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_data_uint64(self, data: int, depth: int = 100) -> Node:
         """
         Get node by scalar data recursively (typed overload)
         """
-    def by_data_uint8(self, data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_data_uint8(self, data: int, depth: int = 100) -> Node:
         """
         Get node by scalar data recursively (typed overload)
         """
-    def by_name(self, name: str, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_name(self, name: str, depth: int = 100) -> Node:
         """
         get node by exact name recursively
         """
-    def by_name_glob(self, name_pattern: str, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_name_glob(self, name_pattern: str, depth: int = 100) -> Node:
         """
         get node by glob-pattern name recursively
         """
-    def by_name_regex(self, name_pattern: str, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_name_regex(self, name_pattern: str, depth: int = 100) -> Node:
         """
         get node by regex-pattern name recursively
         """
-    def by_type(self, type: str, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_type(self, type: str, depth: int = 100) -> Node:
         """
         get node by exact type recursively
         """
-    def by_type_glob(self, type_pattern: str, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_type_glob(self, type_pattern: str, depth: int = 100) -> Node:
         """
         get node by glob-pattern type recursively
         """
-    def by_type_regex(self, type_pattern: str, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+    def by_type_regex(self, type_pattern: str, depth: int = 100) -> Node:
         """
         get node by regex-pattern type recursively
         """
@@ -390,43 +389,43 @@ class Navigation:
         """
         Get child node by scalar data (typed overload)
         """
-    def child_by_data_double(self, data: typing.SupportsFloat | typing.SupportsIndex) -> Node:
+    def child_by_data_double(self, data: float) -> Node:
         """
         Get child node by scalar data (typed overload)
         """
-    def child_by_data_float(self, data: typing.SupportsFloat | typing.SupportsIndex) -> Node:
+    def child_by_data_float(self, data: float) -> Node:
         """
         Get child node by scalar data (typed overload)
         """
-    def child_by_data_int16(self, data: typing.SupportsInt | typing.SupportsIndex) -> Node:
+    def child_by_data_int16(self, data: int) -> Node:
         """
         Get child node by scalar data (typed overload)
         """
-    def child_by_data_int32(self, data: typing.SupportsInt | typing.SupportsIndex) -> Node:
+    def child_by_data_int32(self, data: int) -> Node:
         """
         Get child node by scalar data (typed overload)
         """
-    def child_by_data_int64(self, data: typing.SupportsInt | typing.SupportsIndex) -> Node:
+    def child_by_data_int64(self, data: int) -> Node:
         """
         Get child node by scalar data (typed overload)
         """
-    def child_by_data_int8(self, data: typing.SupportsInt | typing.SupportsIndex) -> Node:
+    def child_by_data_int8(self, data: int) -> Node:
         """
         Get child node by scalar data (typed overload)
         """
-    def child_by_data_uint16(self, data: typing.SupportsInt | typing.SupportsIndex) -> Node:
+    def child_by_data_uint16(self, data: int) -> Node:
         """
         Get child node by scalar data (typed overload)
         """
-    def child_by_data_uint32(self, data: typing.SupportsInt | typing.SupportsIndex) -> Node:
+    def child_by_data_uint32(self, data: int) -> Node:
         """
         Get child node by scalar data (typed overload)
         """
-    def child_by_data_uint64(self, data: typing.SupportsInt | typing.SupportsIndex) -> Node:
+    def child_by_data_uint64(self, data: int) -> Node:
         """
         Get child node by scalar data (typed overload)
         """
-    def child_by_data_uint8(self, data: typing.SupportsInt | typing.SupportsIndex) -> Node:
+    def child_by_data_uint8(self, data: int) -> Node:
         """
         Get child node by scalar data (typed overload)
         """
@@ -479,7 +478,7 @@ class Node:
         """
         Attach all nodes in ``rhs`` as children of ``lhs`` and return the last node.
         """
-    def add_child(self, node: Node, override_sibling_by_name: bool = True, position: typing.SupportsInt | typing.SupportsIndex = -1) -> None:
+    def add_child(self, node: Node, override_sibling_by_name: bool = True, position: int = -1) -> None:
         """
         Add one child node.
         
@@ -495,13 +494,13 @@ class Node:
            :end-before: # docs:end add_child_example
            :dedent: 4
         """
-    def add_children(self, nodes: collections.abc.Sequence[Node], override_sibling_by_name: bool = True) -> None:
+    def add_children(self, nodes: list[Node], override_sibling_by_name: bool = True) -> None:
         """
         Add multiple children.
         
         See C++ counterpart: :ref:`cpp-node-addchildren`.
         """
-    def attach_to(self, node: Node, position: typing.SupportsInt | typing.SupportsIndex = -1, override_sibling_by_name: bool = True) -> None:
+    def attach_to(self, node: Node, position: int = -1, override_sibling_by_name: bool = True) -> None:
         """
         Attach this node to another parent.
         
@@ -641,7 +640,7 @@ class Node:
         
         See C++ counterpart: :ref:`cpp-node-position`.
         """
-    def print_tree(self, max_depth: typing.SupportsInt | typing.SupportsIndex = 9999, highlighted_path: str = '', depth: typing.SupportsInt | typing.SupportsIndex = 0, last_pos: bool = False, markers: str = '') -> str:
+    def print_tree(self, max_depth: int = 9999, highlighted_path: str = '', depth: int = 0, last_pos: bool = False, markers: str = '') -> str:
         """
         Render subtree as printable tree text.
         

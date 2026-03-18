@@ -131,9 +131,10 @@ std::string Array::extractStringOfKindU() const {
 
     std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
     std::string outputString;
+    const bool concatenateCharacters = this->itemsize() == sizeof(char32_t);
 
     for (size_t i = 0; i < this->size(); ++i) {
-        const std::string separator = i == 0 ? std::string("") : std::string(" ");
+        const std::string separator = (i == 0 || concatenateCharacters) ? std::string("") : std::string(" ");
         const size_t offset = this->getByteOffsetFromFlatIndex(i);
         const auto* dataPtr = reinterpret_cast<const char32_t*>(
             static_cast<const std::uint8_t*>(this->rawData()) + offset);
@@ -159,8 +160,9 @@ std::string Array::extractStringOfKindS() const {
     }
 
     std::string outputString;
+    const bool concatenateCharacters = this->itemsize() == sizeof(char);
     for (size_t i = 0; i < this->size(); ++i) {
-        const std::string separator = i == 0 ? std::string("") : std::string(" ");
+        const std::string separator = (i == 0 || concatenateCharacters) ? std::string("") : std::string(" ");
         const size_t offset = this->getByteOffsetFromFlatIndex(i);
         const auto* dataPtr = static_cast<const char*>(
             static_cast<const void*>(static_cast<const std::uint8_t*>(this->rawData()) + offset));

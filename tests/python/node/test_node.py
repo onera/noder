@@ -1076,7 +1076,26 @@ def test_dangerous_extendChildren():
 
     # IN CONCLUSION: avoid manipulating directly the children list.
     # Prefer using dedicated methods add_child or attach_to.
-    
+
+
+def test_extract_string_from_numpy_chars_separated_1d():
+    node = Node("n")
+    node.set_data(np.array([b"a",b"b"],order='F'))
+    extracted_string = node.data().extractString()
+    assert extracted_string == "ab"
+
+def test_extract_string_from_numpy_chars_separated_2d():
+    node = Node("n")
+    node.set_data(np.array([[b"a"],[b"b"]],order='F'))
+    extracted_string = node.data().extractString()
+    assert extracted_string == "ab"
+
+def test_extract_string_from_numpy_chars_united():
+    node = Node("n")
+    node.set_data(np.array([b"ab"],order='F'))
+    extracted_string = node.data().extractString()
+    assert extracted_string == "ab"
+
 
 if __name__ == '__main__':
     test_print_tree()
