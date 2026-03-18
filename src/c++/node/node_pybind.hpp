@@ -7,6 +7,7 @@
 
 # include "array/array.hpp"
 # include "array/array_numpy_bridge.hpp"
+# include "io/cgns/node_pycgns_converter.hpp"
 # include "node/node.hpp"
 # include "node/node_group_pybind.hpp"
 # include "node/node_factory.hpp"
@@ -182,6 +183,34 @@ py::object pyObjectFromParameterValue(const ParameterValue& value, bool transfor
     throw py::value_error("get_parameters: unsupported ParameterValue kind");
 }
 
+std::shared_ptr<Node> sharedNodeOrNull(Node& node) {
+    return node.selfPtr();
+}
+
+void synchronizeAliasedNodes(const std::vector<std::shared_ptr<Node>>& nodes) {
+    std::vector<const Node*> synchronized;
+    synchronized.reserve(nodes.size());
+
+    for (const auto& node : nodes) {
+        if (!node) {
+            continue;
+        }
+
+        const Node* rawNode = node.get();
+        const bool alreadySynchronized = std::find(
+            synchronized.begin(),
+            synchronized.end(),
+            rawNode) != synchronized.end();
+
+        if (alreadySynchronized) {
+            continue;
+        }
+
+        pycgnsinterop::synchronizeAliasedPyCGNSIfPresent(node);
+        synchronized.push_back(rawNode);
+    }
+}
+
 } // namespace
 
 static std::shared_ptr<Node> new_node(
@@ -228,7 +257,10 @@ Return node name.
 
 See C++ counterpart: :ref:`cpp-node-name`.
 )doc")
-        .def("set_name", py::overload_cast<const std::string&>(&Node::setName), R"doc(
+        .def("set_name", [](Node& node, const std::string& name) {
+            node.setName(name);
+            synchronizeAliasedNodes({sharedNodeOrNull(node)});
+        }, R"doc(
 Set node name.
 
 See C++ counterpart: :ref:`cpp-node-setname`.
@@ -248,6 +280,7 @@ See C++ counterpart: :ref:`cpp-node-data`.
         
         .def("set_data", [](Node &node, const py::object& d) {
             node.setData(dataFromPyObject(d, "set_data"));
+            synchronizeAliasedNodes({sharedNodeOrNull(node)});
         }, R"doc(
 Set node payload from scalar, string, NumPy array, list/tuple (converted via numpy.asarray), or Data.
 
@@ -269,7 +302,9 @@ See C++ counterpart: :ref:`cpp-node-setdata`.
                     const std::string parameterName = item.first.cast<std::string>();
                     entries.emplace_back(parameterName, parameterValueFromPyObject(item.second, "set_parameters"));
                 }
-                return node.setParameters(containerName, entries, containerType, parameterType);
+                auto container = node.setParameters(containerName, entries, containerType, parameterType);
+                synchronizeAliasedNodes({sharedNodeOrNull(node), container});
+                return container;
             },
             R"doc(
 Populate a parameter container using treelab-like kwargs semantics.
@@ -311,7 +346,10 @@ Return node type.
 
 See C++ counterpart: :ref:`cpp-node-type`.
 )doc")
-        .def("set_type", py::overload_cast<const std::string&>(&Node::setType), R"doc(
+        .def("set_type", [](Node& node, const std::string& type) {
+            node.setType(type);
+            synchronizeAliasedNodes({sharedNodeOrNull(node)});
+        }, R"doc(
 Set node type.
 
 See C++ counterpart: :ref:`cpp-node-settype`.
@@ -336,19 +374,28 @@ Collect all descendant link definitions in CGNS-compatible tuple format.
 
 See C++ counterpart: :ref:`cpp-node-getlinks`.
 )doc")
-        .def("set_link_target", &Node::setLinkTarget,
+        .def("set_link_target", [](Node& node, const std::string& targetFile, const std::string& targetPath) {
+            node.setLinkTarget(targetFile, targetPath);
+            synchronizeAliasedNodes({sharedNodeOrNull(node)});
+        },
              R"doc(
 Set link target metadata.
 
 See C++ counterpart: :ref:`cpp-node-setlinktarget`.
 )doc",
              py::arg("target_file"), py::arg("target_path"))
-        .def("clear_link_target", &Node::clearLinkTarget, R"doc(
+        .def("clear_link_target", [](Node& node) {
+            node.clearLinkTarget();
+            synchronizeAliasedNodes({sharedNodeOrNull(node)});
+        }, R"doc(
 Clear link target metadata.
 
 See C++ counterpart: :ref:`cpp-node-clearlinktarget`.
 )doc")
-        .def("reload_node_data", &Node::reloadNodeData,
+        .def("reload_node_data", [](Node& node, const std::string& filename) {
+            node.reloadNodeData(filename);
+            synchronizeAliasedNodes({sharedNodeOrNull(node)});
+        },
              R"doc(
 Reload this node payload from file using this node path.
 
@@ -384,12 +431,25 @@ Return sibling position.
 
 See C++ counterpart: :ref:`cpp-node-position`.
 )doc")
-        .def("detach", &Node::detach, R"doc(
+        .def("detach", [](Node& node) {
+            auto self = sharedNodeOrNull(node);
+            std::shared_ptr<Node> oldParent = node.parent().lock();
+            node.detach();
+            synchronizeAliasedNodes({oldParent, self});
+        }, R"doc(
 Detach from current parent.
 
 See C++ counterpart: :ref:`cpp-node-detach`.
 )doc")
-        .def("attach_to", &Node::attachTo, R"doc(
+        .def("attach_to", [](Node& node,
+                             std::shared_ptr<Node> parent,
+                             const int16_t& position,
+                             bool overrideSiblingByName) {
+            auto self = sharedNodeOrNull(node);
+            std::shared_ptr<Node> oldParent = node.parent().lock();
+            node.attachTo(parent, position, overrideSiblingByName);
+            synchronizeAliasedNodes({oldParent, parent, self});
+        }, R"doc(
 Attach this node to another parent.
 
 See C++ counterpart: :ref:`cpp-node-attachto`.
@@ -397,7 +457,19 @@ See C++ counterpart: :ref:`cpp-node-attachto`.
              py::arg("node"),
              py::arg("position")=-1,
              py::arg("override_sibling_by_name")=true)
-        .def("add_child", &Node::addChild,
+        .def("add_child", [](Node& node,
+                             std::shared_ptr<Node> child,
+                             bool overrideSiblingByName,
+                             const int16_t& position) {
+            std::shared_ptr<Node> previousParent;
+            if (child) {
+                previousParent = child->parent().lock();
+            }
+
+            auto self = sharedNodeOrNull(node);
+            node.addChild(child, overrideSiblingByName, position);
+            synchronizeAliasedNodes({previousParent, self, child});
+        },
              R"doc(
 Add one child node.
 
@@ -438,7 +510,27 @@ Return child names in insertion order.
 
 See C++ counterpart: :ref:`cpp-node-getchildrennames`.
 )doc")
-        .def("add_children", &Node::addChildren,
+        .def("add_children", [](Node& node,
+                                const std::vector<std::shared_ptr<Node>>& nodes,
+                                bool overrideSiblingByName) {
+            std::vector<std::shared_ptr<Node>> nodesToSynchronize;
+            nodesToSynchronize.reserve(nodes.size() + 1);
+            nodesToSynchronize.push_back(sharedNodeOrNull(node));
+
+            for (const auto& child : nodes) {
+                if (child) {
+                    nodesToSynchronize.push_back(child->parent().lock());
+                }
+            }
+
+            node.addChildren(nodes, overrideSiblingByName);
+
+            for (const auto& child : nodes) {
+                nodesToSynchronize.push_back(child);
+            }
+
+            synchronizeAliasedNodes(nodesToSynchronize);
+        },
              R"doc(
 Add multiple children.
 
@@ -446,7 +538,17 @@ See C++ counterpart: :ref:`cpp-node-addchildren`.
 )doc",
              py::arg("nodes"),
              py::arg("override_sibling_by_name")=true)
-        .def("swap", &Node::swap, R"doc(
+        .def("swap", [](Node& node, std::shared_ptr<Node> other) {
+            auto self = sharedNodeOrNull(node);
+            std::shared_ptr<Node> selfParent = node.parent().lock();
+            std::shared_ptr<Node> otherParent;
+            if (other) {
+                otherParent = other->parent().lock();
+            }
+
+            node.swap(other);
+            synchronizeAliasedNodes({selfParent, otherParent, self, other});
+        }, R"doc(
 Swap this node with another node.
 
 See C++ counterpart: :ref:`cpp-node-swap`.
@@ -463,7 +565,11 @@ Resolve a node by path (absolute by default).
 See C++ counterpart: :ref:`cpp-node-getatpath`.
 )doc",
              py::arg("path"), py::arg("path_is_relative")=false)
-        .def("merge", &Node::merge, R"doc(
+        .def("merge", [](Node& node, std::shared_ptr<Node> other) {
+            auto self = sharedNodeOrNull(node);
+            node.merge(other);
+            synchronizeAliasedNodes({self});
+        }, R"doc(
 Merge descendants from another node with the same root name.
 
 See C++ counterpart: :ref:`cpp-node-merge`.

@@ -106,3 +106,169 @@ def test_link_roundtrip_pycgns():
     back = nodeToPyCGNS(node)
     assert back[0] == "link"
     assert back[1] == ["target_file:other.cgns", "target_path:/CGNSTree/Base"]
+
+def test_interoperability_retrieval():
+
+    pycgns_node = [
+        "root",
+        np.array([1,2,3],order='F'),
+        [
+            ["a",
+             None,
+             [],
+             "DataArray_t"],
+
+             ["b",
+             None,
+             [],
+             "DataArray_t"],
+        ],
+        "root_t"
+    ]
+
+    noder_view = pyCGNSToNode(pycgns_node)
+    a_node = noder_view.pick().by_name("a")
+    assert a_node.name() == "a"
+
+    root_pycgns_node = nodeToPyCGNS(noder_view)
+    assert root_pycgns_node is pycgns_node
+
+    a_pycgns_node = nodeToPyCGNS(a_node)
+    assert a_pycgns_node is pycgns_node[2][0]
+
+def test_interoperability_add_child_using_pycgns():
+
+    pycgns_node = [
+        "root",
+        np.array([1,2,3],order='F'),
+        [
+            ["a",
+             None,
+             [],
+             "DataArray_t"],
+
+             ["b",
+             None,
+             [],
+             "DataArray_t"],
+        ],
+        "root_t"
+    ]
+
+    noder_view = pyCGNSToNode(pycgns_node)
+    a_node = noder_view.pick().by_name("a")
+    assert a_node.name() == "a"
+    a_pycgns_node = nodeToPyCGNS(a_node)
+    assert a_pycgns_node is pycgns_node[2][0]
+
+    pycgns_node[2] += [ ["c", None, [], "DataArray_t"] ]
+
+    noder_view = pyCGNSToNode(pycgns_node)
+    c_node = noder_view.pick().by_name("c")
+    assert c_node.name() == "c"
+    c_pycgns_node = nodeToPyCGNS(c_node)
+    assert c_pycgns_node is pycgns_node[2][2]
+
+def test_interoperability_add_child_using_noder():
+
+    pycgns_node = [
+        "root",
+        np.array([1,2,3],order='F'),
+        [
+            ["a",
+             None,
+             [],
+             "DataArray_t"],
+
+             ["b",
+             None,
+             [],
+             "DataArray_t"],
+        ],
+        "root_t"
+    ]
+
+    noder_view = pyCGNSToNode(pycgns_node)
+    a_node = noder_view.pick().by_name("a")
+    assert a_node.name() == "a"
+    root = a_node.parent()
+    c = Node("c","DataArray_t")
+    root.add_child(c)
+
+    assert nodeToPyCGNS(root) is pycgns_node
+    assert nodeToPyCGNS(c) is pycgns_node[2][2]
+    assert pycgns_node[2][2] == ["c", None, [], "DataArray_t"]
+
+
+def test_interoperability_add_child_using_node_group():
+
+    pycgns_node = [
+        "root",
+        np.array([1,2,3],order='F'),
+        [
+            ["a",
+             None,
+             [],
+             "DataArray_t"],
+
+             ["b",
+             None,
+             [],
+             "DataArray_t"],
+        ],
+        "root_t"
+    ]
+
+    noder_view = pyCGNSToNode(pycgns_node)
+    a_node = noder_view.pick().by_name("a")
+    assert a_node.name() == "a"
+    root = a_node.parent()
+    c = Node("c","DataArray_t")
+    root/c
+
+    assert nodeToPyCGNS(root) is pycgns_node
+    assert nodeToPyCGNS(c) is pycgns_node[2][2]
+    assert pycgns_node[2][2] == ["c", None, [], "DataArray_t"]
+
+def test_interoperability_robustness_forbidden_same_name():
+    pycgns_node = [
+        "root",
+        np.array([1,2,3],order='F'),
+        [
+            ["a",
+             None,
+             [],
+             "DataArray_t"],
+
+             ["a",
+             None,
+             [],
+             "DataArray_t"],
+
+             ["a",
+             None,
+             [],
+             "DataArray_t"],
+
+             ["b",
+             None,
+             [],
+             "DataArray_t"],
+
+
+        ],
+        "root_t"
+    ]
+
+    noder_view = pyCGNSToNode(pycgns_node)
+    a_node = noder_view.pick().by_name("a")
+    assert a_node.name() == "a"
+
+    root_pycgns_node = nodeToPyCGNS(noder_view)
+    assert root_pycgns_node is pycgns_node
+
+    a_pycgns_node = nodeToPyCGNS(a_node)
+    assert a_pycgns_node is pycgns_node[2][0]
+
+    b_pycgns_node = pycgns_node[2][1]
+    assert b_pycgns_node[0] == "b"

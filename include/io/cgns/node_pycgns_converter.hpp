@@ -10,6 +10,16 @@
 
 namespace py = pybind11;
 
+namespace pycgnsinterop {
+
+/**
+ * @brief Synchronize the aliased Python CGNS list attached to a Node, when one exists.
+ * @param node Node whose aliased pyCGNS view should be refreshed.
+ */
+void synchronizeAliasedPyCGNSIfPresent(const std::shared_ptr<Node>& node);
+
+} // namespace pycgnsinterop
+
 /**
  * @brief Convert a Node hierarchy to a Python CGNS-like nested list.
  * @param node Root node to convert.
