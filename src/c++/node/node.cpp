@@ -46,6 +46,86 @@ std::vector<std::string> splitPathElements(const std::string& path) {
     return elements;
 }
 
+bool startsWith(const std::string& value, const std::string& prefix) {
+    return value.rfind(prefix, 0) == 0;
+}
+
+std::string joinPathElements(const std::vector<std::string>& elements, bool leadingSlash = false) {
+    if (elements.empty()) {
+        return leadingSlash ? "/" : "";
+    }
+
+    std::string result = leadingSlash ? "/" : "";
+    for (size_t i = 0; i < elements.size(); ++i) {
+        if (!result.empty() && result.back() != '/') {
+            result += "/";
+        }
+        result += elements[i];
+    }
+    return result;
+}
+
+bool isCgnsTreeRoot(const std::shared_ptr<const Node>& node) {
+    return node && node->type() == "CGNSTree_t";
+}
+
+std::vector<std::string> persistedPathElementsForNode(const Node& node) {
+    auto elements = splitPathElements(node.path());
+    auto rootNode = node.root();
+    if (isCgnsTreeRoot(rootNode) && !elements.empty() && elements.front() == rootNode->name()) {
+        elements.erase(elements.begin());
+    }
+    return elements;
+}
+
+std::string persistedPathForNode(const Node& node) {
+    return joinPathElements(persistedPathElementsForNode(node), false);
+}
+
+std::string persistedLinkTargetPathForNode(const Node& node, const std::string& path) {
+    auto rootNode = node.root();
+    if (!isCgnsTreeRoot(rootNode)) {
+        return path;
+    }
+
+    const std::string absolutePrefix = "/" + rootNode->name();
+    if (path == absolutePrefix) {
+        return "/";
+    }
+    if (startsWith(path, absolutePrefix + "/")) {
+        return path.substr(absolutePrefix.size());
+    }
+
+    const std::string relativePrefix = rootNode->name();
+    if (path == relativePrefix) {
+        return "";
+    }
+    if (startsWith(path, relativePrefix + "/")) {
+        return path.substr(relativePrefix.size() + 1);
+    }
+
+    return path;
+}
+
+std::string restoreLinkTargetPathForNode(const Node& node, const std::string& path) {
+    auto rootNode = node.root();
+    if (!isCgnsTreeRoot(rootNode)) {
+        return path;
+    }
+
+    const std::string absolutePrefix = "/" + rootNode->name();
+    if (path == "/" || path.empty()) {
+        return absolutePrefix;
+    }
+    if (startsWith(path, absolutePrefix + "/") || path == absolutePrefix) {
+        return path;
+    }
+    if (path.front() == '/') {
+        return absolutePrefix + path;
+    }
+    return absolutePrefix + "/" + path;
+}
+
 std::string ensureLeadingSlash(const std::string& value) {
     if (value.empty()) {
         return "/";
@@ -850,14 +930,17 @@ void Node::reloadNodeData(const std::string& filename) {
         throw std::runtime_error("reloadNodeData: could not load file '" + filename + "'");
     }
 
-    auto updatedNode = loadedTreeContainer->getAtPath(this->path());
+    const std::string persistedPath = persistedPathForNode(*this);
+    auto updatedNode = persistedPath.empty() ? loadedTreeContainer : loadedTreeContainer->getAtPath(persistedPath);
     if (!updatedNode) {
         throw std::runtime_error(
             "reloadNodeData: node path '" + this->path() + "' was not found in '" + filename + "'");
     }
 
     if (updatedNode->hasLinkTarget()) {
-        this->setLinkTarget(updatedNode->linkTargetFile(), updatedNode->linkTargetPath());
+        this->setLinkTarget(
+            updatedNode->linkTargetFile(),
+            restoreLinkTargetPathForNode(*this, updatedNode->linkTargetPath()));
         this->setData(datafactory::makeDefaultData());
         return;
     }
@@ -878,7 +961,13 @@ void Node::saveThisNodeOnly(const std::string& filename, const std::string& back
 
 #ifdef ENABLE_HDF5_IO
     const std::string thisPath = this->path();
-    const auto pathElements = splitPathElements(thisPath);
+    const std::string persistedPath = persistedPathForNode(*this);
+    if (persistedPath.empty()) {
+        io::write_node(filename, shared_from_this());
+        return;
+    }
+
+    const auto pathElements = splitPathElements(persistedPath);
     if (pathElements.empty()) {
         throw std::runtime_error("saveThisNodeOnly: node path is empty");
     }
@@ -893,7 +982,7 @@ void Node::saveThisNodeOnly(const std::string& filename, const std::string& back
         persistedRoot = std::make_shared<Node>(pathElements.front(), "DataArray_t");
     }
 
-    auto persistedNode = persistedRoot->getAtPath(thisPath);
+    auto persistedNode = persistedRoot->getAtPath(persistedPath);
     if (!persistedNode) {
         persistedNode = ensureNodeAtPath(persistedRoot, pathElements, this->type());
     }
@@ -906,7 +995,9 @@ void Node::saveThisNodeOnly(const std::string& filename, const std::string& back
                 "saveThisNodeOnly: cannot persist link metadata onto node with existing children at path '" +
                 persistedNode->path() + "'");
         }
-        persistedNode->setLinkTarget(this->linkTargetFile(), this->linkTargetPath());
+        persistedNode->setLinkTarget(
+            this->linkTargetFile(),
+            persistedLinkTargetPathForNode(*this, this->linkTargetPath()));
         persistedNode->setData(datafactory::makeDefaultData());
     } else {
         persistedNode->clearLinkTarget();

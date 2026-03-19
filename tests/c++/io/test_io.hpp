@@ -5,6 +5,8 @@
 # include <io/io.hpp>
 # include <array/factory/vectors.hpp>
 # include <node/node_factory.hpp>
+# include <hdf5.h>
+# include <vector>
 
 using namespace std::string_literals;
 using namespace io;
@@ -56,6 +58,34 @@ std::shared_ptr<Node> test_read_links(std::string tmp_filename = "test_read_link
      test_write_link_nodes(tmp_filename);
      return read(tmp_filename);
 }
+
+std::vector<std::string> list_root_links(const std::string& filename) {
+     hid_t file = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+     if (file < 0) {
+         throw std::runtime_error("Could not open HDF5 file: " + filename);
+     }
+
+     std::vector<std::string> names;
+     hsize_t index = 0;
+     const auto callback = [](
+         hid_t,
+         const char* name,
+         const H5L_info_t*,
+         void* opData) -> herr_t {
+             auto* rootNames = static_cast<std::vector<std::string>*>(opData);
+             rootNames->emplace_back(name);
+             return 0;
+         };
+
+     herr_t status = H5Literate(file, H5_INDEX_NAME, H5_ITER_NATIVE, &index, callback, &names);
+     H5Fclose(file);
+
+     if (status < 0) {
+         throw std::runtime_error("Could not enumerate HDF5 root links in: " + filename);
+     }
+
+     return names;
+ }
 
 }
 

@@ -19,6 +19,16 @@ def get_all_paths(node):
     return paths
 
 
+def _new_cgns_tree_with_base():
+    tree = Node("CGNSTree", "CGNSTree_t")
+    version = Node("CGNSLibraryVersion", "CGNSLibraryVersion_t")
+    version.set_data(np.array([4.0], dtype=np.float32))
+    base = Node("Base", "CGNSBase_t")
+    base.set_data(np.array([3, 3], dtype=np.int32))
+    tree.add_children([version, base])
+    return tree, base
+
+
 def test_init():
     a = Node("a")
     b = Node("b", "type_t")
@@ -567,6 +577,21 @@ def test_reload_node_data(tmp_path):
     assert int(value.data().getPyArray()[0]) == 3
 
 @pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
+def test_reload_node_data_under_cgns_tree(tmp_path):
+    filename = str(tmp_path / "reload_node_data_cgns_tree.cgns")
+
+    root, base = _new_cgns_tree_with_base()
+    value = Node("value")
+    base.add_child(value)
+    value.set_data(np.array([3], dtype=np.int32))
+    root.write(filename)
+
+    value.set_data(np.array([9], dtype=np.int32))
+    value.reload_node_data(filename)
+
+    assert int(value.data().getPyArray()[0]) == 3
+
+@pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
 def test_save_this_node_only(tmp_path):
     filename = str(tmp_path / "save_this_node_only.cgns")
 
@@ -584,6 +609,30 @@ def test_save_this_node_only(tmp_path):
     read_root = gio.read(filename)
     persisted_mutable = read_root.get_at_path("root/mutable")
     persisted_stable = read_root.get_at_path("root/stable")
+
+    assert persisted_mutable is not None
+    assert persisted_stable is not None
+    assert int(persisted_mutable.data().getPyArray()[0]) == 99
+    assert int(persisted_stable.data().getPyArray()[0]) == 2
+
+@pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
+def test_save_this_node_only_under_cgns_tree(tmp_path):
+    filename = str(tmp_path / "save_this_node_only_cgns_tree.cgns")
+
+    root, base = _new_cgns_tree_with_base()
+    mutable_node = Node("mutable")
+    stable_node = Node("stable")
+    mutable_node.set_data(np.array([1], dtype=np.int32))
+    stable_node.set_data(np.array([2], dtype=np.int32))
+    base.add_children([mutable_node, stable_node])
+    root.write(filename)
+
+    mutable_node.set_data(np.array([99], dtype=np.int32))
+    mutable_node.save_this_node_only(filename)
+
+    read_root = gio.read(filename)
+    persisted_mutable = read_root.get_at_path("Base/mutable")
+    persisted_stable = read_root.get_at_path("Base/stable")
 
     assert persisted_mutable is not None
     assert persisted_stable is not None

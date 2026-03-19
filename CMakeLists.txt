@@ -379,6 +379,9 @@ if(ENABLE_TESTS)
         VISIBILITY_INLINES_HIDDEN OFF
     )
     target_link_libraries(tests PRIVATE core_shared)
+    if(ENABLE_HDF5_IO)
+        target_link_libraries(tests PRIVATE ${HDF5_LIBRARIES})
+    endif()
     target_include_directories(tests PRIVATE
         ${CMAKE_INSTALL_INCLUDEDIR}
         ${CMAKE_SOURCE_DIR}/tests

@@ -89,6 +89,74 @@ std::string cgnsTypeFromArray(const Array& array) {
     throw std::runtime_error("Unsupported Array dtype for CGNS");
 }
 
+bool starts_with(const std::string& value, const std::string& prefix) {
+    return value.rfind(prefix, 0) == 0;
+}
+
+bool is_cgns_tree_root(const std::shared_ptr<Node>& node) {
+    return node && node->type() == "CGNSTree_t";
+}
+
+bool is_cgns_library_version_node(const std::shared_ptr<Node>& node) {
+    return node && node->name() == "CGNSLibraryVersion" && node->type() == "CGNSLibraryVersion_t";
+}
+
+std::string persisted_cgns_path(const std::string& path, const std::string& cgnsTreeRootName) {
+    if (cgnsTreeRootName.empty()) {
+        return path;
+    }
+
+    const std::string absolutePrefix = "/" + cgnsTreeRootName;
+    if (path == absolutePrefix) {
+        return "/";
+    }
+    if (starts_with(path, absolutePrefix + "/")) {
+        return path.substr(absolutePrefix.size());
+    }
+
+    if (path == cgnsTreeRootName) {
+        return "";
+    }
+    if (starts_with(path, cgnsTreeRootName + "/")) {
+        return path.substr(cgnsTreeRootName.size() + 1);
+    }
+
+    return path;
+}
+
+std::string persisted_link_target_path(
+    const std::shared_ptr<Node>& node,
+    const std::string& cgnsTreeRootName) {
+
+    return persisted_cgns_path(node->linkTargetPath(), cgnsTreeRootName);
+}
+
+float resolved_cgns_version(const std::shared_ptr<Node>& root, const float& fallbackVersion) {
+    if (!is_cgns_tree_root(root)) {
+        return fallbackVersion;
+    }
+
+    for (const auto& child : root->children()) {
+        if (!is_cgns_library_version_node(child) || child->noData()) {
+            continue;
+        }
+
+        const auto array = std::dynamic_pointer_cast<Array>(child->dataPtr());
+        if (!array || array->size() == 0) {
+            continue;
+        }
+
+        if (array->hasDataOfType<float>()) {
+            return array->getItemAtIndex<float>(0);
+        }
+        if (array->hasDataOfType<double>()) {
+            return static_cast<float>(array->getItemAtIndex<double>(0));
+        }
+    }
+
+    return fallbackVersion;
+}
+
 void add_string_attr_fixed_utf8(hid_t id, const std::string& key, const std::string& value, size_t length) {
     std::vector<char> buffer(length, '\0');
     std::strncpy(buffer.data(), value.c_str(), length);
@@ -245,7 +313,13 @@ Array read_numeric_array(hid_t dset, const std::vector<size_t>& shape) {
     return array;
 }
 
-void write_node_rec(hid_t file, hid_t gcpl, const std::shared_ptr<Node>& node, const std::string& path) {
+void write_node_rec(
+    hid_t file,
+    hid_t gcpl,
+    const std::shared_ptr<Node>& node,
+    const std::string& path,
+    const std::string& cgnsTreeRootName = "") {
+
     std::string groupPath = path + "/" + node->name();
     hid_t group = H5Gcreate2(file, groupPath.c_str(), H5P_DEFAULT, gcpl, H5P_DEFAULT);
     add_cgns_name_attr(group, node->name());
@@ -262,17 +336,19 @@ void write_node_rec(hid_t file, hid_t gcpl, const std::shared_ptr<Node>& node, c
         }
 
         add_cgns_type_attr(group, "LK");
+        const std::string targetPath = persisted_link_target_path(node, cgnsTreeRootName);
+
         write_int8_string_dataset(file, groupPath + "/ file", node->linkTargetFile());
-        write_int8_string_dataset(file, groupPath + "/ path", node->linkTargetPath());
+        write_int8_string_dataset(file, groupPath + "/ path", targetPath);
 
         const std::string linkDatasetPath = groupPath + "/ link";
         if (node->linkTargetFile().empty() || node->linkTargetFile() == ".") {
             check_status(
-                H5Lcreate_soft(node->linkTargetPath().c_str(), file, linkDatasetPath.c_str(), H5P_DEFAULT, H5P_DEFAULT),
+                H5Lcreate_soft(targetPath.c_str(), file, linkDatasetPath.c_str(), H5P_DEFAULT, H5P_DEFAULT),
                 "create soft link at " + linkDatasetPath);
         } else {
             check_status(
-                H5Lcreate_external(node->linkTargetFile().c_str(), node->linkTargetPath().c_str(), file,
+                H5Lcreate_external(node->linkTargetFile().c_str(), targetPath.c_str(), file,
                                    linkDatasetPath.c_str(), H5P_DEFAULT, H5P_DEFAULT),
                 "create external link at " + linkDatasetPath);
         }
@@ -295,7 +371,7 @@ void write_node_rec(hid_t file, hid_t gcpl, const std::shared_ptr<Node>& node, c
     add_cgns_type_attr(group, nodeCgnsDataType);
 
     for (auto& child : node->children()) {
-        write_node_rec(file, gcpl, child, groupPath);
+        write_node_rec(file, gcpl, child, groupPath, cgnsTreeRootName);
     }
 
     H5Gclose(group);
@@ -464,8 +540,17 @@ void write_node(const std::string& filename, std::shared_ptr<Node> root, const f
     H5Pclose(fcpl);
     hid_t gcpl = make_cgns_group_creation_plist();
     write_cgns_file_metadata(file);
-    write_cgns_library_version(file, gcpl, cgnsVersion);
-    write_node_rec(file, gcpl, root, "");
+    write_cgns_library_version(file, gcpl, resolved_cgns_version(root, cgnsVersion));
+    if (is_cgns_tree_root(root)) {
+        for (const auto& child : root->children()) {
+            if (is_cgns_library_version_node(child)) {
+                continue;
+            }
+            write_node_rec(file, gcpl, child, "", root->name());
+        }
+    } else {
+        write_node_rec(file, gcpl, root, "");
+    }
     H5Pclose(gcpl);
     H5Fclose(file);
 }

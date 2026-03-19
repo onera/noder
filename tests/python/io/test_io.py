@@ -12,6 +12,22 @@ except ImportError:
 
 pytestmark = pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
 
+
+def _new_cgns_tree():
+    from noder.core import Node
+
+    tree = Node("CGNSTree", "CGNSTree_t")
+    version = Node("CGNSLibraryVersion", "CGNSLibraryVersion_t")
+    version.set_data(np.array([4.0], dtype=np.float32))
+    base = Node("Base", "CGNSBase_t")
+    base.set_data(np.array([3, 3], dtype=np.int32))
+    zone = Node("Zone", "Zone_t")
+    zone.set_data(np.array([2, 1, 0], dtype=np.int32))
+
+    base.add_child(zone)
+    tree.add_children([version, base])
+    return tree
+
 @pytest.mark.parametrize("dtype", dtypes.floating_and_integral_types)
 @pytest.mark.parametrize("order", ["C", "F"])
 def test_write_and_read_numerical_numpy(tmp_path, dtype, order):
@@ -94,6 +110,20 @@ def test_write_nodes_cgns_attrs_layout(tmp_path):
     c.set_data(np.array([1, 2, 3], dtype=np.int32))
     a / b / c
     a.write(tmp_filename)
+
+
+def test_write_cgns_tree_without_root_wrapper(tmp_path):
+    os.makedirs(tmp_path, exist_ok=True)
+    tmp_filename = str(tmp_path / "test_cgns_tree.cgns")
+
+    tree = _new_cgns_tree()
+    tree.write(tmp_filename)
+
+    root_links = giocpp.list_root_links(tmp_filename)
+
+    assert "CGNSTree" not in root_links
+    assert "CGNSLibraryVersion" in root_links
+    assert "Base" in root_links
 
 
 def test_write_link_nodes(tmp_path):

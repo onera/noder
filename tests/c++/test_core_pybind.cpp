@@ -1,4 +1,5 @@
 # include <pybind11/pybind11.h>
+# include <pybind11/stl.h>
 
 # ifdef ENABLE_HDF5_IO
 # include "io/test_io.hpp"
@@ -30,6 +31,8 @@ PYBIND11_MODULE(tests, m) {
                    py::arg("filename")=std::string("test_links.cgns"));
     io_m.def("test_read_links", &test_io::test_read_links, "test read cgns links",
                    py::arg("tmp_filename")=std::string("test_read_links.cgns"));
+    io_m.def("list_root_links", &test_io::list_root_links, "list physical HDF5 root links",
+                   py::arg("filename"));
 
     # endif 
 
