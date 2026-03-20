@@ -69,22 +69,26 @@ bool isCgnsTreeRoot(const std::shared_ptr<const Node>& node) {
     return node && node->type() == "CGNSTree_t";
 }
 
-std::vector<std::string> persistedPathElementsForNode(const Node& node) {
+std::vector<std::string> persistedPathElementsForNode(const Node& node, const bool flattenCgnsTreeRoot) {
     auto elements = splitPathElements(node.path());
     auto rootNode = node.root();
-    if (isCgnsTreeRoot(rootNode) && !elements.empty() && elements.front() == rootNode->name()) {
+    if (flattenCgnsTreeRoot && isCgnsTreeRoot(rootNode) && !elements.empty() && elements.front() == rootNode->name()) {
         elements.erase(elements.begin());
     }
     return elements;
 }
 
-std::string persistedPathForNode(const Node& node) {
-    return joinPathElements(persistedPathElementsForNode(node), false);
+std::string persistedPathForNode(const Node& node, const bool flattenCgnsTreeRoot) {
+    return joinPathElements(persistedPathElementsForNode(node, flattenCgnsTreeRoot), false);
 }
 
-std::string persistedLinkTargetPathForNode(const Node& node, const std::string& path) {
+std::string persistedLinkTargetPathForNode(
+    const Node& node,
+    const std::string& path,
+    const bool flattenCgnsTreeRoot) {
+
     auto rootNode = node.root();
-    if (!isCgnsTreeRoot(rootNode)) {
+    if (!flattenCgnsTreeRoot || !isCgnsTreeRoot(rootNode)) {
         return path;
     }
 
@@ -107,9 +111,13 @@ std::string persistedLinkTargetPathForNode(const Node& node, const std::string& 
     return path;
 }
 
-std::string restoreLinkTargetPathForNode(const Node& node, const std::string& path) {
+std::string restoreLinkTargetPathForNode(
+    const Node& node,
+    const std::string& path,
+    const bool flattenCgnsTreeRoot) {
+
     auto rootNode = node.root();
-    if (!isCgnsTreeRoot(rootNode)) {
+    if (!flattenCgnsTreeRoot || !isCgnsTreeRoot(rootNode)) {
         return path;
     }
 
@@ -924,13 +932,13 @@ ParameterValue Node::getParameters(const std::string& containerName) const {
 }
 
 void Node::reloadNodeData(const std::string& filename) {
-#ifdef ENABLE_HDF5_IO
+    const bool flattenCgnsTreeRoot = io::file_flattens_cgns_tree_root(filename);
     auto loadedTreeContainer = io::read(filename);
     if (!loadedTreeContainer) {
         throw std::runtime_error("reloadNodeData: could not load file '" + filename + "'");
     }
 
-    const std::string persistedPath = persistedPathForNode(*this);
+    const std::string persistedPath = persistedPathForNode(*this, flattenCgnsTreeRoot);
     auto updatedNode = persistedPath.empty() ? loadedTreeContainer : loadedTreeContainer->getAtPath(persistedPath);
     if (!updatedNode) {
         throw std::runtime_error(
@@ -940,28 +948,23 @@ void Node::reloadNodeData(const std::string& filename) {
     if (updatedNode->hasLinkTarget()) {
         this->setLinkTarget(
             updatedNode->linkTargetFile(),
-            restoreLinkTargetPathForNode(*this, updatedNode->linkTargetPath()));
+            restoreLinkTargetPathForNode(*this, updatedNode->linkTargetPath(), flattenCgnsTreeRoot));
         this->setData(datafactory::makeDefaultData());
         return;
     }
 
     this->clearLinkTarget();
     this->setData(updatedNode->data());
-#else
-    (void)filename;
-    throw std::runtime_error("reloadNodeData: HDF5 IO support is disabled");
-#endif
 }
 
 void Node::saveThisNodeOnly(const std::string& filename, const std::string& backend) {
-    if (!(backend == "hdf5" || backend == "h5py2cgns")) {
+    if (!(backend == "hdf5" || backend == "h5py2cgns" || backend == "yaml" || backend == "auto")) {
         throw std::invalid_argument(
-            "saveThisNodeOnly: unsupported backend '" + backend + "'. Supported: hdf5, h5py2cgns");
+            "saveThisNodeOnly: unsupported backend '" + backend + "'. Supported: auto, hdf5, h5py2cgns, yaml");
     }
 
-#ifdef ENABLE_HDF5_IO
-    const std::string thisPath = this->path();
-    const std::string persistedPath = persistedPathForNode(*this);
+    const bool flattenCgnsTreeRoot = io::file_flattens_cgns_tree_root(filename);
+    const std::string persistedPath = persistedPathForNode(*this, flattenCgnsTreeRoot);
     if (persistedPath.empty()) {
         io::write_node(filename, shared_from_this());
         return;
@@ -977,7 +980,12 @@ void Node::saveThisNodeOnly(const std::string& filename, const std::string& back
         throw std::runtime_error("saveThisNodeOnly: could not load file '" + filename + "'");
     }
 
-    auto persistedRoot = loadedTreeContainer->getAtPath(pathElements.front());
+    std::shared_ptr<Node> persistedRoot;
+    if (loadedTreeContainer->name() == pathElements.front()) {
+        persistedRoot = loadedTreeContainer;
+    } else {
+        persistedRoot = loadedTreeContainer->getAtPath(pathElements.front());
+    }
     if (!persistedRoot) {
         persistedRoot = std::make_shared<Node>(pathElements.front(), "DataArray_t");
     }
@@ -997,7 +1005,7 @@ void Node::saveThisNodeOnly(const std::string& filename, const std::string& back
         }
         persistedNode->setLinkTarget(
             this->linkTargetFile(),
-            persistedLinkTargetPathForNode(*this, this->linkTargetPath()));
+            persistedLinkTargetPathForNode(*this, this->linkTargetPath(), flattenCgnsTreeRoot));
         persistedNode->setData(datafactory::makeDefaultData());
     } else {
         persistedNode->clearLinkTarget();
@@ -1005,11 +1013,6 @@ void Node::saveThisNodeOnly(const std::string& filename, const std::string& back
     }
 
     io::write_node(filename, persistedRoot);
-#else
-    (void)filename;
-    (void)backend;
-    throw std::runtime_error("saveThisNodeOnly: HDF5 IO support is disabled");
-#endif
 }
 
 void Node::merge(std::shared_ptr<Node> node) {
@@ -1128,8 +1131,6 @@ std::string Node::getInfo() const {
 }
 
 
-#ifdef ENABLE_HDF5_IO
 void Node::write(const std::string& filename) {
     io::write_node(filename, shared_from_this());
 }
-#endif // ENABLE_HDF5_IO

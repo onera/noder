@@ -579,13 +579,13 @@ Return full path from root.
 
 See C++ counterpart: :ref:`cpp-node-path`.
 )doc")
-        #ifdef ENABLE_HDF5_IO
         .def("write", &Node::write, R"doc(
 Write this subtree to file.
 
+The output format is inferred from the filename extension.
+
 See C++ counterpart: :ref:`cpp-node-write`.
 )doc")
-        #endif
         .def("descendants", &Node::descendants, R"doc(
 Return this node and all descendants in depth-first order.
 

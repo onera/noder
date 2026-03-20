@@ -286,10 +286,8 @@ public:
     /** @brief Build absolute path from root to this node. */
     std::string path() const;
 
-    #ifdef ENABLE_HDF5_IO
-    /** @brief Write this subtree to a CGNS/HDF5 file. */
+    /** @brief Write this subtree to file using the format inferred from the filename. */
     void write(const std::string& filename);
-    #endif // ENABLE_HDF5_IO
 
     // Print method
     /** @brief Stream helper for textual tree rendering. */

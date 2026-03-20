@@ -1,9 +1,8 @@
 # include <pybind11/pybind11.h>
 # include <pybind11/stl.h>
 
-# ifdef ENABLE_HDF5_IO
 # include "io/test_io.hpp"
-# endif
+# include "io/test_yaml_io.hpp"
 
 # include "array/test_array_pybind.hpp"
 # include "node/test_node_pybind.hpp"
@@ -20,9 +19,9 @@ PYBIND11_MODULE(tests, m) {
 
     ensureFactoryInitialized(); // Not really working
 
+    py::module_ io_m = m.def_submodule("io");
     // TODO redesign io test pybindings
     # ifdef ENABLE_HDF5_IO
-    py::module_ io_m = m.def_submodule("io");
     io_m.def("test_write_nodes", &test_io::test_write_nodes, "test write a cgns file",
                    py::arg("filename")=std::string("test.cgns"));
     io_m.def("test_read", &test_io::test_read, "test read a cgns file",
@@ -35,6 +34,16 @@ PYBIND11_MODULE(tests, m) {
                    py::arg("filename"));
 
     # endif 
+    io_m.def("test_write_yaml_nodes", &test_io::test_write_yaml_nodes, "test write a yaml file",
+                   py::arg("filename")=std::string("test.yaml"));
+    io_m.def("test_read_yaml", &test_io::test_read_yaml, "test read a yaml file",
+                   py::arg("filename")=std::string("test_read.yaml"));
+    io_m.def("test_write_yaml_link_nodes", &test_io::test_write_yaml_link_nodes, "test write yaml links",
+                   py::arg("filename")=std::string("test_links.yaml"));
+    io_m.def("test_read_yaml_links", &test_io::test_read_yaml_links, "test read yaml links",
+                   py::arg("filename")=std::string("test_read_links.yaml"));
+    io_m.def("test_read_yaml_cgns_tree", &test_io::test_read_yaml_cgns_tree, "test read yaml cgns tree",
+                   py::arg("filename")=std::string("test_tree.yaml"));
 
     bindTestsOfArray(m);
     bindTestsOfNode(m);

@@ -5,8 +5,8 @@ import noder.tests.node as test_in_cpp
 from noder.core import Node
 
 try:
-    import noder.core.io  # noqa: F401
-    ENABLE_HDF5_IO = True
+    import noder.core.io as gio
+    ENABLE_HDF5_IO = hasattr(gio, "write_numpy")
 except ImportError:
     ENABLE_HDF5_IO = False
 

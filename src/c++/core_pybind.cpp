@@ -4,9 +4,9 @@
 # include "node/node_pybind.hpp"
 # include "node/navigation_pybind.hpp"
 # include "io/cgns/node_pycgns_converter_pybind.hpp"
+# include "io/io.hpp"
 
 #ifdef ENABLE_HDF5_IO
-#include "io/io.hpp"
 #include "io/io_numpy.hpp"
 #endif
 
@@ -24,20 +24,25 @@ Returns
 None
 )doc");
 
-    #ifdef ENABLE_HDF5_IO
-    // TODO redesign io pybindings
     py::module_ io_m = m.def_submodule(
         "io",
         R"doc(
-HDF5/CGNS input-output helpers.
+Input-output helpers.
 
 See C++ counterpart: :ref:`cpp-io-module`.
 )doc");
+    #ifdef ENABLE_HDF5_IO
+    io_m.attr("ENABLE_HDF5_IO") = py::bool_(true);
+    #else
+    io_m.attr("ENABLE_HDF5_IO") = py::bool_(false);
+    #endif
     io_m.def(
         "read",
         &io::read,
         R"doc(
-Read a CGNS-like HDF5 file into a Node hierarchy.
+Read a Node hierarchy from file.
+
+The input format is inferred from the filename extension.
 
 Parameters
 ----------
@@ -56,6 +61,7 @@ Example
    :pyobject: test_read
 )doc",
         py::arg("filename"));
+    #ifdef ENABLE_HDF5_IO
     io_m.def(
         "write_numpy",
         &io::write_numpy,
@@ -122,4 +128,3 @@ Example
     bindNodePyCGNSConverter(m);
 
 }
-

@@ -4,7 +4,7 @@ from noder.core import Node, Array, pyCGNSToNode, nodeToPyCGNS
 
 try:
     import noder.core.io as gio
-    ENABLE_HDF5_IO = True
+    ENABLE_HDF5_IO = hasattr(gio, "write_numpy")
 except ImportError:
     ENABLE_HDF5_IO = False
 

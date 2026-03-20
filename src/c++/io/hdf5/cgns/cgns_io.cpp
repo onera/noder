@@ -1,6 +1,6 @@
 #ifdef ENABLE_HDF5_IO
 
-#include "io/io.hpp"
+#include "io/hdf5/cgns/cgns_io.hpp"
 
 #include "array/array.hpp"
 #include "array/factory/matrices.hpp"
@@ -12,7 +12,7 @@
 #include <iostream>
 #include <stdexcept>
 
-namespace io {
+namespace io::hdf5::cgns {
 
 namespace {
 
@@ -562,6 +562,6 @@ std::shared_ptr<Node> read(const std::string& filename) {
     return root;
 }
 
-} // namespace io
+} // namespace io::hdf5::cgns
 
 #endif // ENABLE_HDF5_IO

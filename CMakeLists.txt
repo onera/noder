@@ -191,7 +191,7 @@ file(GLOB_RECURSE CPP_FILES "src/c++/*.cpp")
 file(GLOB_RECURSE HPP_FILES "include/*.hpp")
 file(GLOB_RECURSE PYBIND_CPP_FILES "src/c++/*_pybind.cpp")
 set(CORE_PYTHON_ONLY_SRC
-    ${CMAKE_SOURCE_DIR}/src/c++/io/cgns/node_pycgns_converter.cpp
+    ${CMAKE_SOURCE_DIR}/src/c++/io/hdf5/cgns/node_pycgns_converter.cpp
 )
 set(CORE_SHARED_SRC ${CPP_FILES} ${HPP_FILES})
 list(REMOVE_ITEM CORE_SHARED_SRC ${PYBIND_CPP_FILES})
