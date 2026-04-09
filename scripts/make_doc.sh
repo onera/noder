@@ -20,4 +20,4 @@ fi
 
 rm -rf "$PROJECT_DIR/docs/_doxygen/xml" "$PROJECT_DIR/docs/api/cpp/generated"
 "$DOXYGEN_BIN" "$PROJECT_DIR/docs/Doxyfile"
-python -m sphinx -E -W -b html "$PROJECT_DIR/docs" "$PROJECT_DIR/docs/html"
+python3 -m sphinx -E -W -b html "$PROJECT_DIR/docs" "$PROJECT_DIR/docs/html"
