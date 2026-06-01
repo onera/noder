@@ -272,3 +272,5 @@ def test_interoperability_robustness_forbidden_same_name():
 
     b_pycgns_node = pycgns_node[2][1]
     assert b_pycgns_node[0] == "b"
+
+# def test_matrix(tmp_path):

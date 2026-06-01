@@ -23,7 +23,21 @@ project(${SKBUILD_PROJECT_NAME} LANGUAGES C CXX)
 
 set(CMAKE_BUILD_TYPE Release)
 
-
+# C++17 filesystem library linking
+# For GCC < 9 and Intel compilers, libstdc++fs needs explicit linking
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Intel")
+    # Try to find libstdc++fs explicitly
+    find_library(STDCXXFS_LIBRARY stdc++fs)
+    if(STDCXXFS_LIBRARY)
+        message(STATUS "Found libstdc++fs: ${STDCXXFS_LIBRARY}")
+    else()
+        # Fallback: use the library name directly (works for most GCC/Intel setups)
+        set(STDCXXFS_LIBRARY "stdc++fs")
+        message(STATUS "Using libstdc++fs by name (will be resolved at link time)")
+    endif()
+else()
+    set(STDCXXFS_LIBRARY "")
+endif()
 
 if(MSVC)
     if(NOT CMAKE_CONFIGURATION_TYPES)
@@ -73,6 +87,13 @@ add_definitions(-D_GLIBCXX_USE_CXX11_ABI=1)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# For Intel compiler, explicitly set -std flag based on CMAKE_CXX_STANDARD
+# Intel compiler requires explicit -std=c++XX flag for C++ standard library features
+if(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++${CMAKE_CXX_STANDARD}")
+    message(STATUS "Intel compiler detected: adding -std=c++${CMAKE_CXX_STANDARD} flag")
+endif()
 
 set(CMAKE_SKIP_BUILD_RPATH FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
@@ -226,8 +247,11 @@ if(APPLE)
         MACOSX_RPATH ON
     )
 elseif(UNIX OR MSVC)
+    # Ensure RPATH includes C++ standard library location
+    # This helps resolve libstdc++.so at runtime
     set_target_properties(core_shared PROPERTIES
-        INSTALL_RPATH "$ORIGIN"
+        INSTALL_RPATH "$ORIGIN:$ORIGIN/../lib"
+        BUILD_WITH_INSTALL_RPATH TRUE
     )
 endif()
 
@@ -237,6 +261,9 @@ target_compile_definitions(core_shared PRIVATE BUILDING_NODE_LIBRARY)
 if(ENABLE_HDF5_IO)
     target_include_directories(core_shared PRIVATE ${HDF5_INCLUDE_DIRS})
     target_link_libraries(core_shared PRIVATE ${HDF5_LIBRARIES})
+if(STDCXXFS_LIBRARY)
+    target_link_libraries(core_shared PRIVATE ${STDCXXFS_LIBRARY})
+endif()
     if(MSVC)
         # Copy HDF5 DLLs into the wheel output directory so they're bundled in the .whl
         set(HDF5_DLL "${HDF5_ROOT}/bin/hdf5.dll")
@@ -296,6 +323,9 @@ pybind11_add_module(core MODULE
     ${CORE_PYTHON_ONLY_SRC}
 )
 target_link_libraries(core PRIVATE core_shared)
+if(STDCXXFS_LIBRARY)
+    target_link_libraries(core PRIVATE ${STDCXXFS_LIBRARY})
+endif()
 add_dependencies(core core_shared)
 if(APPLE)
     target_link_options(core PRIVATE "-Wl,-force_load,$<TARGET_FILE:core_shared>")
@@ -307,6 +337,9 @@ endif()
 
 pybind11_add_module(_cgns MODULE src/c++/cgns_pybind.cpp)
 target_link_libraries(_cgns PRIVATE core_shared)
+if(STDCXXFS_LIBRARY)
+    target_link_libraries(_cgns PRIVATE ${STDCXXFS_LIBRARY})
+endif()
 add_dependencies(_cgns core_shared)
 if(APPLE)
     target_link_options(_cgns PRIVATE "-Wl,-force_load,$<TARGET_FILE:core_shared>")
@@ -379,6 +412,9 @@ if(ENABLE_TESTS)
         VISIBILITY_INLINES_HIDDEN OFF
     )
     target_link_libraries(tests PRIVATE core_shared)
+    if(STDCXXFS_LIBRARY)
+        target_link_libraries(tests PRIVATE ${STDCXXFS_LIBRARY})
+    endif()
     if(ENABLE_HDF5_IO)
         target_link_libraries(tests PRIVATE ${HDF5_LIBRARIES})
     endif()

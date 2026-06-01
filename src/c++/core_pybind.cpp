@@ -48,6 +48,8 @@ Parameters
 ----------
 filename : str
     Input file path.
+order : str, optional
+    Memory order of arrays when read (``"C"`` or ``"F"``). Defaults to ``"C"`` (C/NumPy standard).
 
 Returns
 -------
@@ -60,7 +62,8 @@ Example
    :language: python
    :pyobject: test_read
 )doc",
-        py::arg("filename"));
+        py::arg("filename"),
+        py::arg("order")='C');
     #ifdef ENABLE_HDF5_IO
     io_m.def(
         "write_numpy",

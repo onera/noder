@@ -143,12 +143,56 @@ def test_read_links(tmp_path):
     assert link_node.link_target_file() == "."
     assert link_node.link_target_path() == "/root/target"
 
-if __name__ == '__main__':
-    # test_write_and_read_numerical_numpy(np.int8, "F")
-    from timeit import default_timer as toc
-    tic=toc()
-    # a = gio.read("fields.cgns")
-    tic= toc()-tic
-    # print(a)
-    print(f"elapsed time: {tic} s")
-    # test_read()
+@pytest.mark.parametrize('order',['C','F'])
+def test_slice_numpy_with_order(tmp_path, order):
+    import numpy as np
+    from noder import read_numpy, write_numpy
+
+    a = np.array([[1,2],
+                  [3,4]], order=order)
+
+    expected_first_column = [1,3]
+
+    assert a[:,0][0] == expected_first_column[0]
+    assert a[:,0][1] == expected_first_column[1]
+
+    write_numpy(a,str(tmp_path/"test.hdf"))
+    b = read_numpy(str(tmp_path/"test.hdf"), order=order)
+
+    assert b[:,0][0] == expected_first_column[0]
+    assert b[:,0][1] == expected_first_column[1]
+
+
+@pytest.mark.parametrize('order',['C','F'])
+def test_slice_numpy_at_tree_with_order(tmp_path, order):
+    import numpy as np
+    from noder import new_node, read, Node
+
+    a = np.array([[1,2],
+                  [3,4]], order=order)
+
+    expected_first_column = [1,3]
+
+    assert a[:,0][0] == expected_first_column[0]
+    assert a[:,0][1] == expected_first_column[1]
+    
+    t = new_node("a",data=a)
+    t.write(str(tmp_path/"test.hdf"))
+
+    r : Node = read(str(tmp_path/"test.hdf"))
+    arr = r.pick().by_name("a").data().getPyArray()
+    b = arr
+    # if order == 'C':
+    #     b = np.ascontiguousarray(arr)
+    # elif order == 'F':
+    #     b = np.asfortranarray(arr)
+
+
+    # import pprint
+    # assert False,f"{pprint.pformat(b.flags)}"
+
+    assert b[:,0][0] == expected_first_column[0]
+    assert b[:,0][1] == expected_first_column[1]
+
+
+

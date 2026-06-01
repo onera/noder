@@ -1128,9 +1128,10 @@ void test_printTree_example() {
 }
 
 #ifdef ENABLE_HDF5_IO
-void test_reloadNodeData_example() {
+
+void test_reloadNodeData_example(const std::string& tmp_path) {
     // docs:start reloadNodeData_cpp_example
-    const std::string filename = "reload_node_data_example.cgns";
+    const std::string filename = tmp_path+"/reload_node_data_example.cgns";
     auto root = newNode("root");
     auto valueNode = newNode("value");
     root->addChild(valueNode);
@@ -1142,9 +1143,9 @@ void test_reloadNodeData_example() {
     // docs:end reloadNodeData_cpp_example
 }
 
-void test_saveThisNodeOnly_example() {
+void test_saveThisNodeOnly_example(const std::string& tmp_path) {
     // docs:start saveThisNodeOnly_cpp_example
-    const std::string filename = "save_this_node_only_example.cgns";
+    const std::string filename = tmp_path+"/save_this_node_only_example.cgns";
     auto root = newNode("root");
     auto mutableNode = newNode("mutable");
     mutableNode->setData(1);
@@ -1157,9 +1158,9 @@ void test_saveThisNodeOnly_example() {
     // docs:end saveThisNodeOnly_cpp_example
 }
 
-void test_write_example() {
+void test_write_example(const std::string& tmp_path) {
     // docs:start write_cpp_example
-    const std::string filename = "write_example.cgns";
+    const std::string filename = tmp_path + "/write_example.cgns";
     auto root = newNode("root");
     root->addChild(newNode("child"));
     root->write(filename);
@@ -1168,47 +1169,3 @@ void test_write_example() {
     // docs:end write_cpp_example
 }
 #endif
-
-void test_node_method_examples() {
-    test_Node_example();
-    test_pick_example();
-    test_name_example();
-    test_setName_example();
-    test_type_example();
-    test_setType_example();
-    test_data_example();
-    test_setData_example();
-    test_children_example();
-    test_hasChildren_example();
-    test_parent_example();
-    test_root_example();
-    test_level_example();
-    test_position_example();
-    test_detach_example();
-    test_attachTo_example();
-    test_addChild_example();
-    test_addChildren_example();
-    test_siblings_example();
-    test_hasSiblings_example();
-    test_getChildrenNames_example();
-    test_swap_example();
-    test_copy_example();
-    test_getAtPath_example();
-    test_path_example();
-    test_descendants_example();
-    test_merge_example();
-    test_hasLinkTarget_example();
-    test_linkTargetFile_example();
-    test_linkTargetPath_example();
-    test_setLinkTarget_example();
-    test_clearLinkTarget_example();
-    test_getLinks_example();
-    test_setParameters_example();
-    test_getParameters_example();
-    test_printTree_example();
-#ifdef ENABLE_HDF5_IO
-    test_reloadNodeData_example();
-    test_saveThisNodeOnly_example();
-    test_write_example();
-#endif
-}

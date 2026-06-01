@@ -298,6 +298,7 @@ void write_array(hid_t loc, const std::string& name, const Array& array, const s
     hid_t space = make_dataspace(array.shape());
     const hid_t dtype = hdfTypeFromCgnsType(cgnsType);
     hid_t dset = H5Dcreate2(loc, name.c_str(), dtype, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    // HDF5 stores data in C-order by default, write raw data directly
     check_status(H5Dwrite(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()), "write numeric");
     H5Dclose(dset);
     H5Sclose(space);
@@ -389,7 +390,81 @@ void write_cgns_library_version(hid_t file, hid_t gcpl, const float& cgnsVersion
     H5Gclose(group);
 }
 
-Array readArrayFromDataset(hid_t dset, const std::vector<size_t>& shape, const std::string& cgnsType) {
+// Helper function to compute index in F-order layout given C-order indices
+inline size_t indexFFromC(const std::vector<size_t>& indices, const std::vector<size_t>& shape) {
+    size_t index = 0;
+    size_t stride = 1;
+    for (size_t i = 0; i < indices.size(); ++i) {
+        index += indices[i] * stride;
+        stride *= shape[i];
+    }
+    return index;
+}
+
+// Helper function to compute index in C-order layout given F-order indices
+inline size_t indexCFromF(const std::vector<size_t>& indices, const std::vector<size_t>& shape) {
+    size_t index = 0;
+    size_t stride = 1;
+    for (size_t i = indices.size(); i-- > 0;) {
+        index += indices[i] * stride;
+        stride *= shape[i];
+    }
+    return index;
+}
+
+template <typename T>
+Array readNumericArrayTyped(hid_t dset, const std::vector<size_t>& shape, const std::string& cgnsType, const char order) {
+    hid_t dtype = hdfTypeFromCgnsType(cgnsType);
+    size_t totalSize = 1;
+    for (size_t dim : shape) totalSize *= dim;
+    
+    if (order == 'C') {
+        // HDF5 stores in C-order, so read directly into C-order array
+        Array array = arrayfactory::empty<T>(shape, 'C');
+        check_status(H5Dread(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()), 
+                     std::string("read ") + cgnsType + " C-order");
+        return array;
+    } else {
+        // order == 'F': Read C-order data from HDF5, then transpose to F-order
+        // Read into temporary C-order buffer
+        std::vector<T> buffer(totalSize);
+        check_status(H5Dread(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()), 
+                     std::string("read ") + cgnsType + " temp buffer");
+        
+        // Create F-order array and copy with index transformation
+        Array array = arrayfactory::empty<T>(shape, 'F');
+        T* destData = static_cast<T*>(array.rawData());
+        
+        if (shape.size() <= 1) {
+            // For 0D or 1D, F and C order are identical
+            std::memcpy(destData, buffer.data(), totalSize * sizeof(T));
+        } else {
+            // For 2D+ arrays, map C-order buffer positions to F-order dest indices
+            // Iterate through C-order source indices
+            for (size_t cIndex = 0; cIndex < totalSize; ++cIndex) {
+                // Compute C-order indices from linear index cIndex
+                std::vector<size_t> indices(shape.size());
+                size_t temp = cIndex;
+                for (size_t j = shape.size(); j-- > 0;) {
+                    indices[j] = temp % shape[j];
+                    temp /= shape[j];
+                }
+                
+                // Compute F-order index for the same logical position
+                size_t fIndex = 0;
+                size_t stride = 1;
+                for (size_t j = 0; j < indices.size(); ++j) {
+                    fIndex += indices[j] * stride;
+                    stride *= shape[j];
+                }
+                destData[fIndex] = buffer[cIndex];
+            }
+        }
+        return array;
+    }
+}
+
+Array readArrayFromDataset(hid_t dset, const std::vector<size_t>& shape, const std::string& cgnsType, const char order = 'C') {
     if (cgnsType == "C1") {
         hid_t space = H5Dget_space(dset);
         std::vector<hsize_t> dims(1, 0);
@@ -405,65 +480,43 @@ Array readArrayFromDataset(hid_t dset, const std::vector<size_t>& shape, const s
     }
 
     if (cgnsType == "I1") {
-        Array array = arrayfactory::empty<int8_t>(shape, 'C');
-        check_status(H5Dread(dset, H5T_NATIVE_INT8, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()), "read I1");
-        return array;
+        return readNumericArrayTyped<int8_t>(dset, shape, cgnsType, order);
     }
     if (cgnsType == "I2") {
-        Array array = arrayfactory::empty<int16_t>(shape, 'C');
-        check_status(H5Dread(dset, H5T_NATIVE_INT16, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()), "read I2");
-        return array;
+        return readNumericArrayTyped<int16_t>(dset, shape, cgnsType, order);
     }
     if (cgnsType == "I4") {
-        Array array = arrayfactory::empty<int32_t>(shape, 'C');
-        check_status(H5Dread(dset, H5T_NATIVE_INT32, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()), "read I4");
-        return array;
+        return readNumericArrayTyped<int32_t>(dset, shape, cgnsType, order);
     }
     if (cgnsType == "I8") {
-        Array array = arrayfactory::empty<int64_t>(shape, 'C');
-        check_status(H5Dread(dset, H5T_NATIVE_INT64, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()), "read I8");
-        return array;
+        return readNumericArrayTyped<int64_t>(dset, shape, cgnsType, order);
     }
     if (cgnsType == "U1") {
-        Array array = arrayfactory::empty<uint8_t>(shape, 'C');
-        check_status(H5Dread(dset, H5T_NATIVE_UINT8, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()), "read U1");
-        return array;
+        return readNumericArrayTyped<uint8_t>(dset, shape, cgnsType, order);
     }
     if (cgnsType == "U2") {
-        Array array = arrayfactory::empty<uint16_t>(shape, 'C');
-        check_status(H5Dread(dset, H5T_NATIVE_UINT16, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()), "read U2");
-        return array;
+        return readNumericArrayTyped<uint16_t>(dset, shape, cgnsType, order);
     }
     if (cgnsType == "U4") {
-        Array array = arrayfactory::empty<uint32_t>(shape, 'C');
-        check_status(H5Dread(dset, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()), "read U4");
-        return array;
+        return readNumericArrayTyped<uint32_t>(dset, shape, cgnsType, order);
     }
     if (cgnsType == "U8") {
-        Array array = arrayfactory::empty<uint64_t>(shape, 'C');
-        check_status(H5Dread(dset, H5T_NATIVE_UINT64, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()), "read U8");
-        return array;
+        return readNumericArrayTyped<uint64_t>(dset, shape, cgnsType, order);
     }
     if (cgnsType == "R4") {
-        Array array = arrayfactory::empty<float>(shape, 'C');
-        check_status(H5Dread(dset, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()), "read R4");
-        return array;
+        return readNumericArrayTyped<float>(dset, shape, cgnsType, order);
     }
     if (cgnsType == "R8") {
-        Array array = arrayfactory::empty<double>(shape, 'C');
-        check_status(H5Dread(dset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()), "read R8");
-        return array;
+        return readNumericArrayTyped<double>(dset, shape, cgnsType, order);
     }
     if (cgnsType == "X1") {
-        Array array = arrayfactory::empty<int8_t>(shape, 'C');
-        check_status(H5Dread(dset, H5T_NATIVE_INT8, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()), "read X1");
-        return array;
+        return readNumericArrayTyped<int8_t>(dset, shape, cgnsType, order);
     }
 
     throw std::runtime_error("Unsupported type in read: " + cgnsType);
 }
 
-std::shared_ptr<Node> read_node_rec(hid_t file, const std::string& path) {
+std::shared_ptr<Node> read_node_rec(hid_t file, const std::string& path, const char order = 'C') {
     hid_t group = H5Gopen2(file, path.c_str(), H5P_DEFAULT);
     if (group < 0) {
         throw std::runtime_error("Failed to open group: " + path);
@@ -504,7 +557,7 @@ std::shared_ptr<Node> read_node_rec(hid_t file, const std::string& path) {
         }
 
         if (cgnsType != "MT") {
-            node->setData(readArrayFromDataset(dset, shape, cgnsType));
+            node->setData(readArrayFromDataset(dset, shape, cgnsType, order));
         }
 
         H5Sclose(space);
@@ -524,7 +577,7 @@ std::shared_ptr<Node> read_node_rec(hid_t file, const std::string& path) {
             continue;
         }
         std::string childPath = path + "/" + childName;
-        auto child = read_node_rec(file, childPath);
+        auto child = read_node_rec(file, childPath, order);
         child->attachTo(node);
     }
 
@@ -555,9 +608,9 @@ void write_node(const std::string& filename, std::shared_ptr<Node> root, const f
     H5Fclose(file);
 }
 
-std::shared_ptr<Node> read(const std::string& filename) {
+std::shared_ptr<Node> read(const std::string& filename, const char order) {
     hid_t file = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
-    auto root = read_node_rec(file, "/");
+    auto root = read_node_rec(file, "/", order);
     H5Fclose(file);
     return root;
 }

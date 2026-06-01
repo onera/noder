@@ -1082,20 +1082,17 @@ def test_print_tree_example():
 
 
 @pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
-def test_write_example():
+def test_write_example(tmp_path):
     # docs:start write_example
     from noder.core import Node
-    from pathlib import Path
-    import tempfile
     import noder.core.io as gio
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        filename = str(Path(tmpdir) / "write_example.cgns")
-        root = Node("root")
-        root.add_child(Node("child"))
-        root.write(filename)
-        read_root = gio.read(filename)
-        assert read_root.get_at_path("root/child") is not None
+    filename = str(tmp_path / "write_example.cgns")
+    root = Node("root")
+    root.add_child(Node("child"))
+    root.write(filename)
+    read_root = gio.read(filename)
+    assert read_root.get_at_path("root/child") is not None
     # docs:end write_example
 
 
@@ -1144,6 +1141,7 @@ def test_extract_string_from_numpy_chars_united():
     node.set_data(np.array([b"ab"],order='F'))
     extracted_string = node.data().extractString()
     assert extracted_string == "ab"
+
 
 
 if __name__ == '__main__':

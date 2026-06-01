@@ -170,18 +170,37 @@ def generate_flat_stub(
         env=env,
     )
 
-    module_leaf = module_name.split(".")[-1]
-    module_init_pyi = out_dir / PACKAGE_NAME / module_leaf / "__init__.pyi"
-    module_file_pyi = out_dir / PACKAGE_NAME / f"{module_leaf}.pyi"
-    if module_init_pyi.exists():
-        source_stub = module_init_pyi
-    elif module_file_pyi.exists():
-        source_stub = module_file_pyi
+    module_parts = module_name.split(".")
+    module_leaf = module_parts[-1]
+    
+    # For submodules like noder.core.io, stubgen creates:
+    #   _stubgen_out/noder/core/io.pyi
+    # For top-level modules like noder.core, stubgen creates:
+    #   _stubgen_out/noder/core/__init__.pyi
+    
+    # Build the path based on module hierarchy
+    if len(module_parts) > 2:
+        # Submodule case (e.g., noder.core.io -> noder/core/io.pyi)
+        submodule_path = out_dir / PACKAGE_NAME / Path(*module_parts[1:-1]) / f"{module_leaf}.pyi"
+        if submodule_path.exists():
+            source_stub = submodule_path
+        else:
+            raise SystemExit(
+                f"Did not find expected stub at {submodule_path}"
+            )
     else:
-        raise SystemExit(
-            "Did not find expected stub at either "
-            f"{module_init_pyi} or {module_file_pyi}"
-        )
+        # Top-level module case (e.g., noder.core -> noder/core/__init__.pyi)
+        module_init_pyi = out_dir / PACKAGE_NAME / module_leaf / "__init__.pyi"
+        module_file_pyi = out_dir / PACKAGE_NAME / f"{module_leaf}.pyi"
+        if module_init_pyi.exists():
+            source_stub = module_init_pyi
+        elif module_file_pyi.exists():
+            source_stub = module_file_pyi
+        else:
+            raise SystemExit(
+                "Did not find expected stub at either "
+                f"{module_init_pyi} or {module_file_pyi}"
+            )
 
     text = source_stub.read_text(encoding="utf-8")
     if postprocess is not None:
@@ -224,8 +243,14 @@ def main() -> None:
         out_dir,
         env,
     )
+    generate_flat_stub(
+        f"{CORE_MODULE_NAME}.io",
+        "io.pyi",
+        out_dir,
+        env,
+    )
 
-    # We currently ignore submodule stubs (io.pyi, factory.pyi, ...) because
+    # We currently ignore submodule stubs (factory.pyi, ...) because
     # your public Python API is 'from noder.core import Node, Array, ...'.
     # If you later want to expose noder.core.io, we can extend this script
     # to merge those stubs as well.
@@ -248,6 +273,7 @@ def main() -> None:
 
     print(f"[gen_stubs] Updated main stub: {target_dir / 'core.pyi'}")
     print(f"[gen_stubs] Updated CGNS stub: {target_dir / '_cgns.pyi'}")
+    print(f"[gen_stubs] Updated IO stub: {target_dir / 'io.pyi'}")
     print(f"[gen_stubs] Ensured package stub: {target_init_pyi}")
 
 

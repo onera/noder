@@ -116,7 +116,7 @@ def test_cpp_getLinks(): return test_in_cpp.test_getLinks()
 def test_cpp_setParametersAndGetParameters(): return test_in_cpp.test_setParametersAndGetParameters()
 
 def test_cpp_getParametersMixedListAndDictFallback(): return test_in_cpp.test_getParametersMixedListAndDictFallback()
-def test_cpp_node_method_examples(): return test_in_cpp.test_node_method_examples()
+
 
 @pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
 def test_cpp_reloadNodeData(tmp_path):
@@ -127,6 +127,10 @@ def test_cpp_reloadNodeData(tmp_path):
 def test_cpp_saveThisNodeOnly(tmp_path):
     filename = str(tmp_path / "save_this_node_only.cgns")
     return test_in_cpp.test_saveThisNodeOnly(filename)
+
+@pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
+def test_cpp_write_example(tmp_path):
+    return test_in_cpp.test_write_example(str(tmp_path))
 
 def test_cpp_merge(): return test_in_cpp.test_merge()
 

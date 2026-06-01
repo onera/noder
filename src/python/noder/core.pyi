@@ -722,6 +722,8 @@ class Node:
         """
         Write this subtree to file.
         
+        The output format is inferred from the filename extension.
+        
         See C++ counterpart: :ref:`cpp-node-write`.
         """
 class _NodeGroup:

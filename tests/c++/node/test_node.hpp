@@ -143,10 +143,9 @@ void test_setParameters_example();
 void test_getParameters_example();
 void test_printTree_example();
 #ifdef ENABLE_HDF5_IO
-void test_reloadNodeData_example();
-void test_saveThisNodeOnly_example();
-void test_write_example();
+void test_reloadNodeData_example( const std::string& tmp_path = "/tmp" );
+void test_saveThisNodeOnly_example( const std::string& tmp_path = "/tmp");
+void test_write_example( const std::string& tmp_path = "/tmp" );
 #endif
-void test_node_method_examples();
 
 #endif // TEST_NODE_CLASS_H

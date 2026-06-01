@@ -41,7 +41,12 @@ inline void write_numpy(const py::array& array, const std::string& filename, con
         throw std::runtime_error("Could not create HDF5 file");
     }
 
-    Array noderArray = arraybridge::arrayFromPyArray(array);
+    // Ensure the array is C-contiguous for HDF5 storage (HDF5 uses C order)
+    // Use np.array with order='C' to force a proper C-contiguous copy with data in C order
+    py::module_ np = py::module_::import("numpy");
+    py::array c_array = np.attr("array")(array, py::arg("order") = "C");
+
+    Array noderArray = arraybridge::arrayFromPyArray(c_array);
 
     if (noderArray.hasString()) {
         const std::string dataString = noderArray.extractString();
@@ -102,60 +107,62 @@ inline py::array read_numpy(const std::string& filename, const std::string& data
     }
     std::vector<size_t> shape(dims.begin(), dims.end());
 
-    const char layout = order == "F" ? 'F' : 'C';
+    // Always read into C-contiguous array since HDF5 stores data in C order
+    const char layout = 'C';
+    py::array result_array;
+    
     if (H5Tequal(datatype, H5T_NATIVE_INT8)) {
         Array array = arrayfactory::empty<int8_t>(shape, layout);
         H5Dread(datasetId, H5T_NATIVE_INT8, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData());
-        H5Tclose(datatype); H5Sclose(dataspaceId); H5Dclose(datasetId); H5Fclose(fileId);
-        return arraybridge::toPyArray(array);
+        result_array = arraybridge::toPyArray(array);
     } else if (H5Tequal(datatype, H5T_NATIVE_INT16)) {
         Array array = arrayfactory::empty<int16_t>(shape, layout);
         H5Dread(datasetId, H5T_NATIVE_INT16, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData());
-        H5Tclose(datatype); H5Sclose(dataspaceId); H5Dclose(datasetId); H5Fclose(fileId);
-        return arraybridge::toPyArray(array);
+        result_array = arraybridge::toPyArray(array);
     } else if (H5Tequal(datatype, H5T_NATIVE_INT32)) {
         Array array = arrayfactory::empty<int32_t>(shape, layout);
         H5Dread(datasetId, H5T_NATIVE_INT32, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData());
-        H5Tclose(datatype); H5Sclose(dataspaceId); H5Dclose(datasetId); H5Fclose(fileId);
-        return arraybridge::toPyArray(array);
+        result_array = arraybridge::toPyArray(array);
     } else if (H5Tequal(datatype, H5T_NATIVE_INT64)) {
         Array array = arrayfactory::empty<int64_t>(shape, layout);
         H5Dread(datasetId, H5T_NATIVE_INT64, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData());
-        H5Tclose(datatype); H5Sclose(dataspaceId); H5Dclose(datasetId); H5Fclose(fileId);
-        return arraybridge::toPyArray(array);
+        result_array = arraybridge::toPyArray(array);
     } else if (H5Tequal(datatype, H5T_NATIVE_UINT8)) {
         Array array = arrayfactory::empty<uint8_t>(shape, layout);
         H5Dread(datasetId, H5T_NATIVE_UINT8, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData());
-        H5Tclose(datatype); H5Sclose(dataspaceId); H5Dclose(datasetId); H5Fclose(fileId);
-        return arraybridge::toPyArray(array);
+        result_array = arraybridge::toPyArray(array);
     } else if (H5Tequal(datatype, H5T_NATIVE_UINT16)) {
         Array array = arrayfactory::empty<uint16_t>(shape, layout);
         H5Dread(datasetId, H5T_NATIVE_UINT16, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData());
-        H5Tclose(datatype); H5Sclose(dataspaceId); H5Dclose(datasetId); H5Fclose(fileId);
-        return arraybridge::toPyArray(array);
+        result_array = arraybridge::toPyArray(array);
     } else if (H5Tequal(datatype, H5T_NATIVE_UINT32)) {
         Array array = arrayfactory::empty<uint32_t>(shape, layout);
         H5Dread(datasetId, H5T_NATIVE_UINT32, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData());
-        H5Tclose(datatype); H5Sclose(dataspaceId); H5Dclose(datasetId); H5Fclose(fileId);
-        return arraybridge::toPyArray(array);
+        result_array = arraybridge::toPyArray(array);
     } else if (H5Tequal(datatype, H5T_NATIVE_UINT64)) {
         Array array = arrayfactory::empty<uint64_t>(shape, layout);
         H5Dread(datasetId, H5T_NATIVE_UINT64, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData());
-        H5Tclose(datatype); H5Sclose(dataspaceId); H5Dclose(datasetId); H5Fclose(fileId);
-        return arraybridge::toPyArray(array);
+        result_array = arraybridge::toPyArray(array);
     } else if (H5Tequal(datatype, H5T_NATIVE_FLOAT)) {
         Array array = arrayfactory::empty<float>(shape, layout);
         H5Dread(datasetId, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData());
-        H5Tclose(datatype); H5Sclose(dataspaceId); H5Dclose(datasetId); H5Fclose(fileId);
-        return arraybridge::toPyArray(array);
+        result_array = arraybridge::toPyArray(array);
     } else if (H5Tequal(datatype, H5T_NATIVE_DOUBLE)) {
         Array array = arrayfactory::empty<double>(shape, layout);
         H5Dread(datasetId, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData());
-        H5Tclose(datatype); H5Sclose(dataspaceId); H5Dclose(datasetId); H5Fclose(fileId);
-        return arraybridge::toPyArray(array);
+        result_array = arraybridge::toPyArray(array);
     } else {
+        H5Tclose(datatype); H5Sclose(dataspaceId); H5Dclose(datasetId); H5Fclose(fileId);
         throw std::runtime_error("Unsupported datatype in HDF5 file");
     }
+    
+    H5Tclose(datatype); H5Sclose(dataspaceId); H5Dclose(datasetId); H5Fclose(fileId);
+    
+    // HDF5 stores data in C order, so we always return C-contiguous arrays.
+    // The order parameter is ignored to ensure data integrity.
+    // Users can call np.asfortranarray() on the result if they need Fortran layout.
+    
+    return result_array;
 }
 
 } // namespace io

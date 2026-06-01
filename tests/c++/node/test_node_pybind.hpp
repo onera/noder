@@ -52,12 +52,10 @@ void bindTestsOfNode(py::module_ &m) {
     sm.def("test_getLinks", &test_getLinks);
     sm.def("test_setParametersAndGetParameters", &test_setParametersAndGetParameters);
     sm.def("test_getParametersMixedListAndDictFallback", &test_getParametersMixedListAndDictFallback);
-    sm.def("test_node_method_examples", &test_node_method_examples);
 #ifdef ENABLE_HDF5_IO
-    sm.def("test_reloadNodeData", &test_reloadNodeData,
-           py::arg("filename") = std::string("test_reload_node_data.cgns"));
-    sm.def("test_saveThisNodeOnly", &test_saveThisNodeOnly,
-           py::arg("filename") = std::string("test_save_this_node_only.cgns"));
+    sm.def("test_reloadNodeData", &test_reloadNodeData);
+    sm.def("test_saveThisNodeOnly", &test_saveThisNodeOnly);
+    sm.def("test_write_example", &test_write_example);
 #endif
     sm.def("test_merge", &test_merge);
 }
