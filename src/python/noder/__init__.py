@@ -42,7 +42,13 @@ from .core import (
     pyCGNSToNode,
     nodeToPyCGNS,
 )
-from .core.io import read, write_numpy, read_numpy
+from .core.io import read
+
+try:
+    from .core.io import write_numpy, read_numpy
+except ImportError:
+    __all__.remove("write_numpy")
+    __all__.remove("read_numpy")
 
 registerDefaultFactory()
 

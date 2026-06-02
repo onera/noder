@@ -150,11 +150,13 @@ def test_cgns_node_array_roundtrip_respects_requested_order(tmp_path, write_orde
     from noder import new_node, read
 
     data = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.int32, order=write_order)
-    root = new_node("array", "DataArray_t", data=data)
+    root = new_node("root", "UserDefinedData_t")
+    array_node = new_node("array", "DataArray_t", data=data)
+    root.add_child(array_node)
     filename = str(tmp_path / "ordered.cgns")
 
     root.write(filename)
-    loaded = read(filename, order=read_order).pick().by_name("array").data().getPyArray()
+    loaded = read(filename, order=read_order).get_at_path("root/array").data().getPyArray()
 
     np.testing.assert_array_equal(loaded, data)
     assert loaded.flags["C_CONTIGUOUS"] is (read_order == "C" or loaded.ndim <= 1)
