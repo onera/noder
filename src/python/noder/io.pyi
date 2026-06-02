@@ -7,7 +7,7 @@ See C++ counterpart: :ref:`cpp-io-module`.
 from __future__ import annotations
 import numpy
 __all__: list[str] = ['ENABLE_HDF5_IO', 'read', 'read_numpy', 'write_numpy']
-def read(filename: str, order: str = 'C') -> Node:
+def read(filename: str, order: str = 'F') -> Node:
     """
     Read a Node hierarchy from file.
     
@@ -18,7 +18,7 @@ def read(filename: str, order: str = 'C') -> Node:
     filename : str
         Input file path.
     order : str, optional
-        Memory order of arrays when read (``"C"`` or ``"F"``). Defaults to ``"C"`` (C/NumPy standard).
+        Memory order of arrays when read (``"C"`` or ``"F"``). Defaults to ``"F"`` (CGNS/Fortran convention).
     
     Returns
     -------

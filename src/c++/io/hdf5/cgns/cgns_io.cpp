@@ -8,6 +8,7 @@
 
 #include <hdf5.h>
 
+#include <cctype>
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
@@ -282,6 +283,80 @@ bool is_link_group(hid_t group) {
     return read_string_attr(group, "type") == "LK";
 }
 
+char normalize_order(const char order, const char* context) {
+    const char normalized = static_cast<char>(std::toupper(static_cast<unsigned char>(order)));
+    if (normalized != 'C' && normalized != 'F') {
+        throw std::invalid_argument(std::string(context) + ": order must be 'C' or 'F'");
+    }
+    return normalized;
+}
+
+size_t flat_size(const std::vector<size_t>& shape) {
+    size_t totalSize = 1;
+    for (size_t dim : shape) {
+        totalSize *= dim;
+    }
+    return totalSize;
+}
+
+std::vector<size_t> indices_from_fortran_flat(size_t flatIndex, const std::vector<size_t>& shape) {
+    std::vector<size_t> indices(shape.size(), 0);
+    for (size_t dim = 0; dim < shape.size(); ++dim) {
+        const size_t extent = shape[dim];
+        indices[dim] = extent == 0 ? 0 : flatIndex % extent;
+        flatIndex = extent == 0 ? 0 : flatIndex / extent;
+    }
+    return indices;
+}
+
+size_t c_flat_from_indices(const std::vector<size_t>& indices, const std::vector<size_t>& shape) {
+    size_t index = 0;
+    size_t stride = 1;
+    for (size_t dim = indices.size(); dim-- > 0;) {
+        index += indices[dim] * stride;
+        stride *= shape[dim];
+    }
+    return index;
+}
+
+template <typename T>
+std::vector<T> copy_array_to_fortran_buffer(const Array& array) {
+    const std::vector<size_t> shape = array.shape();
+    const size_t totalSize = flat_size(shape);
+    std::vector<T> buffer(totalSize);
+
+    if (totalSize == 0) {
+        return buffer;
+    }
+
+    if (array.isContiguousInStyleFortran()) {
+        std::memcpy(buffer.data(), array.rawData(), totalSize * sizeof(T));
+        return buffer;
+    }
+
+    const auto* sourceData = static_cast<const std::uint8_t*>(array.rawData());
+    const std::vector<size_t> strides = array.strides();
+    for (size_t fIndex = 0; fIndex < totalSize; ++fIndex) {
+        const std::vector<size_t> indices = indices_from_fortran_flat(fIndex, shape);
+        size_t byteOffset = 0;
+        for (size_t dim = 0; dim < indices.size(); ++dim) {
+            byteOffset += indices[dim] * strides[dim];
+        }
+        buffer[fIndex] = *reinterpret_cast<const T*>(sourceData + byteOffset);
+    }
+    return buffer;
+}
+
+template <typename T>
+void write_numeric_array(hid_t loc, const std::string& name, const Array& array, const hid_t dtype) {
+    hid_t space = make_dataspace(array.shape());
+    hid_t dset = H5Dcreate2(loc, name.c_str(), dtype, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    std::vector<T> buffer = copy_array_to_fortran_buffer<T>(array);
+    check_status(H5Dwrite(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()), "write numeric");
+    H5Dclose(dset);
+    H5Sclose(space);
+}
+
 void write_array(hid_t loc, const std::string& name, const Array& array, const std::string& cgnsType) {
     if (cgnsType == "C1") {
         std::string str = array.extractString();
@@ -295,19 +370,24 @@ void write_array(hid_t loc, const std::string& name, const Array& array, const s
         return;
     }
 
-    hid_t space = make_dataspace(array.shape());
-    const hid_t dtype = hdfTypeFromCgnsType(cgnsType);
-    hid_t dset = H5Dcreate2(loc, name.c_str(), dtype, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    // HDF5 stores data in C-order by default, write raw data directly
-    check_status(H5Dwrite(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()), "write numeric");
-    H5Dclose(dset);
-    H5Sclose(space);
+    if (cgnsType == "I1") return write_numeric_array<int8_t>(loc, name, array, H5T_NATIVE_INT8);
+    if (cgnsType == "I2") return write_numeric_array<int16_t>(loc, name, array, H5T_NATIVE_INT16);
+    if (cgnsType == "I4") return write_numeric_array<int32_t>(loc, name, array, H5T_NATIVE_INT32);
+    if (cgnsType == "I8") return write_numeric_array<int64_t>(loc, name, array, H5T_NATIVE_INT64);
+    if (cgnsType == "U1") return write_numeric_array<uint8_t>(loc, name, array, H5T_NATIVE_UINT8);
+    if (cgnsType == "U2") return write_numeric_array<uint16_t>(loc, name, array, H5T_NATIVE_UINT16);
+    if (cgnsType == "U4") return write_numeric_array<uint32_t>(loc, name, array, H5T_NATIVE_UINT32);
+    if (cgnsType == "U8") return write_numeric_array<uint64_t>(loc, name, array, H5T_NATIVE_UINT64);
+    if (cgnsType == "R4") return write_numeric_array<float>(loc, name, array, H5T_NATIVE_FLOAT);
+    if (cgnsType == "R8") return write_numeric_array<double>(loc, name, array, H5T_NATIVE_DOUBLE);
+    if (cgnsType == "X1") return write_numeric_array<int8_t>(loc, name, array, H5T_NATIVE_INT8);
+
+    throw std::runtime_error("Unsupported Array dtype for CGNS write: " + cgnsType);
 }
 
 template <typename T>
 Array read_numeric_array(hid_t dset, const std::vector<size_t>& shape) {
-    const char order = 'C';
-    Array array = arrayfactory::empty<T>(shape, order);
+    Array array = arrayfactory::empty<T>(shape, 'F');
     check_status(
         H5Dread(dset, hdfTypeFromCgnsType(cgnsTypeFromArray(array)), H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()),
         "read numeric dataset");
@@ -390,81 +470,39 @@ void write_cgns_library_version(hid_t file, hid_t gcpl, const float& cgnsVersion
     H5Gclose(group);
 }
 
-// Helper function to compute index in F-order layout given C-order indices
-inline size_t indexFFromC(const std::vector<size_t>& indices, const std::vector<size_t>& shape) {
-    size_t index = 0;
-    size_t stride = 1;
-    for (size_t i = 0; i < indices.size(); ++i) {
-        index += indices[i] * stride;
-        stride *= shape[i];
-    }
-    return index;
-}
-
-// Helper function to compute index in C-order layout given F-order indices
-inline size_t indexCFromF(const std::vector<size_t>& indices, const std::vector<size_t>& shape) {
-    size_t index = 0;
-    size_t stride = 1;
-    for (size_t i = indices.size(); i-- > 0;) {
-        index += indices[i] * stride;
-        stride *= shape[i];
-    }
-    return index;
-}
-
 template <typename T>
 Array readNumericArrayTyped(hid_t dset, const std::vector<size_t>& shape, const std::string& cgnsType, const char order) {
+    const char normalizedOrder = normalize_order(order, "CGNS/HDF5 read");
     hid_t dtype = hdfTypeFromCgnsType(cgnsType);
-    size_t totalSize = 1;
-    for (size_t dim : shape) totalSize *= dim;
-    
-    if (order == 'C') {
-        // HDF5 stores in C-order, so read directly into C-order array
-        Array array = arrayfactory::empty<T>(shape, 'C');
-        check_status(H5Dread(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()), 
-                     std::string("read ") + cgnsType + " C-order");
-        return array;
-    } else {
-        // order == 'F': Read C-order data from HDF5, then transpose to F-order
-        // Read into temporary C-order buffer
-        std::vector<T> buffer(totalSize);
-        check_status(H5Dread(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()), 
-                     std::string("read ") + cgnsType + " temp buffer");
-        
-        // Create F-order array and copy with index transformation
+    const size_t totalSize = flat_size(shape);
+
+    if (normalizedOrder == 'F') {
         Array array = arrayfactory::empty<T>(shape, 'F');
-        T* destData = static_cast<T*>(array.rawData());
-        
-        if (shape.size() <= 1) {
-            // For 0D or 1D, F and C order are identical
-            std::memcpy(destData, buffer.data(), totalSize * sizeof(T));
-        } else {
-            // For 2D+ arrays, map C-order buffer positions to F-order dest indices
-            // Iterate through C-order source indices
-            for (size_t cIndex = 0; cIndex < totalSize; ++cIndex) {
-                // Compute C-order indices from linear index cIndex
-                std::vector<size_t> indices(shape.size());
-                size_t temp = cIndex;
-                for (size_t j = shape.size(); j-- > 0;) {
-                    indices[j] = temp % shape[j];
-                    temp /= shape[j];
-                }
-                
-                // Compute F-order index for the same logical position
-                size_t fIndex = 0;
-                size_t stride = 1;
-                for (size_t j = 0; j < indices.size(); ++j) {
-                    fIndex += indices[j] * stride;
-                    stride *= shape[j];
-                }
-                destData[fIndex] = buffer[cIndex];
-            }
-        }
+        check_status(H5Dread(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()),
+                     std::string("read ") + cgnsType + " F-order");
         return array;
     }
+
+    std::vector<T> buffer(totalSize);
+    check_status(H5Dread(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()),
+                 std::string("read ") + cgnsType + " Fortran buffer");
+
+    Array array = arrayfactory::empty<T>(shape, 'C');
+    T* destData = static_cast<T*>(array.rawData());
+
+    if (shape.size() <= 1) {
+        std::memcpy(destData, buffer.data(), totalSize * sizeof(T));
+        return array;
+    }
+
+    for (size_t fIndex = 0; fIndex < totalSize; ++fIndex) {
+        const std::vector<size_t> indices = indices_from_fortran_flat(fIndex, shape);
+        destData[c_flat_from_indices(indices, shape)] = buffer[fIndex];
+    }
+    return array;
 }
 
-Array readArrayFromDataset(hid_t dset, const std::vector<size_t>& shape, const std::string& cgnsType, const char order = 'C') {
+Array readArrayFromDataset(hid_t dset, const std::vector<size_t>& shape, const std::string& cgnsType, const char order = 'F') {
     if (cgnsType == "C1") {
         hid_t space = H5Dget_space(dset);
         std::vector<hsize_t> dims(1, 0);

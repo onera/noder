@@ -7,6 +7,9 @@
 #include <pybind11/pybind11.h>
 #include <hdf5.h>
 
+#include <cctype>
+#include <stdexcept>
+
 #include "array/array_numpy_bridge.hpp"
 #include "array/factory/matrices.hpp"
 
@@ -157,12 +160,17 @@ inline py::array read_numpy(const std::string& filename, const std::string& data
     }
     
     H5Tclose(datatype); H5Sclose(dataspaceId); H5Dclose(datasetId); H5Fclose(fileId);
-    
-    // HDF5 stores data in C order, so we always return C-contiguous arrays.
-    // The order parameter is ignored to ensure data integrity.
-    // Users can call np.asfortranarray() on the result if they need Fortran layout.
-    
-    return result_array;
+
+    if (order.size() != 1) {
+        throw std::invalid_argument("read_numpy: order must be 'C' or 'F'");
+    }
+    const char normalizedOrder = static_cast<char>(std::toupper(static_cast<unsigned char>(order[0])));
+    if (normalizedOrder != 'C' && normalizedOrder != 'F') {
+        throw std::invalid_argument("read_numpy: order must be 'C' or 'F'");
+    }
+
+    py::module_ np = py::module_::import("numpy");
+    return np.attr("array")(result_array, py::arg("order") = std::string(1, normalizedOrder), py::arg("copy") = true).cast<py::array>();
 }
 
 } // namespace io

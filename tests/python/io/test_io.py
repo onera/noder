@@ -143,6 +143,24 @@ def test_read_links(tmp_path):
     assert link_node.link_target_file() == "."
     assert link_node.link_target_path() == "/root/target"
 
+
+@pytest.mark.parametrize("write_order", ["C", "F"])
+@pytest.mark.parametrize("read_order", ["C", "F"])
+def test_cgns_node_array_roundtrip_respects_requested_order(tmp_path, write_order, read_order):
+    from noder import new_node, read
+
+    data = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.int32, order=write_order)
+    root = new_node("array", "DataArray_t", data=data)
+    filename = str(tmp_path / "ordered.cgns")
+
+    root.write(filename)
+    loaded = read(filename, order=read_order).pick().by_name("array").data().getPyArray()
+
+    np.testing.assert_array_equal(loaded, data)
+    assert loaded.flags["C_CONTIGUOUS"] is (read_order == "C" or loaded.ndim <= 1)
+    assert loaded.flags["F_CONTIGUOUS"] is (read_order == "F" or loaded.ndim <= 1)
+
+
 @pytest.mark.parametrize('order',['C','F'])
 def test_slice_numpy_with_order(tmp_path, order):
     import numpy as np
