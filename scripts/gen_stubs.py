@@ -85,6 +85,23 @@ def ensure_typing_import(stub_text: str) -> str:
     return "".join(lines)
 
 
+def ensure_numpy_import(stub_text: str) -> str:
+    """
+    Ensure 'import numpy' exists so NumPy return annotations resolve.
+    """
+    if re.search(r"^import numpy\s*$", stub_text, flags=re.MULTILINE):
+        return stub_text
+
+    lines = stub_text.splitlines(keepends=True)
+    insert_at = 0
+
+    while insert_at < len(lines) and lines[insert_at].startswith("from __future__ import "):
+        insert_at += 1
+
+    lines.insert(insert_at, "import numpy\n")
+    return "".join(lines)
+
+
 def add_overload_decorators_for_repeated_method(
     stub_text: str, class_name: str, method_name: str
 ) -> str:
@@ -140,6 +157,12 @@ def postprocess_core_stub(stub_text: str) -> str:
     )
     if patched != stub_text:
         patched = ensure_typing_import(patched)
+    patched = patched.replace(
+        "def getPyArray(self) -> typing.Any:",
+        "def getPyArray(self) -> numpy.ndarray:",
+    )
+    if patched != stub_text:
+        patched = ensure_numpy_import(patched)
     return patched
 
 

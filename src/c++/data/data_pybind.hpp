@@ -1,4 +1,6 @@
 # include "data/data.hpp"
+# include "array/array.hpp"
+# include "array/array_numpy_bridge.hpp"
 
 # include <pybind11/numpy.h>
 # include <pybind11/pybind11.h>
@@ -58,6 +60,20 @@ Example
 .. literalinclude:: ../../../tests/python/array/test_array.py
    :language: python
    :pyobject: test_isScalar
+)doc")
+    .def("getPyArray", [](const Data& self) -> py::array {
+        const auto* array = dynamic_cast<const Array*>(&self);
+        if (!array) {
+            throw py::type_error("getPyArray is only available for Array-backed data");
+        }
+        return arraybridge::toPyArray(*array);
+    }, R"doc(
+Return this payload as a NumPy array when it is Array-backed.
+
+Returns
+-------
+numpy.ndarray
+    View/copy of the payload exposed through NumPy.
 )doc")
     .def("extractString", &Data::extractString, R"doc(
 Extract the payload as a Python string.

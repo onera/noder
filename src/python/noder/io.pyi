@@ -5,8 +5,9 @@ Input-output helpers.
 See C++ counterpart: :ref:`cpp-io-module`.
 """
 from __future__ import annotations
+from noder.core import Node
 import numpy
-__all__: list[str] = ['ENABLE_HDF5_IO', 'read', 'read_numpy', 'write_numpy']
+__all__: list[str] = ['ENABLE_HDF5_IO', 'Node', 'read', 'read_numpy', 'write_numpy']
 def read(filename: str, order: str = 'F') -> Node:
     """
     Read a Node hierarchy from file.

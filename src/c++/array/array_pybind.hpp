@@ -42,8 +42,8 @@ Pure C++ array payload exposed to Python through a NumPy bridge.
             if (self.hasDataOfType<bool>()) { return py::cast(self.getItemAtIndex<bool>(flatIndex)); }
             throw std::runtime_error("Array::getItemAtIndex unsupported array data type");
         })
-        .def("getPyArray", [](const Array& self) {
-            return arraybridge::toPyObject(self);
+        .def("getPyArray", [](const Array& self) -> py::array {
+            return arraybridge::toPyArray(self);
         })
         .def("isNone", &Array::isNone)
         .def("isScalar", &Array::isScalar)

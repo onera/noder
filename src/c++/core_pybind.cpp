@@ -127,6 +127,7 @@ Example
     bindData(m);
     bindArray(m);
     bindNode(m);
+    io_m.attr("Node") = m.attr("Node");
     bindNavigation(m);
     bindNodePyCGNSConverter(m);
 

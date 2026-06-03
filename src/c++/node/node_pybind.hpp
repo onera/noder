@@ -266,12 +266,12 @@ Set node name.
 See C++ counterpart: :ref:`cpp-node-setname`.
 )doc")
 
-        .def("data", [](const Node &node) -> py::object {
+        .def("data", [](const Node &node) -> std::shared_ptr<Data> {
             std::shared_ptr<Data> data = node.dataPtr();
             if (!data || data->isNone()) {
-                return py::none();
+                return nullptr;
             }
-            return py::cast(data);  // Cast to correct type (`Array`, `ParallelArray`)
+            return data;
         }, R"doc(
 Return node payload as a Data-compatible Python object, or None when empty.
 
