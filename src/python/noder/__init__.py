@@ -12,9 +12,9 @@ from ._version import version as __version__
 
 __all__ = [
     "__version__",
-    # "get_package_dir",
-    # "get_include_dir",
-    # "get_cmake_dir",
+    "get_package_dir",
+    "get_include_dir",
+    "get_cmake_dir",
     # Main classes
     "Node",
     "Array",
@@ -62,17 +62,17 @@ def zeros(*args, **kwargs):
 
 factory.zeros = zeros
 
-
-# def _get_package_dir() -> str:
-#     return str(Path(__file__).resolve().parent)
-
-
-# def _get_include_dir() -> str:
-#     return str(Path(_get_package_dir()) / "include")
+# required for codes using noder as a dependency through cmake 
+def get_package_dir() -> str:
+    return str(Path(__file__).resolve().parent)
 
 
-# def _get_cmake_dir() -> str:
-#     return str(Path(_get_package_dir()) / "cmake")
+def get_include_dir() -> str:
+    return str(Path(get_package_dir()) / "include")
+
+
+def get_cmake_dir() -> str:
+    return str(Path(get_package_dir()) / "cmake")
 
 # obsolete if using bundling:
 # def find_hdf5_dll_dir():

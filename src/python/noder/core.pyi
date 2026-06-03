@@ -1,6 +1,6 @@
 from __future__ import annotations
-import numpy
 import collections.abc
+import numpy
 import typing
 from . import factory
 from . import io
