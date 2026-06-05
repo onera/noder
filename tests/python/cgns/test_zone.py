@@ -2,9 +2,8 @@ import numpy as np
 import pytest
 import importlib
 
-from noder.core import Node
+from noder.core import Node, pyCGNSToNode, nodeToPyCGNS
 from noder.cgns import Zone
-
 
 def make_cart():
     x, y, z = np.meshgrid(
@@ -38,6 +37,11 @@ def test_zone_init():
     assert zone.number_of_points() == 2
     assert zone.number_of_cells() == 1
 
+def test_zone_pycngs():
+    zone = make_cart()
+    pycgns_zone = nodeToPyCGNS(zone)
+    zone_again = pyCGNSToNode(pycgns_zone)
+    assert isinstance(zone_again, Zone)
 
 def test_zone_is_not_exported_from_core_module():
     core = importlib.import_module("noder.core")

@@ -3,6 +3,7 @@
 
 #include <pybind11/pybind11.h>
 
+#include "cgns/zone.hpp"
 #include "io/hdf5/cgns/node_pycgns_converter.hpp"
 
 inline void bindNodePyCGNSConverter(py::module_& m) {
@@ -30,7 +31,14 @@ Example
 )doc");
     m.def(
         "pyCGNSToNode",
-        &pyCGNSToNode,
+        [](const py::list& pyList) {
+            py::module_::import("noder._cgns");
+            auto node = pyCGNSToNode(pyList);
+            if (auto zone = std::dynamic_pointer_cast<Zone>(node)) {
+                return py::cast(zone);
+            }
+            return py::cast(node);
+        },
         R"doc(
 Convert a Python CGNS-like nested list into a Node hierarchy.
 

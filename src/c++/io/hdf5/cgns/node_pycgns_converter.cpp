@@ -3,6 +3,7 @@
 #include <unordered_map>
 
 #include "array/array_numpy_bridge.hpp"
+#include "cgns/zone.hpp"
 
 namespace {
 
@@ -199,13 +200,24 @@ void populateNodeValueFromPyCGNS(const std::shared_ptr<Node>& node, const py::ob
         "pyCGNSToNode: Second element must be NumPy array, None, or Link value list.");
 }
 
+std::shared_ptr<Node> makeNodeForCGNSType(
+    const std::string& name,
+    const std::string& type) {
+
+    if (type == "Zone_t") {
+        return std::make_shared<Zone>(name);
+    }
+
+    return std::make_shared<Node>(name, type);
+}
+
 std::shared_ptr<Node> pyCGNSToNodeRecursive(const py::list& pyList) {
     validatePyCGNSNodeList(pyList);
 
     const std::string name = py::cast<std::string>(pyList[0]);
     const std::string type = py::cast<std::string>(pyList[3]);
 
-    std::shared_ptr<Node> node = std::make_shared<Node>(name, type);
+    std::shared_ptr<Node> node = makeNodeForCGNSType(name, type);
     rememberAliasedPyCGNS(node, pyList);
 
     populateNodeValueFromPyCGNS(node, pyList[1].cast<py::object>());

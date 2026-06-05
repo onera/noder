@@ -811,7 +811,7 @@ def nodeToPyCGNS(arg0: Node) -> list:
        :language: python
        :pyobject: test_nodeToPyCGNS_tree
     """
-def pyCGNSToNode(arg0: list) -> Node:
+def pyCGNSToNode(arg0: list) -> typing.Any:
     """
     Convert a Python CGNS-like nested list into a Node hierarchy.
     
