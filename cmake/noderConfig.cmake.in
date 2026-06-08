@@ -2,7 +2,7 @@
 
 include(CMakeFindDependencyMacro)
 
-if("@ENABLE_HDF5_IO@" STREQUAL "ON" AND WIN32)
+if("@ENABLE_HDF5_IO@" STREQUAL "ON" AND WIN32 AND NOT "@NODER_HDF5_IS_STATIC@" STREQUAL "ON")
     set(_noder_hdf5_dll "${PACKAGE_PREFIX_DIR}/noder/hdf5.dll")
     set(_noder_hdf5_implib "${PACKAGE_PREFIX_DIR}/noder/hdf5.lib")
     if(EXISTS "${_noder_hdf5_dll}" AND EXISTS "${_noder_hdf5_implib}")

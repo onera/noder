@@ -38,9 +38,10 @@ if (-not $hdf5Dir) {
 $hdf5Path = $hdf5Dir.FullName
 
 # Required files
-$libPath = Join-Path $hdf5Path "lib\hdf5.lib"
+$libPath = Join-Path $hdf5Path "lib\libhdf5.lib"
 $includePath = Join-Path $hdf5Path "include\hdf5.h"
 $binPath = Join-Path $hdf5Path "bin"
+$cmakePath = Join-Path $hdf5Path "cmake"
 
 # Validation
 Write-Host "Checking for $libPath"
@@ -61,6 +62,7 @@ Write-Host "`nEnvironment settings (for local testing):"
 Write-Host "  HDF5_ROOT:        $hdf5Path"
 Write-Host "  HDF5_C_LIBRARY:   $libPath"
 Write-Host "  HDF5_INCLUDE_DIR: $($hdf5Path)\include"
+Write-Host "  HDF5_DIR:         $cmakePath"
 Write-Host "  bin PATH:         $binPath"
 
 # Export for GitHub Actions if running in CI
@@ -68,6 +70,7 @@ if ($env:GITHUB_ENV) {
   echo "HDF5_ROOT=$hdf5Path" >> $env:GITHUB_ENV
   echo "HDF5_C_LIBRARY=$libPath" >> $env:GITHUB_ENV
   echo "HDF5_INCLUDE_DIR=$($hdf5Path)\include" >> $env:GITHUB_ENV
+  echo "HDF5_DIR=$cmakePath" >> $env:GITHUB_ENV
 }
 
 if ($env:GITHUB_PATH) {

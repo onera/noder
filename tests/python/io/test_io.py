@@ -165,8 +165,13 @@ def test_cgns_node_array_roundtrip_respects_requested_order(tmp_path, write_orde
     assert loaded.flags["F_CONTIGUOUS"] is (read_order == "F" or loaded.ndim <= 1)
 
 def test_cgns_io_read_comparison_treelab(tmp_path):
-    pytest.skip(reason="not comparing with treelab by default")
     from noder import new_node, read
+
+    try:
+        from treelab.cgns import load as treelab_loader
+    except Exception as e:
+        pytest.skip(reason=str(e))
+
 
     data = np.array([[1, 2],
                      [3, 4],
@@ -178,23 +183,7 @@ def test_cgns_io_read_comparison_treelab(tmp_path):
 
     root.write(filename)
     loaded = read(filename).get_at_path("root/array").data().getPyArray()
-    treelab_output = str(tmp_path / "treelab_array.npy")
-    # noder and h5py bundle incompatible hdf5.dll versions on Windows.
-    subprocess.run(
-        [
-            sys.executable,
-            "-c",
-            (
-                "import sys; import numpy as np; "
-                "from treelab.cgns import load; "
-                "np.save(sys.argv[1], load(sys.argv[2]).get('array').value())"
-            ),
-            treelab_output,
-            filename,
-        ],
-        check=True,
-    )
-    loaded_tlab = np.load(treelab_output)
+    loaded_tlab = treelab_loader(filename).get('array').value()
 
     np.testing.assert_array_equal(loaded, data)
     assert loaded.flags["F_CONTIGUOUS"]
