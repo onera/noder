@@ -123,6 +123,9 @@ test-command = "pytest {project}/tests"
 test-extras = ["test"]
 test-skip = ["*universal2:arm64"]
 
+[tool.cibuildwheel.windows]
+repair-wheel-command = "delvewheel repair --ignore-existing --analyze-existing -w {dest_dir} {wheel}"
+
 
 [tool.pytest.ini_options]
 minversion = "6.0"
