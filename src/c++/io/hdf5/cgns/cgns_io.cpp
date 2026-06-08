@@ -8,6 +8,7 @@
 
 #include <hdf5.h>
 
+#include <algorithm>
 #include <cctype>
 #include <cstring>
 #include <iostream>
@@ -349,7 +350,9 @@ std::vector<T> copy_array_to_fortran_buffer(const Array& array) {
 
 template <typename T>
 void write_numeric_array(hid_t loc, const std::string& name, const Array& array, const hid_t dtype) {
-    hid_t space = make_dataspace(array.shape());
+    std::vector<size_t> diskShape = array.shape();
+    std::reverse(diskShape.begin(), diskShape.end());
+    hid_t space = make_dataspace(diskShape);
     hid_t dset = H5Dcreate2(loc, name.c_str(), dtype, space, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     std::vector<T> buffer = copy_array_to_fortran_buffer<T>(array);
     check_status(H5Dwrite(dset, dtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()), "write numeric");
@@ -595,6 +598,9 @@ std::shared_ptr<Node> read_node_rec(hid_t file, const std::string& path, const c
         }
 
         if (cgnsType != "MT") {
+            if (cgnsType != "C1") {
+                std::reverse(shape.begin(), shape.end());
+            }
             node->setData(readArrayFromDataset(dset, shape, cgnsType, order));
         }
 
