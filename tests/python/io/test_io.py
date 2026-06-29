@@ -192,6 +192,34 @@ def test_cgns_io_read_comparison_treelab(tmp_path):
     assert loaded_tlab.flags["F_CONTIGUOUS"]
 
 
+def test_read_rank_2_cgns_string_dataset(tmp_path):
+    h5py = pytest.importorskip("h5py")
+    from noder import read
+
+    filename = tmp_path / "rank_2_string.cgns"
+    with h5py.File(filename, "w", track_order=True) as h5file:
+        h5file.attrs["name"] = np.bytes_("HDF5 MotherNode")
+        h5file.attrs["label"] = np.bytes_("Root Node of HDF5 File")
+        h5file.attrs["type"] = np.bytes_("MT")
+
+        node = h5file.create_group("DimensionalUnits", track_order=True)
+        node.attrs["name"] = np.bytes_("DimensionalUnits")
+        node.attrs["label"] = np.bytes_("DimensionalUnits_t")
+        node.attrs["type"] = np.bytes_("C1")
+        node.attrs["flags"] = np.array([1], dtype=np.int32)
+
+        data = np.zeros((5, 32), dtype=np.int8)
+        for row, value in enumerate([b"Kilogram", b"Meter", b"Second", b"Kelvin", b"Radian"]):
+            data[row, :len(value)] = np.frombuffer(value, dtype=np.int8)
+        node.create_dataset(" data", data=data)
+
+    loaded = read(str(filename))
+    value = loaded.pick().by_name("DimensionalUnits").data().extractString()
+
+    assert "Kilogram" in value
+    assert "Radian" in value
+
+
 @pytest.mark.parametrize('order',['C','F'])
 def test_slice_numpy_with_order(tmp_path, order):
     import numpy as np

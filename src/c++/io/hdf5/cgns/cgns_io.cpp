@@ -508,9 +508,22 @@ Array readNumericArrayTyped(hid_t dset, const std::vector<size_t>& shape, const 
 Array readArrayFromDataset(hid_t dset, const std::vector<size_t>& shape, const std::string& cgnsType, const char order = 'F') {
     if (cgnsType == "C1") {
         hid_t space = H5Dget_space(dset);
-        std::vector<hsize_t> dims(1, 0);
-        H5Sget_simple_extent_dims(space, dims.data(), nullptr);
-        std::vector<int8_t> buffer(static_cast<size_t>(dims[0]));
+        int ndims = H5Sget_simple_extent_ndims(space);
+        if (ndims < 0) {
+            H5Sclose(space);
+            throw std::runtime_error("HDF5 error: cannot get string dataset rank");
+        }
+        std::vector<hsize_t> dims(static_cast<size_t>(ndims));
+        if (ndims > 0) {
+            check_status(H5Sget_simple_extent_dims(space, dims.data(), nullptr),
+                         "get string dataset dimensions");
+        }
+        const hssize_t npoints = H5Sget_simple_extent_npoints(space);
+        if (npoints < 0) {
+            H5Sclose(space);
+            throw std::runtime_error("HDF5 error: cannot get string dataset size");
+        }
+        std::vector<int8_t> buffer(static_cast<size_t>(npoints));
         check_status(H5Dread(dset, H5T_NATIVE_INT8, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()), "read string dataset");
         H5Sclose(space);
         std::string str(buffer.begin(), buffer.end());
