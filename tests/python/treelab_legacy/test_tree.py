@@ -1,4 +1,4 @@
-from tests.python.treelab_legacy import legacy_cgns as cgns
+from . import legacy_cgns as cgns
 
 def test_remove_containers_after_tree_creation():
     fs1 = cgns.Node(Name="fs1", Type="FlowSolution_t")

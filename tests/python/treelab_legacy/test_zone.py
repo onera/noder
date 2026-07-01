@@ -3,7 +3,7 @@ import pprint
 import numpy as np
 import pytest
 
-from tests.python.treelab_legacy import legacy_cgns as cgns
+from . import legacy_cgns as cgns
 
 def get_cart():
     x, y, z = np.meshgrid( np.linspace(0,1,3),

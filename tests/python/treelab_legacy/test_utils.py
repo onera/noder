@@ -1,6 +1,6 @@
 import pytest
 
-from tests.python.treelab_legacy import legacy_cgns as cgns
+from . import legacy_cgns as cgns
 
 
 skip_unported = cgns.skip_unported
