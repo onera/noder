@@ -36,7 +36,7 @@ jobs:
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install cibuildwheel==${{ matrix.cibuildwheel_version }} delocate auditwheel build numpy scikit-build-core pybind11 twine
+          python -m pip install cibuildwheel==${{ matrix.cibuildwheel_version }} delocate auditwheel delvewheel build numpy scikit-build-core pybind11 twine
 
  
       - name: Configure pkg-config path (Linux)
@@ -83,6 +83,9 @@ jobs:
             CMAKE_PREFIX_PATH="/usr/lib64/openmpi:/usr"
             CMAKE_INCLUDE_PATH="/usr/include"
             CMAKE_LIBRARY_PATH="/usr/lib64"
+          CIBW_ENVIRONMENT_MACOS: >
+            MACOSX_DEPLOYMENT_TARGET=14.0
+            CMAKE_OSX_DEPLOYMENT_TARGET=14.0
           CIBW_ENVIRONMENT_WINDOWS: >
             HDF5_C_LIBRARY=%HDF5_C_LIBRARY%
             HDF5_INCLUDE_DIR=%HDF5_INCLUDE_DIR%
