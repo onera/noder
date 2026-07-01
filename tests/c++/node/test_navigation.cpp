@@ -569,6 +569,43 @@ void test_allByAnd() {
     if (matches[1].get() != d.get()) throw py::value_error("expected to recover node d without copy");
 }
 
+void test_byAndGlob() {
+    auto a = newNode("a");
+    auto b = newNode("b");
+    b->attachTo(a);
+    auto c = newNode("target_one", "DataArray_t", "value_alpha");
+    c->attachTo(b);
+    auto d = newNode("target_two", "DataArray_t", "value_beta");
+    d->attachTo(c);
+
+    auto n = a->pick().byAndGlob("target_*", "Data*_t", "value_a*");
+    if (!n || n->name() != "target_one") throw py::value_error("expected extraction of target_one");
+    if (n.get() != c.get()) throw py::value_error("expected to recover node c without copy");
+
+    auto unexpected = a->pick().byAndGlob("target_*", "Data*_t", "missing*");
+    if (unexpected != nullptr) throw py::value_error("expected nullptr");
+}
+
+void test_allByAndGlob() {
+    auto a = newNode("a");
+    auto b = newNode("b");
+    b->attachTo(a);
+    auto c = newNode("target_one", "DataArray_t", "value_alpha");
+    c->attachTo(b);
+    auto d = newNode("target_two", "DataArray_t", "value_beta");
+    d->attachTo(c);
+    auto e = newNode("other", "DataArray_t", "value_beta");
+    e->attachTo(a);
+
+    auto matches = a->pick().allByAndGlob("target_*", "Data*_t", "value_*");
+    if (matches.size() != 2) throw py::value_error("expected 2 matches");
+    if (matches[0].get() != c.get()) throw py::value_error("expected first match c");
+    if (matches[1].get() != d.get()) throw py::value_error("expected second match d");
+
+    auto none = a->pick().allByAndGlob("target_*", "Data*_t", "missing*");
+    if (!none.empty()) throw py::value_error("expected empty vector");
+}
+
 void test_depthSemantics() {
     auto root = newNode("root", "Root_t");
     root->setData("root_data");
@@ -662,6 +699,16 @@ void test_depthSemantics() {
     auto allByAndDepth3 = root->pick().allByAnd("", "", "", 3);
     if (allByAndDepth3.size() != 4) {
         throw py::value_error("depth semantics: allByAnd(string) depth=3 expected 4 descendants");
+    }
+    if (root->pick().byAndGlob("target_*", "Target_*_t", "requested_value_02", 1) != nullptr) {
+        throw py::value_error("depth semantics: byAndGlob depth=1 must not reach grandchildren");
+    }
+    if (root->pick().byAndGlob("target_*", "Target_*_t", "requested_value_02", 2).get() != target2.get()) {
+        throw py::value_error("depth semantics: byAndGlob depth=2 must reach grandchildren");
+    }
+    auto allByAndGlobDepth2 = root->pick().allByAndGlob("target_*", "Target_*_t", "requested_value_*", 2);
+    if (allByAndGlobDepth2.size() != 2) {
+        throw py::value_error("depth semantics: allByAndGlob depth=2 expected 2 matches");
     }
 
     auto scalarRoot = newNode("scalar_root", "Root_t");

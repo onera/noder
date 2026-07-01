@@ -45,8 +45,8 @@ void test_ArrayPrintWithContiguousArray() {
     int carray[2][2] = {{1, 2}, {3, 4}};
     Array array = arrayfactory::toArray2D(&carray[0][0], 2, 2);
     std::string arrayPrint = array.getPrintString();
-    if (arrayPrint != "[ 1 2 3 4 ]\n") {
-        throw py::value_error("Expected '[ 1 2 3 4 ]' but got " + arrayPrint);
+    if (arrayPrint != "[ 1 2 3 4 ]") {
+        throw py::value_error("Expected '[ 1 2 3 4 ]' but got '" + arrayPrint+"'");
     }
 }
 
@@ -67,8 +67,8 @@ void test_ArrayPrintWithNonContiguousArray() {
     py::print(contiguousArray);
     py::print(nonContiguousArray);
 
-    if (arrayPrint != "[ 5 6 8 9 ]\n") {
-        throw py::value_error("Expected '[ 5 6 8 9 ]' but got " + arrayPrint);
+    if (arrayPrint != "[ 5 6 8 9 ]") {
+        throw py::value_error("Expected '[ 5 6 8 9 ]' but got '" + arrayPrint+"'");
     }
 }
 
@@ -78,9 +78,9 @@ void test_ArrayPrintWithLongArrayEven() {
     {
     Array array = arrayfactory::uniformFromStep<int>(0, 100);
     std::string arrayPrint = array.getPrintString(50);
-    std::string expected = "[ 0 1 2 3 4 5 6 7 8 9 10...93 94 95 96 97 98 99 ]";
-    if (arrayPrint != (expected+"\n")) {
-        throw py::value_error("Expected '"+expected+"' but got " + arrayPrint);
+    std::string expected = "[ 0 1 2 3 4 5 6 7 8 9 10... 93 94 95 96 97 98 99 ]";
+    if (arrayPrint != (expected)) {
+        throw py::value_error("Expected '"+expected+"' but got '" + arrayPrint+"'");
     }
     }
 }
@@ -89,9 +89,9 @@ void test_ArrayPrintWithLongArrayOdd() {
     {
     Array array = arrayfactory::uniformFromStep<int>(0, 101);
     std::string arrayPrint = array.getPrintString(50);
-    std::string expected = "[ 0 1 2 3 4 5 6 7 8 9 10...4 95 96 97 98 99 100 ]";
-    if (arrayPrint != (expected+"\n")) {
-        throw py::value_error("Expected '"+expected+"' but got " + arrayPrint);
+    std::string expected = "[ 0 1 2 3 4 5 6 7 8 9 10...94 95 96 97 98 99 100 ]";
+    if (arrayPrint != (expected)) {
+        throw py::value_error("Expected '"+expected+"' but got '" + arrayPrint+"'");
     }
     }
 

@@ -334,6 +334,51 @@ def test_print_tree():
 
     print(g)
 
+def test_print_tree_skips_descendants_of_siblings_of_ancestors_by_default():
+    root = Node("root")
+    parent = Node("parent")
+    focus_parent = Node("focusParent")
+    focus = Node("focus")
+    focus_leaf = Node("focusLeaf")
+    focus_sibling = Node("focusSibling")
+    hidden_niece = Node("hiddenNiece")
+    cousin_branch = Node("cousinBranch")
+    hidden_cousin = Node("hiddenCousin")
+    root_sibling = Node("rootSibling")
+    hidden_root_sibling_child = Node("hiddenRootSiblingChild")
+
+    root.add_children([parent, root_sibling])
+    parent.add_children([focus_parent, cousin_branch])
+    focus_parent.add_children([focus, focus_sibling])
+    focus.add_child(focus_leaf)
+    focus_sibling.add_child(hidden_niece)
+    cousin_branch.add_child(hidden_cousin)
+    root_sibling.add_child(hidden_root_sibling_child)
+
+    focused_tree = focus.print_tree()
+
+    assert "root" in focused_tree
+    assert "parent" in focused_tree
+    assert "focusParent" in focused_tree
+    assert "focus" in focused_tree
+    assert "focusLeaf" in focused_tree
+    assert "focusSibling" in focused_tree
+    assert "cousinBranch" in focused_tree
+    assert "rootSibling" in focused_tree
+    assert "..." in focused_tree
+    assert "hiddenNiece" not in focused_tree
+    assert "hiddenCousin" not in focused_tree
+    assert "hiddenRootSiblingChild" not in focused_tree
+
+    old_style_subtree = focus.print_tree(skip_descendants_of_siblings_of_ancestors=False)
+    assert "root" not in old_style_subtree
+    assert "focusLeaf" in old_style_subtree
+
+    shallow_focused_tree = focus.print_tree(max_depth=0)
+    assert "root" in shallow_focused_tree
+    assert "focus" in shallow_focused_tree
+    assert "focusLeaf" not in shallow_focused_tree
+
 
 def test_children():
     a = Node('a')
@@ -709,6 +754,95 @@ def test_data_example():
     node.set_data(np.array([1, 2, 3], dtype=np.int32))
     assert np.array_equal(node.data().getPyArray(), np.array([1, 2, 3], dtype=np.int32))
     # docs:end data_example
+
+
+def test_numpy_shortcut():
+    node = Node("values")
+    values = np.array([1, 2, 3], dtype=np.int32)
+    node.set_data(values)
+
+    assert np.array_equal(node.numpy(), values)
+
+
+def test_numpy_shortcut_empty_data():
+    node = Node("empty")
+    assert node.numpy() is None
+
+
+def test_interpret_data_numeric_returns_numpy():
+    node = Node("values")
+    values = np.array([[1.0, 2.0], [3.0, 4.0]])
+    node.set_data(values)
+
+    interpreted = node.interpret_data()
+
+    assert np.array_equal(interpreted, values)
+
+
+def test_interpret_data_default_splits_string_on_spaces():
+    node = Node("words")
+    node.set_data("jamon tortilla croquetas")
+
+    assert node.interpret_data() == ["jamon", "tortilla", "croquetas"]
+
+
+def test_interpret_data_single_string_is_not_wrapped_in_list():
+    node = Node("word")
+    node.set_data("jamon")
+
+    assert node.interpret_data() == "jamon"
+
+
+def test_interpret_data_without_string_splitting():
+    node = Node("words")
+    node.set_data("jamon tortilla")
+
+    assert node.interpret_data(split_strings_logic=None) == "jamon tortilla"
+
+
+def test_interpret_data_splits_string_on_eol():
+    node = Node("lines")
+    node.set_data("first\nsecond")
+
+    assert node.interpret_data(split_strings_logic="eol") == ["first", "second"]
+
+
+def test_interpret_data_splits_string_matrix_by_rows():
+    node = Node("DimensionalUnits")
+    values = [b"Kilogram", b"Meter", b"Second", b"Kelvin", b"Radian"]
+    data = np.full((len(values), 32), b"\x00", dtype="S1")
+    for row, value in enumerate(values):
+        data[row, :len(value)] = np.frombuffer(value, dtype="S1")
+    node.set_data(data)
+
+    assert node.interpret_data(split_strings_logic="rows") == [
+        "Kilogram",
+        "Meter",
+        "Second",
+        "Kelvin",
+        "Radian",
+    ]
+
+
+def test_interpret_data_splits_rows_then_spaces():
+    node = Node("Rows")
+    data = np.array([["alpha beta"], ["gamma"]])
+    node.set_data(data)
+
+    assert node.interpret_data(split_strings_logic="rows_then_spaces") == ["alpha", "beta", "gamma"]
+
+
+def test_interpret_data_empty_data():
+    node = Node("empty")
+    assert node.interpret_data() is None
+
+
+def test_interpret_data_rejects_unknown_string_logic():
+    node = Node("words")
+    node.set_data("jamon")
+
+    with pytest.raises(ValueError):
+        node.interpret_data(split_strings_logic="commas")
 
 
 def test_set_data_example():

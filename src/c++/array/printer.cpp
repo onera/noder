@@ -45,7 +45,7 @@ std::string Array::getNumericalArrayPrint() const {
         T value = this->getItemAtIndex<T>(i);
         ss << static_cast<double>(value) << " ";
     }
-    ss << "]" << std::endl;
+    ss << "]";
 
     return ss.str();
 }

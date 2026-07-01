@@ -3,6 +3,8 @@
 #include <unordered_map>
 
 #include "array/array_numpy_bridge.hpp"
+#include "cgns/base.hpp"
+#include "cgns/tree.hpp"
 #include "cgns/zone.hpp"
 
 namespace {
@@ -206,6 +208,14 @@ std::shared_ptr<Node> makeNodeForCGNSType(
 
     if (type == "Zone_t") {
         return std::make_shared<Zone>(name);
+    }
+    if (type == "CGNSBase_t") {
+        return std::make_shared<Base>(name);
+    }
+    if (type == "CGNSTree_t") {
+        auto tree = std::make_shared<Tree>();
+        tree->setName(name);
+        return tree;
     }
 
     return std::make_shared<Node>(name, type);

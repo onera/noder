@@ -608,6 +608,124 @@ std::vector<std::shared_ptr<Node>> Navigation::allByAnd(
                           depth);
 }
 
+std::shared_ptr<Node> Navigation::byAndGlob(
+    const std::string& name,
+    const std::string& type,
+    const std::string& data,
+    const size_t& depth) {
+
+    if ( depth == 0 ) {
+        return nullptr;
+    }
+
+    const std::regex namePattern(globToRegexPattern(name));
+    const std::regex typePattern(globToRegexPattern(type));
+    const std::regex dataPattern(globToRegexPattern(data));
+
+    for (auto child: _node.children()) {
+
+        bool matchName(false);
+        bool matchType(false);
+        bool matchData(false);
+
+        if (child && (name.empty() || std::regex_match(child->name(), namePattern))) {
+            matchName = true;
+
+            if (type.empty() || std::regex_match(child->type(), typePattern)) {
+                matchType = true;
+
+                if (data.empty()) {
+                    matchData = true;
+                } else if (child->data().hasString()) {
+                    const std::string dataString = child->data().extractString();
+                    matchData = std::regex_match(dataString, dataPattern);
+                }
+            }
+        }
+
+        if (matchName && matchType && matchData) return child;
+
+        if (child && depth > 1) {
+            auto foundNode = child->pick().byAndGlob(name, type, data, depth-1);
+            if (foundNode) return foundNode;
+        }
+    }
+    return nullptr;
+}
+
+std::shared_ptr<Node> Navigation::byAndGlob(
+    const char* name,
+    const char* type,
+    const char* data,
+    const size_t& depth) {
+    return this->byAndGlob(
+        std::string(name),
+        std::string(type),
+        std::string(data),
+        depth);
+}
+
+std::vector<std::shared_ptr<Node>> Navigation::allByAndGlob(
+    const std::string& name,
+    const std::string& type,
+    const std::string& data,
+    const size_t& depth) {
+
+    std::vector<std::shared_ptr<Node>> matches;
+
+    if ( depth == 0 ) {
+        return matches;
+    }
+
+    const std::regex namePattern(globToRegexPattern(name));
+    const std::regex typePattern(globToRegexPattern(type));
+    const std::regex dataPattern(globToRegexPattern(data));
+
+    for (auto child: _node.children()) {
+
+        bool matchName(false);
+        bool matchType(false);
+        bool matchData(false);
+
+        if (child && (name.empty() || std::regex_match(child->name(), namePattern))) {
+            matchName = true;
+
+            if (type.empty() || std::regex_match(child->type(), typePattern)) {
+                matchType = true;
+
+                if (data.empty()) {
+                    matchData = true;
+                } else if (child->data().hasString()) {
+                    const std::string dataString = child->data().extractString();
+                    matchData = std::regex_match(dataString, dataPattern);
+                }
+            }
+        }
+
+        if (matchName && matchType && matchData) {
+            matches.push_back(child);
+        }
+
+        if (child && depth > 1) {
+            auto childMatches = child->pick().allByAndGlob(name, type, data, depth-1);
+            matches.insert(matches.end(), childMatches.begin(), childMatches.end());
+        }
+    }
+    return matches;
+}
+
+std::vector<std::shared_ptr<Node>> Navigation::allByAndGlob(
+    const char* name,
+    const char* type,
+    const char* data,
+    const size_t& depth) {
+    return this->allByAndGlob(
+        std::string(name),
+        std::string(type),
+        std::string(data),
+        depth);
+}
+
 template <typename T>
 std::vector<std::shared_ptr<Node>> Navigation::allByAnd(
     const std::string& name,

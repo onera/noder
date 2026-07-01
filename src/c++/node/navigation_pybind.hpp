@@ -370,6 +370,22 @@ See C++ counterpart: :ref:`cpp-navigation-class`.
              py::arg("name")=std::string(""),
              py::arg("type")=std::string(""),
              py::arg("data")=std::string(""),
+             py::arg("depth")=100)
+        .def("by_and_glob",
+             py::overload_cast<const std::string&, const std::string&, const std::string&, const size_t&>(
+                 &Navigation::byAndGlob),
+             "get node by glob conditions on name, type and string data recursively",
+             py::arg("name")=std::string(""),
+             py::arg("type")=std::string(""),
+             py::arg("data")=std::string(""),
+             py::arg("depth")=100)
+        .def("all_by_and_glob",
+             py::overload_cast<const std::string&, const std::string&, const std::string&, const size_t&>(
+                 &Navigation::allByAndGlob),
+             "get all nodes by glob conditions on name, type and string data recursively",
+             py::arg("name")=std::string(""),
+             py::arg("type")=std::string(""),
+             py::arg("data")=std::string(""),
              py::arg("depth")=100);
 
     utils::bindClassMethodForScalarTypes(

@@ -174,6 +174,21 @@ py::object pyObjectFromCoordinates(const Zone::DataList& coordinates, const std:
     throw py::value_error("return_type must be 'list' or 'dict'");
 }
 
+std::vector<std::shared_ptr<Data>> dataListFromPyObject(const py::object& arraysObject) {
+    if (!py::isinstance<py::list>(arraysObject) && !py::isinstance<py::tuple>(arraysObject)) {
+        throw py::type_error("new_zone_from_arrays: arrays must be a list or tuple");
+    }
+
+    py::sequence arrays = arraysObject.cast<py::sequence>();
+    std::vector<std::shared_ptr<Data>> output;
+    output.reserve(py::len(arrays));
+    for (const auto& item : arrays) {
+        auto object = py::reinterpret_borrow<py::object>(item);
+        output.push_back(std::make_shared<Array>(arraybridge::arrayFromPyObject(object)));
+    }
+    return output;
+}
+
 } // namespace
 
 void bindZone(py::module_& m) {
@@ -387,6 +402,22 @@ Not implemented on purpose: ``save`` and ``useEquation``.
         .def("jmax", &Zone::jmax)
         .def("kmin", &Zone::kmin)
         .def("kmax", &Zone::kmax);
+
+    m.def(
+        "new_zone_from_arrays",
+        [](const std::string& name, const std::vector<std::string>& arrayNames, const py::object& arrays) {
+            return newZoneFromArrays(name, arrayNames, dataListFromPyObject(arrays));
+        },
+        py::arg("name"),
+        py::arg("array_names"),
+        py::arg("arrays"),
+        R"doc(
+Construct a structured CGNS Zone from a sequence of array names and arrays.
+
+Coordinate shortcuts ``x``, ``y`` and ``z`` are mapped to
+``CoordinateX``, ``CoordinateY`` and ``CoordinateZ``. Other arrays are placed
+in ``FlowSolution``.
+)doc");
 }
 
 #endif

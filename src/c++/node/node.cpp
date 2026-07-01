@@ -50,6 +50,10 @@ bool startsWith(const std::string& value, const std::string& prefix) {
     return value.rfind(prefix, 0) == 0;
 }
 
+bool isSamePathOrAncestorOf(const std::string& candidatePath, const std::string& path) {
+    return candidatePath == path || startsWith(path, candidatePath + "/");
+}
+
 std::string joinPathElements(const std::vector<std::string>& elements, bool leadingSlash = false) {
     if (elements.empty()) {
         return leadingSlash ? "/" : "";
@@ -1063,7 +1067,51 @@ std::string Node::path() const {
 
 
 std::string Node::printTree(int max_depth, std::string highlighted_path,
-        int depth, bool last_pos, std::string markers) const {
+        int depth, bool last_pos, std::string markers,
+        bool skipDescendantsOfSiblingsOfAncestors) const {
+
+    if (skipDescendantsOfSiblingsOfAncestors && depth == 0) {
+        const std::string focusPath = highlighted_path.empty() ? path() : highlighted_path;
+        const auto rootNode = this->root();
+        if (rootNode && rootNode.get() != this) {
+            int focusedMaxDepth = max_depth;
+            if (highlighted_path.empty()) {
+                const int ancestorDepth = static_cast<int>(std::min(
+                    level(),
+                    static_cast<size_t>(std::numeric_limits<int>::max())));
+                focusedMaxDepth = (max_depth <= std::numeric_limits<int>::max() - ancestorDepth)
+                    ? max_depth + ancestorDepth
+                    : std::numeric_limits<int>::max();
+            }
+            return rootNode->printTreeImpl(
+                focusedMaxDepth,
+                focusPath,
+                0,
+                false,
+                std::string(""),
+                skipDescendantsOfSiblingsOfAncestors,
+                false);
+        }
+    }
+
+    return printTreeImpl(
+        max_depth,
+        highlighted_path,
+        depth,
+        last_pos,
+        markers,
+        skipDescendantsOfSiblingsOfAncestors,
+        false);
+}
+
+std::string Node::printTreeImpl(
+        int max_depth,
+        const std::string& highlighted_path,
+        int depth,
+        bool last_pos,
+        std::string markers,
+        bool skipDescendantsOfSiblingsOfAncestors,
+        bool skipThisNodeDescendants) const {
 
     std::string this_markers;
     std::string fmt_name;
@@ -1100,13 +1148,35 @@ std::string Node::printTree(int max_depth, std::string highlighted_path,
 
     std::string txt = this_markers + fmt_name + fmt_type + fmt_value + "\n";
 
-    if (depth < max_depth) {
+    if (skipThisNodeDescendants && depth < max_depth && hasChildren()) {
+        txt += markers + LAST_BRANCH + "...\n";
+    } else if (depth < max_depth) {
         auto myChildren  = children();
         size_t nbOfChildren = myChildren.size();
+        const bool pruneSiblingDescendants = (
+            skipDescendantsOfSiblingsOfAncestors &&
+            !highlighted_path.empty() &&
+            isSamePathOrAncestorOf(path(), highlighted_path) &&
+            path() != highlighted_path);
+
         for (size_t i = 0; i < nbOfChildren; i++) {
             auto child = myChildren[i];
-            txt += child->printTree(max_depth, highlighted_path, depth + 1,
-                                    i == nbOfChildren - 1, markers);
+            const bool childIsOnFocusRoute = (
+                pruneSiblingDescendants &&
+                isSamePathOrAncestorOf(child->path(), highlighted_path));
+            const bool skipChildDescendants = (
+                pruneSiblingDescendants &&
+                !childIsOnFocusRoute &&
+                child->hasChildren());
+
+            txt += child->printTreeImpl(
+                max_depth,
+                highlighted_path,
+                depth + 1,
+                i == nbOfChildren - 1,
+                markers,
+                skipDescendantsOfSiblingsOfAncestors,
+                skipChildDescendants);
         }        
     }
 

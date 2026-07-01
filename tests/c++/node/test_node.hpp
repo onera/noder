@@ -65,6 +65,7 @@ void test_root();
 void test_level();
 
 void test_printTree();
+void test_printTree_skipDescendantsOfSiblingsOfAncestors();
 
 void test_children();
 

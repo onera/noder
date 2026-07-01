@@ -35,6 +35,7 @@ void bindTestsOfNode(py::module_ &m) {
     sm.def("test_root", &test_root);
     sm.def("test_level", &test_level);
     sm.def("test_printTree", &test_printTree);
+    sm.def("test_printTree_skipDescendantsOfSiblingsOfAncestors", &test_printTree_skipDescendantsOfSiblingsOfAncestors);
     sm.def("test_children", &test_children);
     sm.def("test_binding_addChildrenFromPython", &test_binding_addChildrenFromPython);
     sm.def("test_position", &test_position);

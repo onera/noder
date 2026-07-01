@@ -40,6 +40,8 @@ def test_cpp_get_allByDataScalarDirect(): return test_in_cpp.allByDataScalarDire
 def test_cpp_get_byAnd(): return test_in_cpp.byAnd()
 def test_cpp_get_byAndScalar(): return test_in_cpp.byAndScalar()
 def test_cpp_get_allByAnd(): return test_in_cpp.allByAnd()
+def test_cpp_get_byAndGlob(): return test_in_cpp.byAndGlob()
+def test_cpp_get_allByAndGlob(): return test_in_cpp.allByAndGlob()
 def test_cpp_get_depthSemantics(): return test_in_cpp.depthSemantics()
 
 if __name__ == '__main__':

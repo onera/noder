@@ -6,6 +6,7 @@
 # include <array/factory/vectors.hpp>
 # include <node/node_factory.hpp>
 # include <hdf5.h>
+# include <sstream>
 # include <vector>
 
 using namespace std::string_literals;
@@ -86,6 +87,52 @@ std::vector<std::string> list_root_links(const std::string& filename) {
 
      return names;
  }
+
+std::string runtime_hdf5_version() {
+     unsigned major = 0;
+     unsigned minor = 0;
+     unsigned release = 0;
+     if (H5get_libversion(&major, &minor, &release) < 0) {
+         throw std::runtime_error("Could not get HDF5 library version");
+     }
+
+     std::ostringstream stream;
+     stream << "HDF5 Version " << major << "." << minor << "." << release;
+     return stream.str();
+}
+
+std::string read_root_hdf5_version(const std::string& filename) {
+     hid_t file = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+     if (file < 0) {
+         throw std::runtime_error("Could not open HDF5 file: " + filename);
+     }
+
+     hid_t dset = H5Dopen2(file, " hdf5version", H5P_DEFAULT);
+     if (dset < 0) {
+         H5Fclose(file);
+         throw std::runtime_error("Could not open root hdf5version dataset in: " + filename);
+     }
+
+     hid_t space = H5Dget_space(dset);
+     hsize_t dims[1] = {0};
+     H5Sget_simple_extent_dims(space, dims, nullptr);
+     std::vector<int8_t> buffer(static_cast<size_t>(dims[0]));
+     herr_t status = H5Dread(dset, H5T_NATIVE_INT8, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data());
+
+     H5Sclose(space);
+     H5Dclose(dset);
+     H5Fclose(file);
+
+     if (status < 0) {
+         throw std::runtime_error("Could not read root hdf5version dataset in: " + filename);
+     }
+
+     std::string value(buffer.begin(), buffer.end());
+     while (!value.empty() && value.back() == '\0') {
+         value.pop_back();
+     }
+     return value;
+}
 
 }
 

@@ -116,6 +116,14 @@ private:
 
 
     void gatherAllDescendantsInList( std::shared_ptr<Node> node, std::vector<std::shared_ptr<Node>>& descendants);
+    std::string printTreeImpl(
+        int max_depth,
+        const std::string& highlighted_path,
+        int depth,
+        bool last_pos,
+        std::string markers,
+        bool skipDescendantsOfSiblingsOfAncestors,
+        bool skipThisNodeDescendants) const;
 
 public:
     
@@ -296,7 +304,8 @@ public:
     std::string __str__() const;
     /** @brief Render subtree as Unicode tree text. */
     std::string printTree(int max_depth=9999, std::string highlighted_path=std::string(""),
-        int depth=0, bool last_pos=false, std::string markers=std::string("")) const;
+        int depth=0, bool last_pos=false, std::string markers=std::string(""),
+        bool skipDescendantsOfSiblingsOfAncestors=true) const;
 
     // Internal helpers for operator-expression semantics.
     /** @brief Internal expression-composition helper. */

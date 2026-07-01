@@ -18,12 +18,20 @@ __all__ = [
     # Main classes
     "Node",
     "Array",
+    "Tree",
+    "Base",
+    "Zone",
     # Factory utilities
     "factory",
     "registerDefaultFactory",
     # Convenience functions
     "new_node",
     "zeros",
+    "new_base",
+    "new_zone_from_arrays",
+    "new_zone_from_dict",
+    "add",
+    "merge",
     # IO functions
     "read",
     "write_numpy",
@@ -43,6 +51,7 @@ from .core import (
     nodeToPyCGNS,
 )
 from .core.io import read
+from .cgns import Base, Tree, Zone, add, merge, new_base, new_zone_from_arrays, new_zone_from_dict
 
 try:
     from .core.io import write_numpy, read_numpy

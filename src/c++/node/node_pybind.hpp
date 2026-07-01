@@ -12,6 +12,9 @@
 # include "node/node_group_pybind.hpp"
 # include "node/node_factory.hpp"
 
+# include <algorithm>
+# include <cctype>
+
 namespace {
 
 std::shared_ptr<Data> dataFromPyObject(const py::object& data, const char* context) {
@@ -211,6 +214,157 @@ void synchronizeAliasedNodes(const std::vector<std::shared_ptr<Node>>& nodes) {
     }
 }
 
+std::string trimString(std::string value) {
+    auto isNotSpace = [](unsigned char c) {
+        return !std::isspace(c);
+    };
+
+    value.erase(std::remove(value.begin(), value.end(), '\0'), value.end());
+    value.erase(value.begin(), std::find_if(value.begin(), value.end(), isNotSpace));
+    value.erase(std::find_if(value.rbegin(), value.rend(), isNotSpace).base(), value.end());
+    return value;
+}
+
+std::vector<std::string> splitString(const std::string& value, const char delimiter) {
+    std::vector<std::string> output;
+    std::string item;
+
+    for (const char c : value) {
+        if (c == delimiter) {
+            item = trimString(item);
+            if (!item.empty()) {
+                output.push_back(item);
+            }
+            item.clear();
+        } else {
+            item.push_back(c);
+        }
+    }
+
+    item = trimString(item);
+    if (!item.empty()) {
+        output.push_back(item);
+    }
+    return output;
+}
+
+py::object pyObjectFromStringList(const std::vector<std::string>& values) {
+    if (values.size() == 1) {
+        return py::str(values.front());
+    }
+
+    py::list output;
+    for (const auto& value : values) {
+        output.append(py::str(value));
+    }
+    return std::move(output);
+}
+
+py::array pyArrayFromData(const std::shared_ptr<Data>& data, const char* context) {
+    auto arrayData = std::dynamic_pointer_cast<Array>(data);
+    if (!arrayData) {
+        throw py::type_error(std::string(context) + " is only available for Array-backed data");
+    }
+    return arraybridge::toPyArray(*arrayData);
+}
+
+std::string stringFromStringArrayObject(const py::object& object, bool characterItems) {
+    py::module_ np = py::module_::import("numpy");
+    py::object stringArray = np.attr("asarray")(object).attr("astype")("str");
+    py::list values = stringArray.attr("ravel")(py::arg("order") = "K").attr("tolist")();
+
+    std::string output;
+    const std::string separator = characterItems ? std::string("") : std::string(" ");
+    for (const auto& item : values) {
+        std::string value = trimString(py::str(item).cast<std::string>());
+        if (value.empty()) {
+            continue;
+        }
+        if (!output.empty() && !separator.empty()) {
+            output += separator;
+        }
+        output += value;
+    }
+    return trimString(output);
+}
+
+std::vector<std::string> stringsFromRows(const Array& arrayData) {
+    py::array pyArray = arraybridge::toPyArray(arrayData);
+    const std::string dtypeKind = py::str(pyArray.attr("dtype").attr("kind")).cast<std::string>();
+    const size_t itemSize = pyArray.attr("dtype").attr("itemsize").cast<size_t>();
+    const bool characterItems =
+        (dtypeKind == "S" && itemSize == sizeof(char)) ||
+        (dtypeKind == "U" && itemSize == sizeof(char32_t));
+
+    if (pyArray.ndim() == 0) {
+        return {stringFromStringArrayObject(pyArray, characterItems)};
+    }
+
+    if (pyArray.ndim() == 1 && characterItems) {
+        return {stringFromStringArrayObject(pyArray, characterItems)};
+    }
+
+    std::vector<std::string> output;
+    const auto numberOfRows = static_cast<size_t>(pyArray.shape(0));
+    output.reserve(numberOfRows);
+    for (size_t i = 0; i < numberOfRows; ++i) {
+        py::object row = pyArray.attr("__getitem__")(py::int_(i));
+        std::string value = stringFromStringArrayObject(row, characterItems);
+        if (!value.empty()) {
+            output.push_back(value);
+        }
+    }
+
+    if (output.empty()) {
+        output.push_back(std::string(""));
+    }
+    return output;
+}
+
+py::object interpretNodeData(const Node& node, const py::object& splitStringsLogic) {
+    std::shared_ptr<Data> data = node.dataPtr();
+    if (!data || data->isNone()) {
+        return py::none();
+    }
+
+    if (!data->hasString()) {
+        return pyArrayFromData(data, "interpret_data");
+    }
+
+    if (splitStringsLogic.is_none()) {
+        return py::str(data->extractString());
+    }
+
+    const std::string logic = py::str(splitStringsLogic).cast<std::string>();
+    if (logic == "spaces") {
+        return pyObjectFromStringList(splitString(data->extractString(), ' '));
+    }
+    if (logic == "eol") {
+        return pyObjectFromStringList(splitString(data->extractString(), '\n'));
+    }
+
+    auto arrayData = std::dynamic_pointer_cast<Array>(data);
+    if (!arrayData) {
+        throw py::type_error("interpret_data row splitting is only available for Array-backed data");
+    }
+
+    if (logic == "rows") {
+        return pyObjectFromStringList(stringsFromRows(*arrayData));
+    }
+    if (logic == "rows_then_spaces") {
+        std::vector<std::string> output;
+        for (const auto& row : stringsFromRows(*arrayData)) {
+            auto rowWords = splitString(row, ' ');
+            output.insert(output.end(), rowWords.begin(), rowWords.end());
+        }
+        return pyObjectFromStringList(output);
+    }
+
+    throw py::value_error(
+        "interpret_data: split_strings_logic must be 'spaces', 'rows', "
+        "'rows_then_spaces', 'eol' or None");
+}
+
 } // namespace
 
 static std::shared_ptr<Node> new_node(
@@ -251,6 +405,42 @@ Return the Navigation helper bound to this node.
 
 See C++ counterpart: :ref:`cpp-node-pick`.
 )doc")
+        .def(
+            "get",
+            [](Node& node,
+               const std::string& name,
+               const std::string& type,
+               const std::string& data,
+               const size_t& depth) {
+                return node.pick().byAndGlob(name, type, data, depth);
+            },
+            R"doc(
+Return the first descendant matching glob conditions on name, type and string data.
+
+This is a Python-only alias for ``pick().by_and_glob(...)``.
+)doc",
+            py::arg("name") = std::string(""),
+            py::arg("type") = std::string(""),
+            py::arg("data") = std::string(""),
+            py::arg("depth") = 100)
+        .def(
+            "group",
+            [](Node& node,
+               const std::string& name,
+               const std::string& type,
+               const std::string& data,
+               const size_t& depth) {
+                return node.pick().allByAndGlob(name, type, data, depth);
+            },
+            R"doc(
+Return all descendants matching glob conditions on name, type and string data.
+
+This is a Python-only alias for ``pick().all_by_and_glob(...)``.
+)doc",
+            py::arg("name") = std::string(""),
+            py::arg("type") = std::string(""),
+            py::arg("data") = std::string(""),
+            py::arg("depth") = 100)
 
         .def("name", &Node::name, R"doc(
 Return node name.
@@ -277,6 +467,32 @@ Return node payload as a Data-compatible Python object, or None when empty.
 
 See C++ counterpart: :ref:`cpp-node-data`.
 )doc")
+        .def("numpy", [](const Node& node) -> py::object {
+            std::shared_ptr<Data> data = node.dataPtr();
+            if (!data || data->isNone()) {
+                return py::none();
+            }
+            return pyArrayFromData(data, "numpy");
+        }, R"doc(
+Return node payload as a NumPy array, or None when empty.
+
+This is a Python-only shortcut for ``node.data().getPyArray()``.
+)doc")
+        .def("interpret_data", &interpretNodeData, R"doc(
+Return node payload as readable Python data.
+
+String-compatible arrays are decoded and optionally split using
+``split_strings_logic``:
+
+- ``"spaces"``: split on spaces.
+- ``"rows"``: split a string matrix by rows.
+- ``"rows_then_spaces"``: split rows, then split each row on spaces.
+- ``"eol"``: split on newline characters.
+- ``None``: return the decoded flat string.
+
+Numeric arrays are returned as NumPy arrays and empty payloads return None.
+)doc",
+             py::arg("split_strings_logic") = "spaces")
         
         .def("set_data", [](Node &node, const py::object& d) {
             node.setData(dataFromPyObject(d, "set_data"));
@@ -600,7 +816,8 @@ Render subtree as printable tree text.
 See C++ counterpart: :ref:`cpp-node-printtree`.
 )doc",
              py::arg("max_depth")=9999,  py::arg("highlighted_path")=std::string(""),
-             py::arg("depth")=0, py::arg("last_pos")=false, py::arg("markers")=std::string(""))
+             py::arg("depth")=0, py::arg("last_pos")=false, py::arg("markers")=std::string(""),
+             py::arg("skip_descendants_of_siblings_of_ancestors")=true)
 
         ;
 

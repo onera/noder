@@ -62,6 +62,10 @@ void test_byAndScalar();
 
 void test_allByAnd();
 
+void test_byAndGlob();
+
+void test_allByAndGlob();
+
 void test_depthSemantics();
 
 #endif // TEST_NAVIGATION_H

@@ -359,6 +359,52 @@ void test_printTree() {
     std::cout << g;
 }
 
+void test_printTree_skipDescendantsOfSiblingsOfAncestors() {
+    auto root = newNode("root");
+    auto parent = newNode("parent");
+    auto focusParent = newNode("focusParent");
+    auto focus = newNode("focus");
+    auto focusLeaf = newNode("focusLeaf");
+    auto focusSibling = newNode("focusSibling");
+    auto hiddenNiece = newNode("hiddenNiece");
+    auto cousinBranch = newNode("cousinBranch");
+    auto hiddenCousin = newNode("hiddenCousin");
+    auto rootSibling = newNode("rootSibling");
+    auto hiddenRootSiblingChild = newNode("hiddenRootSiblingChild");
+
+    root->addChildren({parent, rootSibling});
+    parent->addChildren({focusParent, cousinBranch});
+    focusParent->addChildren({focus, focusSibling});
+    focus->addChild(focusLeaf);
+    focusSibling->addChild(hiddenNiece);
+    cousinBranch->addChild(hiddenCousin);
+    rootSibling->addChild(hiddenRootSiblingChild);
+
+    const auto focusedTree = focus->printTree();
+
+    if (focusedTree.find("root") == std::string::npos) throw py::value_error("expected root context");
+    if (focusedTree.find("parent") == std::string::npos) throw py::value_error("expected parent context");
+    if (focusedTree.find("focusParent") == std::string::npos) throw py::value_error("expected focus parent context");
+    if (focusedTree.find("focus") == std::string::npos) throw py::value_error("expected focused node");
+    if (focusedTree.find("focusLeaf") == std::string::npos) throw py::value_error("expected focused descendants");
+    if (focusedTree.find("focusSibling") == std::string::npos) throw py::value_error("expected focused node sibling");
+    if (focusedTree.find("cousinBranch") == std::string::npos) throw py::value_error("expected ancestor sibling branch");
+    if (focusedTree.find("rootSibling") == std::string::npos) throw py::value_error("expected root child sibling");
+    if (focusedTree.find("...") == std::string::npos) throw py::value_error("expected skipped descendant marker");
+    if (focusedTree.find("hiddenNiece") != std::string::npos) throw py::value_error("unexpected focused sibling descendant");
+    if (focusedTree.find("hiddenCousin") != std::string::npos) throw py::value_error("unexpected cousin descendant");
+    if (focusedTree.find("hiddenRootSiblingChild") != std::string::npos) throw py::value_error("unexpected root sibling descendant");
+
+    const auto oldStyleSubtree = focus->printTree(9999, "", 0, false, "", false);
+    if (oldStyleSubtree.find("root") != std::string::npos) throw py::value_error("old-style subtree should not include ancestors");
+    if (oldStyleSubtree.find("focusLeaf") == std::string::npos) throw py::value_error("old-style subtree should include descendants");
+
+    const auto shallowFocusedTree = focus->printTree(0);
+    if (shallowFocusedTree.find("root") == std::string::npos) throw py::value_error("shallow focused tree should include ancestors");
+    if (shallowFocusedTree.find("focus") == std::string::npos) throw py::value_error("shallow focused tree should include focus");
+    if (shallowFocusedTree.find("focusLeaf") != std::string::npos) throw py::value_error("shallow focused tree should not include focus descendants");
+}
+
 void test_children() {
     auto a = newNode("a");
     auto b = newNode("b");

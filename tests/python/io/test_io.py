@@ -128,6 +128,15 @@ def test_write_cgns_tree_without_root_wrapper(tmp_path):
     assert "Base" in root_links
 
 
+def test_write_uses_runtime_hdf5_version_metadata(tmp_path):
+    os.makedirs(tmp_path, exist_ok=True)
+    tmp_filename = str(tmp_path / "test_hdf5_version.cgns")
+
+    _new_cgns_tree().write(tmp_filename)
+
+    assert giocpp.read_root_hdf5_version(tmp_filename) == giocpp.runtime_hdf5_version()
+
+
 def test_write_link_nodes(tmp_path):
     os.makedirs(tmp_path, exist_ok=True)
     tmp_filename = str(tmp_path/'test_links.hdf5')

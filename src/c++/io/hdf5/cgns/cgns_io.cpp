@@ -12,6 +12,7 @@
 #include <cctype>
 #include <cstring>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 
 namespace io::hdf5::cgns {
@@ -251,6 +252,17 @@ std::string read_int8_string_dataset(hid_t file, const std::string& dataset_path
     return value;
 }
 
+std::string hdf5_library_version_string() {
+    unsigned major = 0;
+    unsigned minor = 0;
+    unsigned release = 0;
+    check_status(H5get_libversion(&major, &minor, &release), "get HDF5 library version");
+
+    std::ostringstream stream;
+    stream << "HDF5 Version " << major << "." << minor << "." << release;
+    return stream.str();
+}
+
 void write_cgns_file_metadata(hid_t file) {
     add_cgns_name_attr(file, "HDF5 MotherNode");
     add_cgns_label_attr(file, "Root Node of HDF5 File");
@@ -267,7 +279,7 @@ void write_cgns_file_metadata(hid_t file) {
     H5Dclose(formatDset);
     H5Sclose(formatSpace);
 
-    const std::string versionValue = "HDF5 Version 1.8.17";
+    const std::string versionValue = hdf5_library_version_string();
     std::vector<int8_t> versionData(versionValue.begin(), versionValue.end());
     versionData.resize(kCGNSLongStringAttrLen, 0);
     hsize_t versionDims[1] = {static_cast<hsize_t>(versionData.size())};

@@ -127,6 +127,30 @@ public:
         const char* data = "",
         const size_t& depth=100);
 
+    std::shared_ptr<Node> byAndGlob(
+        const std::string& name = std::string(""),
+        const std::string& type = std::string(""),
+        const std::string& data = std::string(""),
+        const size_t& depth=100);
+
+    std::shared_ptr<Node> byAndGlob(
+        const char* name = "",
+        const char* type = "",
+        const char* data = "",
+        const size_t& depth=100);
+
+    std::vector<std::shared_ptr<Node>> allByAndGlob(
+        const std::string& name = std::string(""),
+        const std::string& type = std::string(""),
+        const std::string& data = std::string(""),
+        const size_t& depth=100);
+
+    std::vector<std::shared_ptr<Node>> allByAndGlob(
+        const char* name = "",
+        const char* type = "",
+        const char* data = "",
+        const size_t& depth=100);
+
     template <typename T>
     std::vector<std::shared_ptr<Node>> allByAnd(
         const std::string& name = std::string(""),

@@ -69,6 +69,9 @@ def test_cpp_printTree(capsys):
     with capsys.disabled():
         test_in_cpp.test_printTree()
 
+def test_cpp_printTree_skipDescendantsOfSiblingsOfAncestors():
+    return test_in_cpp.test_printTree_skipDescendantsOfSiblingsOfAncestors()
+
 def test_cpp_children(): return test_in_cpp.test_children()
 
 def test_binding_addChildrenFromPython():

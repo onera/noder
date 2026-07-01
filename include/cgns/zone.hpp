@@ -122,4 +122,9 @@ private:
     static std::string defaultGridLocationFor(const std::string& containerName);
 };
 
+std::shared_ptr<Zone> newZoneFromArrays(
+    const std::string& name,
+    const std::vector<std::string>& arrayNames,
+    const std::vector<std::shared_ptr<Data>>& arrays);
+
 #endif

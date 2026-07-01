@@ -21,6 +21,18 @@ const std::vector<std::string> ELEMENTS_TYPES = {
     "HEXA_44", "HEXA_98", "HEXA_125"
 };
 
+const std::unordered_map<std::string, std::string> COORDINATE_SHORTCUTS = {
+    {"CoordinateX", "CoordinateX"},
+    {"CoordinateY", "CoordinateY"},
+    {"CoordinateZ", "CoordinateZ"},
+    {"x", "CoordinateX"},
+    {"y", "CoordinateY"},
+    {"z", "CoordinateZ"},
+    {"X", "CoordinateX"},
+    {"Y", "CoordinateY"},
+    {"Z", "CoordinateZ"}
+};
+
 std::string toLower(std::string value) {
     for (char& c : value) {
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -781,3 +793,71 @@ std::shared_ptr<Zone> Zone::jmin() { return this->boundary("j", "min"); }
 std::shared_ptr<Zone> Zone::jmax() { return this->boundary("j", "max"); }
 std::shared_ptr<Zone> Zone::kmin() { return this->boundary("k", "min"); }
 std::shared_ptr<Zone> Zone::kmax() { return this->boundary("k", "max"); }
+
+std::shared_ptr<Zone> newZoneFromArrays(
+    const std::string& name,
+    const std::vector<std::string>& arrayNames,
+    const std::vector<std::shared_ptr<Data>>& arrays) {
+
+    if (arrayNames.size() != arrays.size()) {
+        throw std::invalid_argument("newZoneFromArrays: arrayNames and arrays must have the same size");
+    }
+    if (arrays.empty()) {
+        throw std::invalid_argument("newZoneFromArrays: arrays cannot be empty");
+    }
+
+    if (!arrays.front() || arrays.front()->isNone()) {
+        throw std::invalid_argument("newZoneFromArrays: arrays cannot contain null or none-like entries");
+    }
+
+    const auto referenceShape = arrays.front()->shape();
+    for (const auto& data : arrays) {
+        if (!data || data->isNone()) {
+            throw std::invalid_argument("newZoneFromArrays: arrays cannot contain null or none-like entries");
+        }
+        if (data->shape() != referenceShape) {
+            throw std::invalid_argument("newZoneFromArrays: all arrays must have the same shape");
+        }
+    }
+
+    auto zone = std::make_shared<Zone>(name);
+    auto zoneNode = std::const_pointer_cast<Node>(zone->selfPtr());
+    if (!zoneNode) {
+        throw std::runtime_error("newZoneFromArrays: could not create output zone owner pointer");
+    }
+
+    auto shapeData = arrays.front()->full({referenceShape.size(), 3}, 0.0, "int32");
+    for (size_t i = 0; i < referenceShape.size(); ++i) {
+        if (referenceShape[i] > static_cast<size_t>(std::numeric_limits<int32_t>::max())) {
+            throw std::runtime_error("newZoneFromArrays: dimension exceeds int32_t range");
+        }
+        const int64_t vertexCount = static_cast<int64_t>(referenceShape[i]);
+        shapeData->setItemFromInt64({i, 0}, vertexCount);
+        shapeData->setItemFromInt64({i, 1}, vertexCount > 0 ? vertexCount - 1 : 0);
+        shapeData->setItemFromInt64({i, 2}, 0);
+    }
+    zone->setData(shapeData);
+
+    auto coordinates = std::make_shared<Node>("GridCoordinates", "GridCoordinates_t");
+    auto fields = std::make_shared<Node>("FlowSolution", "FlowSolution_t");
+
+    for (size_t i = 0; i < arrayNames.size(); ++i) {
+        const auto shortcut = COORDINATE_SHORTCUTS.find(arrayNames[i]);
+        const bool isCoordinate = shortcut != COORDINATE_SHORTCUTS.end();
+        const std::string nodeName = isCoordinate ? shortcut->second : arrayNames[i];
+
+        auto dataNode = std::make_shared<Node>(nodeName, "DataArray_t");
+        dataNode->setData(arrays[i]);
+        dataNode->attachTo(isCoordinate ? coordinates : fields);
+    }
+
+    if (coordinates->hasChildren()) {
+        coordinates->attachTo(zoneNode);
+    }
+    if (fields->hasChildren()) {
+        fields->attachTo(zoneNode);
+    }
+
+    zone->isStructured();
+    return zone;
+}

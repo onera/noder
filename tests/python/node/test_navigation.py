@@ -553,6 +553,66 @@ def test_all_by_and():
     none = a.pick().all_by_and(type="TypeT", data="missing")
     assert len(none) == 0
 
+def test_by_and_glob():
+    a = Node("a")
+    b = Node("b")
+    b.attach_to(a)
+    c = Node("target_one", "DataArray_t")
+    c.set_data("value_alpha")
+    c.attach_to(b)
+    d = Node("target_two", "DataArray_t")
+    d.set_data("value_beta")
+    d.attach_to(c)
+
+    n = a.pick().by_and_glob(name="target_*", type="Data*_t", data="value_a*")
+    assert n is c
+
+    none = a.pick().by_and_glob(name="target_*", type="Data*_t", data="missing*")
+    assert none is None
+
+
+def test_all_by_and_glob():
+    a = Node("a")
+    b = Node("b")
+    b.attach_to(a)
+    c = Node("target_one", "DataArray_t")
+    c.set_data("value_alpha")
+    c.attach_to(b)
+    d = Node("target_two", "DataArray_t")
+    d.set_data("value_beta")
+    d.attach_to(c)
+    e = Node("other", "DataArray_t")
+    e.set_data("value_beta")
+    e.attach_to(a)
+
+    matches = a.pick().all_by_and_glob(name="target_*", type="Data*_t", data="value_*")
+    assert len(matches) == 2
+    assert matches[0] is c
+    assert matches[1] is d
+
+    none = a.pick().all_by_and_glob(name="target_*", type="Data*_t", data="missing*")
+    assert len(none) == 0
+
+
+def test_node_get_and_group_aliases():
+    a = Node("a")
+    b = Node("b")
+    b.attach_to(a)
+    c = Node("target_one", "DataArray_t")
+    c.set_data("value_alpha")
+    c.attach_to(b)
+    d = Node("target_two", "DataArray_t")
+    d.set_data("value_beta")
+    d.attach_to(c)
+
+    assert a.get(name="target_*", type="Data*_t", data="value_a*") is c
+
+    matches = a.group(name="target_*", type="Data*_t", data="value_*")
+    assert len(matches) == 2
+    assert matches[0] is c
+    assert matches[1] is d
+
+
 def test_all_by_and_dispatcher_scalar():
     a = Node("a")
     b = Node("b")
@@ -618,6 +678,9 @@ def test_depth_shift_semantics():
     assert root.pick().by_and("target_2", "Target_2_t", "requested_value_02", depth=2) is target_2
     assert len(root.pick().all_by_and("", "", "", depth=1)) == 2
     assert len(root.pick().all_by_and("", "", "", depth=3)) == 4
+    assert root.pick().by_and_glob("target_*", "Target_*_t", "requested_value_02", depth=1) is None
+    assert root.pick().by_and_glob("target_*", "Target_*_t", "requested_value_02", depth=2) is target_2
+    assert len(root.pick().all_by_and_glob("target_*", "Target_*_t", "requested_value_*", depth=2)) == 2
 
     scalar_root = Node("scalar_root", "Root_t")
     scalar_root.set_data(0)
@@ -860,3 +923,30 @@ def test_all_by_and_example():
     matches = tree.pick().all_by_and(type="DataArray_t", data=3)
     assert len(matches) == 2
     # docs:end all_by_and_example
+
+
+def test_by_and_glob_example():
+    # docs:start by_and_glob_example
+    tree = _build_navigation_example_tree()
+    node = tree.pick().by_and_glob(name="Zone_*", type="Zone_t", data="prefix_*")
+    assert node is not None
+    assert node.name() == "Zone_A"
+    # docs:end by_and_glob_example
+
+
+def test_all_by_and_glob_example():
+    # docs:start all_by_and_glob_example
+    tree = _build_navigation_example_tree()
+    matches = tree.pick().all_by_and_glob(name="Zone_*", type="Zone_t", data="prefix_*")
+    assert len(matches) == 2
+    # docs:end all_by_and_glob_example
+
+
+def test_node_get_group_example():
+    # docs:start node_get_group_example
+    tree = _build_navigation_example_tree()
+    node = tree.get(name="Zone_*", type="Zone_t", data="prefix_A")
+    matches = tree.group(name="Zone_*", type="Zone_t", data="prefix_*")
+    assert node is not None
+    assert len(matches) == 2
+    # docs:end node_get_group_example

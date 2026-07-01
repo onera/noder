@@ -11,6 +11,7 @@
 # include "node/test_data_pybind.hpp"
 # include "node/test_navigation_pybind.hpp"
 # include "node/test_node_group_pybind.hpp"
+# include "cgns/test_base_tree_pybind.hpp"
 # include "cgns/test_zone_pybind.hpp"
 # include "learn_pybind11/test_learn_pybind11_pybind.hpp"
 # include "utils/test_utils_pybind.hpp"
@@ -32,6 +33,9 @@ PYBIND11_MODULE(tests, m) {
                    py::arg("tmp_filename")=std::string("test_read_links.cgns"));
     io_m.def("list_root_links", &test_io::list_root_links, "list physical HDF5 root links",
                    py::arg("filename"));
+    io_m.def("runtime_hdf5_version", &test_io::runtime_hdf5_version, "return linked HDF5 runtime version");
+    io_m.def("read_root_hdf5_version", &test_io::read_root_hdf5_version, "read root hdf5version metadata",
+                   py::arg("filename"));
 
     # endif 
     io_m.def("test_write_yaml_nodes", &test_io::test_write_yaml_nodes, "test write a yaml file",
@@ -52,6 +56,7 @@ PYBIND11_MODULE(tests, m) {
     bindTestsOfNavigation(m);
     bindTestsOfNodeGroup(m);
     bindTestsOfZone(m);
+    bindTestsOfBaseTree(m);
     bindTestsOfUtils(m);
     
     bindLearningTestsOfPyBind11(m);

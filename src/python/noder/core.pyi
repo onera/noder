@@ -160,6 +160,10 @@ class Navigation:
         """
         Get all nodes by name/type and scalar data recursively (typed overload)
         """
+    def all_by_and_glob(self, name: str = '', type: str = '', data: str = '', depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+        """
+        get all nodes by glob conditions on name, type and string data recursively
+        """
     def all_by_and_int16(self, name: str = '', type: str = '', data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
         """
         Get all nodes by name/type and scalar data recursively (typed overload)
@@ -283,6 +287,10 @@ class Navigation:
     def by_and_float(self, name: str = '', type: str = '', data: typing.SupportsFloat | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
         """
         Get node by name/type and scalar data recursively (typed overload)
+        """
+    def by_and_glob(self, name: str = '', type: str = '', data: str = '', depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+        """
+        get node by glob conditions on name, type and string data recursively
         """
     def by_and_int16(self, name: str = '', type: str = '', data: typing.SupportsInt | typing.SupportsIndex, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
         """
@@ -553,6 +561,12 @@ class Node:
         
         See C++ counterpart: :ref:`cpp-node-detach`.
         """
+    def get(self, name: str = '', type: str = '', data: str = '', depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
+        """
+        Return the first descendant matching glob conditions on name, type and string data.
+        
+        This is a Python-only alias for ``pick().by_and_glob(...)``.
+        """
     def get_at_path(self, path: str, path_is_relative: bool = False) -> Node:
         """
         Resolve a node by path (absolute by default).
@@ -579,6 +593,12 @@ class Node:
         
         See C++ counterpart: :ref:`cpp-node-getparameters`.
         """
+    def group(self, name: str = '', type: str = '', data: str = '', depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
+        """
+        Return all descendants matching glob conditions on name, type and string data.
+        
+        This is a Python-only alias for ``pick().all_by_and_glob(...)``.
+        """
     def has_children(self) -> bool:
         """
         Whether node has children.
@@ -596,6 +616,21 @@ class Node:
         Whether node has siblings excluding self.
         
         See C++ counterpart: :ref:`cpp-node-hassiblings`.
+        """
+    def interpret_data(self, split_strings_logic: typing.Any = 'spaces') -> typing.Any:
+        """
+        Return node payload as readable Python data.
+        
+        String-compatible arrays are decoded and optionally split using
+        ``split_strings_logic``:
+        
+        - ``"spaces"``: split on spaces.
+        - ``"rows"``: split a string matrix by rows.
+        - ``"rows_then_spaces"``: split rows, then split each row on spaces.
+        - ``"eol"``: split on newline characters.
+        - ``None``: return the decoded flat string.
+        
+        Numeric arrays are returned as NumPy arrays and empty payloads return None.
         """
     def level(self) -> int:
         """
@@ -627,6 +662,12 @@ class Node:
         
         See C++ counterpart: :ref:`cpp-node-name`.
         """
+    def numpy(self) -> typing.Any:
+        """
+        Return node payload as a NumPy array, or None when empty.
+        
+        This is a Python-only shortcut for ``node.data().getPyArray()``.
+        """
     def parent(self) -> Node:
         """
         Return parent node or None when detached.
@@ -651,7 +692,7 @@ class Node:
         
         See C++ counterpart: :ref:`cpp-node-position`.
         """
-    def print_tree(self, max_depth: typing.SupportsInt | typing.SupportsIndex = 9999, highlighted_path: str = '', depth: typing.SupportsInt | typing.SupportsIndex = 0, last_pos: bool = False, markers: str = '') -> str:
+    def print_tree(self, max_depth: typing.SupportsInt | typing.SupportsIndex = 9999, highlighted_path: str = '', depth: typing.SupportsInt | typing.SupportsIndex = 0, last_pos: bool = False, markers: str = '', skip_descendants_of_siblings_of_ancestors: bool = True) -> str:
         """
         Render subtree as printable tree text.
         
