@@ -5,6 +5,9 @@
 #include "array/array.hpp"
 #include "array/factory/matrices.hpp"
 #include "array/factory/strings.hpp"
+#include "cgns/base.hpp"
+#include "cgns/tree.hpp"
+#include "cgns/zone.hpp"
 
 #include <hdf5.h>
 
@@ -97,7 +100,31 @@ bool starts_with(const std::string& value, const std::string& prefix) {
 }
 
 bool is_cgns_tree_root(const std::shared_ptr<Node>& node) {
-    return node && node->type() == "CGNSTree_t";
+    return node && (node->type() == "CGNSTree_t" || node->type() == "Root Node of HDF5 File");
+}
+
+bool is_hdf5_cgns_file_root_label(const std::string& label) {
+    return label == "Root Node of HDF5 File";
+}
+
+std::shared_ptr<Node> make_node_for_cgns_label(
+    const std::string& name,
+    const std::string& label) {
+
+    if (label == "Zone_t") {
+        return std::make_shared<Zone>(name);
+    }
+    if (label == "CGNSBase_t") {
+        return std::make_shared<Base>(name);
+    }
+    if (label == "CGNSTree_t" || is_hdf5_cgns_file_root_label(label)) {
+        auto tree = std::make_shared<Tree>();
+        tree->setName(name);
+        tree->setType(label);
+        return tree;
+    }
+
+    return std::make_shared<Node>(name, label);
 }
 
 bool is_cgns_library_version_node(const std::shared_ptr<Node>& node) {
@@ -593,7 +620,7 @@ std::shared_ptr<Node> read_node_rec(hid_t file, const std::string& path, const c
         label = "DataArray_t";
     }
 
-    auto node = std::make_shared<Node>(name, label);
+    auto node = make_node_for_cgns_label(name, label);
     if (is_link_group(group)) {
         std::string targetFile = read_int8_string_dataset(file, path + "/ file");
         std::string targetPath = read_int8_string_dataset(file, path + "/ path");

@@ -1,8 +1,139 @@
 import numpy as np
 import pytest
 
+from noder import read
 from noder.core import Node, nodeToPyCGNS, pyCGNSToNode
 from noder.cgns import Base, Tree, Zone, add, merge, new_base, new_zone_from_arrays, new_zone_from_dict
+
+@pytest.fixture
+def pycgns_list():
+    pylist = [
+        'CGNSTree',
+        None,
+        [
+
+            ['Base1',
+            np.array([3,3],dtype=np.int32,order='F'),
+            [
+                ['ZoneA',
+                np.array([[16,9,0]],dtype=np.int32,order='F'),
+                [
+                    ['GridCoordinates',
+                    None,
+                    [
+                        ['CoordinateX',
+                            np.zeros((4,4),dtype=float, order='F'),
+                            [],
+                            'DataArray_t'
+                        ],
+                        ['CoordinateY',
+                            np.zeros((4,4),dtype=float, order='F'),
+                            [],
+                            'DataArray_t'
+                        ],
+                        ['CoordinateZ',
+                            np.zeros((4,4),dtype=float, order='F'),
+                            [],
+                            'DataArray_t'
+                        ],
+                    ],
+                    'GridCoordinates_t'
+                    ]
+                ],
+                'Zone_t'],
+                ['ZoneB',
+                np.array([[16,9,0]],dtype=np.int32,order='F'),
+                [
+                    ['GridCoordinates',
+                    None,
+                    [
+                        ['CoordinateX',
+                            np.zeros((4,4),dtype=float, order='F'),
+                            [],
+                            'DataArray_t'
+                        ],
+                        ['CoordinateY',
+                            np.zeros((4,4),dtype=float, order='F'),
+                            [],
+                            'DataArray_t'
+                        ],
+                        ['CoordinateZ',
+                            np.zeros((4,4),dtype=float, order='F'),
+                            [],
+                            'DataArray_t'
+                        ],
+                    ],
+                    'GridCoordinates_t'
+                    ]
+                ],
+                'Zone_t'],
+            ],
+            'CGNSBase_t'],
+
+            ['Base2',
+            np.array([3,3],dtype=np.int32,order='F'),
+            [
+                ['ZoneD',
+                np.array([[16,9,0]],dtype=np.int32,order='F'),
+                [
+                    ['GridCoordinates',
+                    None,
+                    [
+                        ['CoordinateX',
+                            np.zeros((4,4),dtype=float, order='F'),
+                            [],
+                            'DataArray_t'
+                        ],
+                        ['CoordinateY',
+                            np.zeros((4,4),dtype=float, order='F'),
+                            [],
+                            'DataArray_t'
+                        ],
+                        ['CoordinateZ',
+                            np.zeros((4,4),dtype=float, order='F'),
+                            [],
+                            'DataArray_t'
+                        ],
+                    ],
+                    'GridCoordinates_t'
+                    ]
+                ],
+                'Zone_t'],
+                ['ZoneE',
+                np.array([[16,9,0]],dtype=np.int32,order='F'),
+                [
+                    ['GridCoordinates',
+                    None,
+                    [
+                        ['CoordinateX',
+                            np.zeros((4,4),dtype=float, order='F'),
+                            [],
+                            'DataArray_t'
+                        ],
+                        ['CoordinateY',
+                            np.zeros((4,4),dtype=float, order='F'),
+                            [],
+                            'DataArray_t'
+                        ],
+                        ['CoordinateZ',
+                            np.zeros((4,4),dtype=float, order='F'),
+                            [],
+                            'DataArray_t'
+                        ],
+                    ],
+                    'GridCoordinates_t'
+                    ]
+                ],
+                'Zone_t'],
+            ],
+            'CGNSBase_t'],
+
+
+        ],
+        'CGNSTree_t'
+    ]
+
+    return pylist
 
 
 def make_cart(name="block", shape=(3, 3, 3)):
@@ -152,134 +283,7 @@ def test_pycgns_converter_returns_specialized_base_and_tree():
     assert isinstance(tree_again.children()[0].children()[0], Zone)
 
 
-def test_pycgns_converter_with_custom_tree():
-
-    pycgns_list = [
-        'CGNSTree',
-        None,
-        [
-
-            ['Base1',
-            np.array([3,3],dtype=np.int32,order='F'),
-            [
-                ['ZoneA',
-                np.array([[16,9,0]],dtype=np.int32,order='F'),
-                [
-                    ['GridCoordinates',
-                    None,
-                    [
-                        ['CoordinateX',
-                            np.zeros((4,4),dtype=float, order='F'),
-                            [],
-                            'DataArray_t'
-                        ],
-                        ['CoordinateY',
-                            np.zeros((4,4),dtype=float, order='F'),
-                            [],
-                            'DataArray_t'
-                        ],
-                        ['CoordinateZ',
-                            np.zeros((4,4),dtype=float, order='F'),
-                            [],
-                            'DataArray_t'
-                        ],
-                    ],
-                    'GridCoordinates_t'
-                    ]
-                ],
-                'Zone_t'],
-                ['ZoneB',
-                np.array([[16,9,0]],dtype=np.int32,order='F'),
-                [
-                    ['GridCoordinates',
-                    None,
-                    [
-                        ['CoordinateX',
-                            np.zeros((4,4),dtype=float, order='F'),
-                            [],
-                            'DataArray_t'
-                        ],
-                        ['CoordinateY',
-                            np.zeros((4,4),dtype=float, order='F'),
-                            [],
-                            'DataArray_t'
-                        ],
-                        ['CoordinateZ',
-                            np.zeros((4,4),dtype=float, order='F'),
-                            [],
-                            'DataArray_t'
-                        ],
-                    ],
-                    'GridCoordinates_t'
-                    ]
-                ],
-                'Zone_t'],
-            ],
-            'CGNSBase_t'],
-
-            ['Base2',
-            np.array([3,3],dtype=np.int32,order='F'),
-            [
-                ['ZoneD',
-                np.array([[16,9,0]],dtype=np.int32,order='F'),
-                [
-                    ['GridCoordinates',
-                    None,
-                    [
-                        ['CoordinateX',
-                            np.zeros((4,4),dtype=float, order='F'),
-                            [],
-                            'DataArray_t'
-                        ],
-                        ['CoordinateY',
-                            np.zeros((4,4),dtype=float, order='F'),
-                            [],
-                            'DataArray_t'
-                        ],
-                        ['CoordinateZ',
-                            np.zeros((4,4),dtype=float, order='F'),
-                            [],
-                            'DataArray_t'
-                        ],
-                    ],
-                    'GridCoordinates_t'
-                    ]
-                ],
-                'Zone_t'],
-                ['ZoneE',
-                np.array([[16,9,0]],dtype=np.int32,order='F'),
-                [
-                    ['GridCoordinates',
-                    None,
-                    [
-                        ['CoordinateX',
-                            np.zeros((4,4),dtype=float, order='F'),
-                            [],
-                            'DataArray_t'
-                        ],
-                        ['CoordinateY',
-                            np.zeros((4,4),dtype=float, order='F'),
-                            [],
-                            'DataArray_t'
-                        ],
-                        ['CoordinateZ',
-                            np.zeros((4,4),dtype=float, order='F'),
-                            [],
-                            'DataArray_t'
-                        ],
-                    ],
-                    'GridCoordinates_t'
-                    ]
-                ],
-                'Zone_t'],
-            ],
-            'CGNSBase_t'],
-
-
-        ],
-        'CGNSTree_t'
-    ]
-
+def test_pycgns_converter_with_custom_tree(pycgns_list):
 
     t = pyCGNSToNode(pycgns_list)
     reached = False
@@ -288,6 +292,36 @@ def test_pycgns_converter_with_custom_tree():
         assert isinstance(b,Base)
         for z in b.zones():
             assert isinstance(z,Zone)
+            for n in z.pick().all_by_and(type='DataArray_t'):
+                assert isinstance(n, Node)
+                reached = True
+    assert reached
+
+
+def test_pycgns_converter_with_hdf5_root_label(pycgns_list):
+    pycgns_list[0] = "HDF5 MotherNode"
+    pycgns_list[3] = "Root Node of HDF5 File"
+
+    t = pyCGNSToNode(pycgns_list)
+
+    assert isinstance(t, Tree)
+    assert t.name() == "HDF5 MotherNode"
+    assert t.type() == "Root Node of HDF5 File"
+    assert all(isinstance(base, Base) for base in t.bases())
+    assert all(isinstance(zone, Zone) for base in t.bases() for zone in base.zones())
+
+def test_types_after_read(tmp_path, pycgns_list):
+    t = pyCGNSToNode(pycgns_list)
+    filename = str(tmp_path/"test.cgns")
+    t.write(filename)
+
+    tr = read(filename)
+    reached = False
+    assert isinstance(tr,Tree), "expected a Tree"
+    for b in tr.bases():
+        assert isinstance(b,Base), "expected a Base"
+        for z in b.zones():
+            assert isinstance(z,Zone), "expected a Zone"
             for n in z.pick().all_by_and(type='DataArray_t'):
                 assert isinstance(n, Node)
                 reached = True

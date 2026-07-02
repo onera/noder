@@ -212,9 +212,10 @@ std::shared_ptr<Node> makeNodeForCGNSType(
     if (type == "CGNSBase_t") {
         return std::make_shared<Base>(name);
     }
-    if (type == "CGNSTree_t") {
+    if (type == "CGNSTree_t" || type == "Root Node of HDF5 File") {
         auto tree = std::make_shared<Tree>();
         tree->setName(name);
+        tree->setType(type);
         return tree;
     }
 

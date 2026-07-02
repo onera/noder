@@ -52,12 +52,6 @@ def test_path():
     path = b.path() 
     assert path == 'TheParent/TheChild'
 
-@skip_unported("treelab Node.save wrapper is intentionally not migrated")
-def test_save():
-    n = cgns.Node( Name='jamon' )
-    n.save('test_node_save.cgns', verbose=False)
-    os.unlink('test_node_save.cgns')
-
 def test_name():
     n = cgns.Node( Name='tortilla' )
     assert n.name() == 'tortilla'
