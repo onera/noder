@@ -328,6 +328,15 @@ def test_types_after_read(tmp_path, pycgns_list):
                 reached = True
     assert reached
 
+    for b in tr.pick().all_by_type('CGNSBase_t'):
+        assert isinstance(b,Base), "expected a Base"
+        for z in b.pick().all_by_type('Zone_t'):
+            assert isinstance(z,Zone), "expected a Zone"
+            for n in z.pick().all_by_and(type='DataArray_t'):
+                assert isinstance(n, Node)
+                reached = True
+    assert reached
+
 def test_new_tree():
 
     zeros3x1 = np.zeros(3,dtype=float,order='F')
@@ -377,3 +386,40 @@ def test_new_tree():
     zone5_picked = zones_of_BaseC[0]
     assert isinstance(zone5_picked,Zone)
     assert zone5_picked is zone5
+
+def test_copy_tree_preserves_types(pycgns_list):
+    t = pyCGNSToNode(pycgns_list)
+    tc = t.copy()
+    assert isinstance(tc,Tree)
+    for b in tc.bases():
+        assert isinstance(b,Base), "expected a Base"
+        for z in b.zones():
+            assert isinstance(z,Zone), "expected a Zone"
+            for n in z.pick().all_by_and(type='DataArray_t'):
+                assert isinstance(n, Node)
+                reached = True
+    assert reached
+
+def test_copy_base_preserves_types(pycgns_list):
+    t = pyCGNSToNode(pycgns_list)
+    for b in t.bases():
+        bc = b.copy()
+        assert isinstance(bc,Base), "expected a Base"
+        for z in bc.zones():
+            assert isinstance(z,Zone), "expected a Zone"
+            for n in z.pick().all_by_and(type='DataArray_t'):
+                assert isinstance(n, Node)
+                reached = True
+    assert reached
+
+def test_copy_zone_preserves_types(pycgns_list):
+    t = pyCGNSToNode(pycgns_list)
+    for b in t.bases():
+        assert isinstance(b,Base), "expected a Base"
+        for z in b.zones():
+            zc = z.copy()
+            assert isinstance(zc,Zone), "expected a Zone"
+            for n in zc.pick().all_by_and(type='DataArray_t'):
+                assert isinstance(n, Node)
+                reached = True
+    assert reached
