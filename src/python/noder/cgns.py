@@ -16,6 +16,7 @@ __all__ = [
     "add",
     "merge",
     "new_base",
+    "new_tree",
     "new_zone_from_arrays",
     "new_zone_from_dict",
 ]
@@ -89,3 +90,28 @@ def new_zone_from_dict(name: str, arrays_by_name: collections.abc.Mapping) -> Zo
     if not isinstance(arrays_by_name, collections.abc.Mapping):
         raise TypeError("new_zone_from_dict: arrays_by_name must be a mapping")
     return new_zone_from_arrays(name, list(arrays_by_name.keys()), list(arrays_by_name.values()))
+
+
+def new_tree(**bases_by_name) -> Tree:
+    """Construct a CGNS Tree with multiple named Bases from zones.
+
+    Each keyword argument specifies a Base name and its associated zones.
+    Zones can be provided as a single Zone or a list/tuple of Zones.
+
+    Args:
+        **bases_by_name: Keyword arguments where keys are Base names and
+            values are Zone or list/tuple of Zones.
+
+    Returns:
+        Tree: A new Tree containing the created Bases with their zones.
+
+    Example:
+        >>> zone1 = new_zone_from_arrays('zone1', ['x', 'y'], [x_arr, y_arr])
+        >>> zone2 = new_zone_from_arrays('zone2', ['x', 'y'], [x_arr, y_arr])
+        >>> tree = new_tree(BaseA=[zone1, zone2], BaseB=zone1)
+    """
+    tree = Tree()
+    for base_name, zones in bases_by_name.items():
+        _add_named_base(tree, str(base_name), zones)
+    tree.set_unique_base_names()
+    return tree

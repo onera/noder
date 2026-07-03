@@ -3,7 +3,8 @@ import pytest
 
 from noder import read
 from noder.core import Node, nodeToPyCGNS, pyCGNSToNode
-from noder.cgns import Base, Tree, Zone, add, merge, new_base, new_zone_from_arrays, new_zone_from_dict
+from noder.cgns import (Base, Tree, Zone, add, merge, new_tree, new_base,
+                        new_zone_from_arrays, new_zone_from_dict)
 
 @pytest.fixture
 def pycgns_list():
@@ -326,3 +327,53 @@ def test_types_after_read(tmp_path, pycgns_list):
                 assert isinstance(n, Node)
                 reached = True
     assert reached
+
+def test_new_tree():
+
+    zeros3x1 = np.zeros(3,dtype=float,order='F')
+    zeros3x3 = np.zeros((3,3),dtype=float,order='F')
+    zeros3x3x3 = np.zeros((3,3,3),dtype=float,order='F')
+    zone1 = new_zone_from_arrays('zone1',['x','y','z'],[zeros3x3,zeros3x3,zeros3x3])
+    zone2 = new_zone_from_arrays('zone2',['x','y','z'],[zeros3x3,zeros3x3,zeros3x3])
+    zone3 = new_zone_from_arrays('zone3',['x','y','z'],[zeros3x1,zeros3x1,zeros3x1])
+    zone4 = new_zone_from_arrays('zone4',['x','y','z'],[zeros3x1,zeros3x1,zeros3x1])
+    zone5 = new_zone_from_arrays('zone5',['x','y','z'],[zeros3x3x3,zeros3x3x3,zeros3x3x3])
+
+    t = new_tree(BaseA=[zone1,zone2], BaseB=[zone3,zone4],BaseC=zone5)
+
+    assert isinstance(t, Tree)
+    bases = t.bases()
+    assert len(bases)==3
+
+    BaseA = bases[0]
+    assert isinstance(BaseA,Base)
+    # TODO check if BaseA value accounts for dim=2
+    zones_of_BaseA = BaseA.zones()
+    assert len(zones_of_BaseA) == 2
+    zone1_picked = zones_of_BaseA[0]
+    assert isinstance(zone1_picked,Zone)
+    assert zone1_picked is zone1
+    zone2_picked = zones_of_BaseA[1]
+    assert isinstance(zone2_picked,Zone)
+    assert zone2_picked is zone2
+
+    BaseB = bases[1]
+    assert isinstance(BaseB,Base)
+    # TODO check if BaseB value accounts for dim=1
+    zones_of_BaseB = BaseB.zones()
+    assert len(zones_of_BaseB) == 2
+    zone3_picked = zones_of_BaseB[0]
+    assert isinstance(zone3_picked,Zone)
+    assert zone3_picked is zone3
+    zone4_picked = zones_of_BaseB[1]
+    assert isinstance(zone4_picked,Zone)
+    assert zone4_picked is zone4
+
+    BaseC = bases[2]
+    assert isinstance(BaseC,Base)
+    # TODO check if BaseC value accounts for dim=3
+    zones_of_BaseC = BaseC.zones()
+    assert len(zones_of_BaseC) == 1
+    zone5_picked = zones_of_BaseC[0]
+    assert isinstance(zone5_picked,Zone)
+    assert zone5_picked is zone5

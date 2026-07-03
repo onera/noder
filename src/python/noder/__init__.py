@@ -28,6 +28,7 @@ __all__ = [
     "new_node",
     "zeros",
     "new_base",
+    "new_tree",
     "new_zone_from_arrays",
     "new_zone_from_dict",
     "add",
@@ -51,7 +52,7 @@ from .core import (
     nodeToPyCGNS,
 )
 from .core.io import read
-from .cgns import Base, Tree, Zone, add, merge, new_base, new_zone_from_arrays, new_zone_from_dict
+from .cgns import Base, Tree, Zone, add, merge, new_base, new_tree, new_zone_from_arrays, new_zone_from_dict
 
 try:
     from .core.io import write_numpy, read_numpy
