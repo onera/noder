@@ -46,6 +46,10 @@ Base::Base(const std::string& name) : Node(name.empty() ? "Base" : name, "CGNSBa
     this->setDimensions(3, 3);
 }
 
+std::shared_ptr<Node> Base::makeCopyShell() const {
+    return std::make_shared<Base>(name());
+}
+
 void Base::setDimensions(size_t cellDimension, size_t physicalDimension) {
     requireSizeTInInt32Range(cellDimension, "Base::setDimensions");
     requireSizeTInInt32Range(physicalDimension, "Base::setDimensions");

@@ -7,6 +7,13 @@ Tree::Tree() : Node("CGNSTree", "CGNSTree_t") {
     this->setType("CGNSTree_t");
 }
 
+std::shared_ptr<Node> Tree::makeCopyShell() const {
+    auto result = std::make_shared<Tree>();
+    result->setName(name());
+    result->setType(type());
+    return result;
+}
+
 Tree::BaseList Tree::bases() const {
     BaseList output;
     for (const auto& child : this->children()) {

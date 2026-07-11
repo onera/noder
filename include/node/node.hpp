@@ -114,6 +114,10 @@ private:
 
     mutable std::shared_ptr<Navigation> _navigator;
 
+protected:
+
+    /** @brief Create an empty instance of the concrete node type for copying. */
+    virtual std::shared_ptr<Node> makeCopyShell() const;
 
     void gatherAllDescendantsInList( std::shared_ptr<Node> node, std::vector<std::shared_ptr<Node>>& descendants);
     std::string printTreeImpl(

@@ -14,6 +14,9 @@
 #endif
 
 class TREE_EXPORT Tree : public Node {
+protected:
+    std::shared_ptr<Node> makeCopyShell() const override;
+
 public:
     using BaseList = std::vector<std::shared_ptr<Base>>;
     using ZoneList = std::vector<std::shared_ptr<Zone>>;

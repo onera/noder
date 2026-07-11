@@ -1,7 +1,4 @@
 #include "utils/compat.hpp"
-#include "cgns/base.hpp"
-#include "cgns/tree.hpp"
-#include "cgns/zone.hpp"
 #include "data/data_factory.hpp"
 #include "node/node.hpp"
 #include <limits>
@@ -35,22 +32,6 @@ int16_t toAttachPosition(size_t position, const char* context) {
         throw std::runtime_error(std::string(context) + ": sibling position exceeds int16_t range");
     }
     return static_cast<int16_t>(position);
-}
-
-std::shared_ptr<Node> makeCopyShellForType(const std::string& name, const std::string& type) {
-    if (type == "Zone_t") {
-        return std::make_shared<Zone>(name);
-    }
-    if (type == "CGNSBase_t") {
-        return std::make_shared<Base>(name);
-    }
-    if (type == "CGNSTree_t" || type == "Root Node of HDF5 File") {
-        auto tree = std::make_shared<Tree>();
-        tree->setName(name);
-        tree->setType(type);
-        return tree;
-    }
-    return std::make_shared<Node>(name, type);
 }
 
 std::vector<std::string> splitPathElements(const std::string& path) {
@@ -434,6 +415,10 @@ ParameterValue getParametersRecursively(const std::shared_ptr<Node>& container) 
 }
 
 } // namespace
+
+std::shared_ptr<Node> Node::makeCopyShell() const {
+    return std::make_shared<Node>(_name, _type);
+}
 
 ParameterValue ParameterValue::makeNull() {
     return ParameterValue{};
@@ -856,7 +841,7 @@ void Node::swap(std::shared_ptr<Node> node) {
 }
 
 std::shared_ptr<Node> Node::copy(bool deep) const {
-    auto copiedNode = makeCopyShellForType(_name, _type);
+    auto copiedNode = makeCopyShell();
 
     if (hasLinkTarget()) {
         copiedNode->setLinkTarget(_linkTargetFile, _linkTargetPath);

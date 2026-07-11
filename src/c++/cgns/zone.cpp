@@ -125,6 +125,10 @@ Zone::Zone(const std::string& name) : Node(name.empty() ? "Zone" : name, "Zone_t
     }
 }
 
+std::shared_ptr<Node> Zone::makeCopyShell() const {
+    return std::make_shared<Zone>(name());
+}
+
 std::shared_ptr<Node> Zone::ensureZoneTypeNode() {
     auto zoneType = this->pick().childByName("ZoneType");
     if (zoneType) {

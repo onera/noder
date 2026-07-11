@@ -14,6 +14,9 @@
 #endif
 
 class BASE_EXPORT Base : public Node {
+protected:
+    std::shared_ptr<Node> makeCopyShell() const override;
+
 public:
     using ZoneList = std::vector<std::shared_ptr<Zone>>;
     using ZoneDataList = std::vector<std::pair<std::string, Zone::DataList>>;

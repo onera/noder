@@ -34,6 +34,9 @@
  * Not implemented by design: save(), useEquation().
  */
 class ZONE_EXPORT Zone : public Node {
+protected:
+    std::shared_ptr<Node> makeCopyShell() const override;
+
 public:
     using NamedData = std::pair<std::string, std::shared_ptr<Data>>;
     using NamedDataList = std::vector<NamedData>;
