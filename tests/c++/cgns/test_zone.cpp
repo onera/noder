@@ -83,6 +83,33 @@ std::shared_ptr<Zone> makeCartesianZone(
     return zone;
 }
 
+std::shared_ptr<Zone> makeParticleZone() {
+    auto zone = std::make_shared<Zone>("Particles");
+    auto zoneNode = std::const_pointer_cast<Node>(zone->selfPtr());
+    auto coordinates = std::make_shared<Node>("GridCoordinates", "GridCoordinates_t");
+    coordinates->attachTo(zoneNode);
+
+    const std::vector<std::pair<std::string, std::vector<double>>> coordinateValues = {
+        {"CoordinateX", {0.0, 1.0, 2.0}},
+        {"CoordinateY", {3.0, 4.0, 5.0}},
+        {"CoordinateZ", {6.0, 7.0, 8.0}}};
+    for (const auto& [name, values] : coordinateValues) {
+        py::array_t<double> array(values.size());
+        std::copy(values.begin(), values.end(), array.mutable_data());
+        auto coordinate = std::make_shared<Node>(name, "DataArray_t");
+        coordinate->setData(std::make_shared<Array>(arraybridge::arrayFromPyArray(array)));
+        coordinate->attachTo(coordinates);
+    }
+
+    zone->updateShape();
+    auto strength = zone->fieldArray("StrengthX");
+    auto values = strength->writableSpan<double>();
+    values[0] = 10.0;
+    values[1] = 20.0;
+    values[2] = 30.0;
+    return zone;
+}
+
 } // namespace
 
 void test_zone_init() {
@@ -247,4 +274,33 @@ void test_zone_boundaries() {
 
     auto jMax = zone->boundary("j", "max");
     if (jMax->dim() != 2) throw py::value_error("jmax boundary should be 2D");
+}
+
+void test_zone_typed_arrays_and_resize() {
+    auto zone = makeParticleZone();
+    auto oldStrength = zone->fieldArray("StrengthX");
+    auto oldX = zone->xArray();
+    const auto revisionBefore = zone->revision();
+
+    zone->resizeVertexArrays(5);
+
+    auto strength = zone->fieldArray("StrengthX");
+    auto x = zone->xArray();
+    if (strength.get() == oldStrength.get() || x.get() == oldX.get()) {
+        throw py::value_error("resizeVertexArrays must replace Array objects");
+    }
+    if (zone->numberOfPoints() != 5 || strength->size() != 5 || x->size() != 5) {
+        throw py::value_error("resizeVertexArrays produced inconsistent sizes");
+    }
+    const auto values = strength->readOnlySpan<double>();
+    if (values[0] != 10.0 || values[2] != 30.0 || values[3] != 0.0 || values[4] != 0.0) {
+        throw py::value_error("resizeVertexArrays did not preserve and initialize values");
+    }
+    if (oldStrength->readOnlySpan<double>()[2] != 30.0) {
+        throw py::value_error("old Array view must remain memory-safe after replacement");
+    }
+    if (zone->revision() <= revisionBefore) {
+        throw py::value_error("resizeVertexArrays must increment the zone revision");
+    }
+    zone->assertFieldsSizeCoherency();
 }

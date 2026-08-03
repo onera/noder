@@ -17,6 +17,7 @@ void bindTestsOfZone(py::module_& m) {
     sm.def("test_zone_update_shape", &test_zone_update_shape);
     sm.def("test_zone_is_empty", &test_zone_is_empty);
     sm.def("test_zone_boundaries", &test_zone_boundaries);
+    sm.def("test_zone_typed_arrays_and_resize", &test_zone_typed_arrays_and_resize);
 }
 
 #endif

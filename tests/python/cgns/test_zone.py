@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import importlib
 
-from noder.core import Node, pyCGNSToNode, nodeToPyCGNS
+from noder.core import Array, Node, pyCGNSToNode, nodeToPyCGNS
 from noder.cgns import Zone
 
 def make_cart():
@@ -26,6 +26,23 @@ def make_cart():
 
     zone.add_child(coordinates)
     zone.update_shape()
+    return zone
+
+
+def make_particles():
+    zone = Zone("Particles")
+    coordinates = Node("GridCoordinates", "GridCoordinates_t")
+    for name, values in {
+        "CoordinateX": [0.0, 1.0, 2.0],
+        "CoordinateY": [3.0, 4.0, 5.0],
+        "CoordinateZ": [6.0, 7.0, 8.0],
+    }.items():
+        coordinate = Node(name, "DataArray_t")
+        coordinate.set_data(np.asarray(values))
+        coordinates.add_child(coordinate)
+    zone.add_child(coordinates)
+    zone.update_shape()
+    zone.new_fields("StrengthX")[:] = [10.0, 20.0, 30.0]
     return zone
 
 
@@ -54,6 +71,46 @@ def test_zone_metrics():
     assert zone.shape_of_coordinates() == [3, 3, 3]
     assert zone.number_of_points() == 27
     assert zone.number_of_cells() == 8
+
+
+def test_typed_arrays_and_vertex_resize_are_zero_copy_and_coherent():
+    zone = make_particles()
+    old_strength = zone.field_array("StrengthX")
+    old_values = old_strength.getPyArray()
+    revision_before = zone.revision()
+
+    assert isinstance(old_strength, Array)
+    assert isinstance(zone.x_array(), Array)
+
+    zone.resize_vertex_arrays(5)
+
+    new_strength = zone.field_array("StrengthX")
+    new_values = new_strength.getPyArray()
+    assert zone.number_of_points() == 5
+    assert np.shares_memory(new_values, new_strength.getPyArray())
+    assert np.array_equal(new_values, [10.0, 20.0, 30.0, 0.0, 0.0])
+    assert np.array_equal(old_values, [10.0, 20.0, 30.0])
+    assert zone.revision() > revision_before
+    zone.assert_fields_size_coherency()
+
+
+def test_vertex_resize_rejects_cell_centered_fields():
+    zone = make_particles()
+    zone.new_fields("CellValue", container="FlowSolution#Centers")
+
+    with pytest.raises(ValueError, match="cell-centered"):
+        zone.resize_vertex_arrays(5)
+
+
+def test_vertex_resize_supports_empty_particle_zone():
+    zone = make_particles()
+
+    zone.resize_vertex_arrays(0)
+
+    assert zone.number_of_points() == 0
+    assert zone.x_array().size() == 0
+    assert zone.field_array("StrengthX").size() == 0
+    zone.assert_fields_size_coherency()
 
 
 def test_new_fields_vertex():

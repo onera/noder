@@ -96,7 +96,8 @@ inline Array arrayFromPyArray(const py::array& array) {
         toUnsignedVector(info.shape),
         toUnsignedVector(info.strides),
         ownerFromPyArray(array),
-        ArrayOwnerKind::PythonArray);
+        ArrayOwnerKind::PythonArray,
+        array.writeable());
 }
 
 inline Array arrayFromPyObject(const py::object& objectValue) {
@@ -179,20 +180,28 @@ inline py::object toPyObject(const Array& array) {
             return original;
         }
 
-        return py::array(
+        py::array output(
             dtypeFromArray(array),
             toSignedVector(array.shape()),
             toSignedVector(array.strides()),
             array.rawData(),
             original);
+        if (!array.isWritable()) {
+            output.attr("setflags")(false);
+        }
+        return output;
     }
 
-    return py::array(
+    py::array output(
         dtypeFromArray(array),
         toSignedVector(array.shape()),
         toSignedVector(array.strides()),
         array.rawData(),
         baseObjectFromOwner(array.owner()));
+    if (!array.isWritable()) {
+        output.attr("setflags")(false);
+    }
+    return output;
 }
 
 inline py::array toPyArray(const Array& array) {

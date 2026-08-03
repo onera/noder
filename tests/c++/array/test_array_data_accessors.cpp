@@ -227,6 +227,57 @@ void test_extractStringUnicode() {
 
 }
 
+void test_checkedSpans() {
+    Array array = arrayfactory::zeros<double>({3});
+    auto writable = array.writableSpan<double>();
+    writable[1] = 4.5;
+
+    const Array& readOnlyArray = array;
+    const auto values = readOnlyArray.readOnlySpan<double>();
+    if (values.size() != 3 || values[1] != 4.5) {
+        throw py::value_error("checked spans must share the Array buffer");
+    }
+
+    bool wrongTypeRaised = false;
+    try {
+        (void)array.readOnlySpan<float>();
+    } catch (const std::invalid_argument&) {
+        wrongTypeRaised = true;
+    }
+    if (!wrongTypeRaised) {
+        throw py::value_error("readOnlySpan must reject a mismatched type");
+    }
+}
+
+void test_readOnlyArray() {
+    py::array_t<double> values({3});
+    values.mutable_at(0) = 1.0;
+    values.mutable_at(1) = 2.0;
+    values.mutable_at(2) = 3.0;
+    values.attr("setflags")(false);
+
+    Array array = arraybridge::arrayFromPyArray(values);
+    if (array.isWritable()) {
+        throw py::value_error("read-only NumPy ownership must be preserved");
+    }
+    if (array.readOnlySpan<double>()[2] != 3.0) {
+        throw py::value_error("read-only span returned unexpected values");
+    }
+
+    bool raised = false;
+    try {
+        (void)array.writableSpan<double>();
+    } catch (const std::runtime_error&) {
+        raised = true;
+    }
+    if (!raised) {
+        throw py::value_error("writableSpan must reject a read-only Array");
+    }
+    if (arraybridge::toPyArray(array).writeable()) {
+        throw py::value_error("exported NumPy view must remain read-only");
+    }
+}
+
 
 /*
     template instantiations

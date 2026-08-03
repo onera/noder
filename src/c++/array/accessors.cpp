@@ -25,7 +25,9 @@ template <typename T>
 Array Array::getItemAsArrayAtIndex(const size_t& flatIndex) {
     T* data = this->getPointerOfDataSafely<T>();
     const size_t offset = this->isContiguous() ? flatIndex : this->getOffsetFromFlatIndex<T>(flatIndex);
-    return Array(typeIdFor<T>(), sizeof(T), data + offset, {1}, {sizeof(T)}, this->_owner, this->_ownerKind);
+    return Array(
+        typeIdFor<T>(), sizeof(T), data + offset, {1}, {sizeof(T)},
+        this->_owner, this->_ownerKind, this->_writable);
 }
 
 template <typename T>
@@ -56,11 +58,17 @@ const T& Array::getItemAtIndex(const size_t& index) const {
 template <typename T>
 T* Array::getPointerOfDataSafely() {
     must().haveDataOfType<T>();
+    if (!this->isWritable()) {
+        throw std::runtime_error("Array::getPointerOfDataSafely: array is read-only");
+    }
     return static_cast<T*>(this->rawData());
 }
 
 template <typename T>
 T* Array::getPointerOfModifiableDataFast() {
+    if (!this->isWritable()) {
+        throw std::runtime_error("Array::getPointerOfModifiableDataFast: array is read-only");
+    }
     return reinterpret_cast<T*>(this->rawData());
 }
 

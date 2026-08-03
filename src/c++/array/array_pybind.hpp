@@ -28,7 +28,7 @@ Pure C++ array payload exposed to Python through a NumPy bridge.
         .def("shape", &Array::shape)
         .def("strides", &Array::strides)
         .def("info", &Array::info)
-        .def("getItemAtIndex", [](Array& self, const size_t& flatIndex) -> py::object {
+        .def("getItemAtIndex", [](const Array& self, const size_t& flatIndex) -> py::object {
             if (self.hasDataOfType<int8_t>()) { return py::cast(self.getItemAtIndex<int8_t>(flatIndex)); }
             if (self.hasDataOfType<int16_t>()) { return py::cast(self.getItemAtIndex<int16_t>(flatIndex)); }
             if (self.hasDataOfType<int32_t>()) { return py::cast(self.getItemAtIndex<int32_t>(flatIndex)); }
@@ -50,6 +50,7 @@ Pure C++ array payload exposed to Python through a NumPy bridge.
         .def("isContiguous", &Array::isContiguous)
         .def("isContiguousInStyleC", &Array::isContiguousInStyleC)
         .def("isContiguousInStyleFortran", &Array::isContiguousInStyleFortran)
+        .def("isWritable", &Array::isWritable)
         .def("hasString", &Array::hasString)
         .def("print", &Array::print)
         .def("getPrintString", &Array::getPrintString)

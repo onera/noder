@@ -39,3 +39,7 @@ def test_cpp_zone_is_empty():
 
 def test_cpp_zone_boundaries():
     return test_in_cpp.test_zone_boundaries()
+
+
+def test_cpp_zone_typed_arrays_and_resize():
+    return test_in_cpp.test_zone_typed_arrays_and_resize()

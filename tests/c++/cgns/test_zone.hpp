@@ -13,5 +13,6 @@ void test_zone_infer_location_and_coherency();
 void test_zone_update_shape();
 void test_zone_is_empty();
 void test_zone_boundaries();
+void test_zone_typed_arrays_and_resize();
 
 #endif

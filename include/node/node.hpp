@@ -110,9 +110,12 @@ private:
     std::shared_ptr<Data> _data;
     std::string _linkTargetFile;
     std::string _linkTargetPath;
+    std::uint64_t _revision;
     static std::function<std::shared_ptr<Data>()> dataFactory;
 
     mutable std::shared_ptr<Navigation> _navigator;
+
+    void markModified();
 
 protected:
 
@@ -193,6 +196,9 @@ public:
     const Data& data() const;
     /** @brief Read payload shared pointer. */
     std::shared_ptr<Data> dataPtr() const;
+
+    /** @brief Revision of this subtree's structural and payload replacements. */
+    std::uint64_t revision() const;
 
     /** @brief Replace payload with shared Data instance. */
     void setData(std::shared_ptr<Data> d);

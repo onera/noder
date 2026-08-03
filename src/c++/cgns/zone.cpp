@@ -1,6 +1,7 @@
 #include "cgns/zone.hpp"
 
 #include <cctype>
+#include <cstring>
 #include <limits>
 #include <set>
 #include <stdexcept>
@@ -53,6 +54,48 @@ std::shared_ptr<Data> maybeRavelData(const std::shared_ptr<Data>& data, bool rav
         return safeData;
     }
     return safeData->ravel("K");
+}
+
+std::shared_ptr<Array> requireArray(const std::shared_ptr<Data>& data, const char* context) {
+    auto array = std::dynamic_pointer_cast<Array>(requireData(data, context));
+    if (!array) {
+        throw std::runtime_error(std::string(context) + ": data is not an Array");
+    }
+    return array;
+}
+
+std::shared_ptr<Array> resizedOneDimensionalArray(
+    const std::shared_ptr<Array>& source,
+    size_t numberOfPoints,
+    bool preserveValues,
+    const std::string& context) {
+
+    if (!source) {
+        throw std::runtime_error(context + ": array is null");
+    }
+    if (source->dimensions() != 1) {
+        throw std::invalid_argument(context + ": expected a one-dimensional array");
+    }
+    if (!source->isContiguous()) {
+        throw std::invalid_argument(context + ": expected a contiguous array");
+    }
+
+    auto replacement = std::dynamic_pointer_cast<Array>(
+        source->full({numberOfPoints}, 0.0, source->dtype(), 'C'));
+    if (!replacement) {
+        throw std::runtime_error(context + ": failed to allocate replacement Array");
+    }
+
+    if (preserveValues) {
+        const size_t copiedItems = std::min(source->size(), replacement->size());
+        if (copiedItems > 0) {
+            std::memcpy(
+                replacement->rawData(),
+                source->rawData(),
+                copiedItems * source->itemsize());
+        }
+    }
+    return replacement;
 }
 
 size_t productOfColumn(
@@ -463,6 +506,20 @@ std::shared_ptr<Data> Zone::field(
     return output.front();
 }
 
+std::shared_ptr<Array> Zone::fieldArray(
+    const std::string& fieldName,
+    const std::string& container,
+    const std::string& behaviorIfNotFound,
+    const std::string& dtype,
+    bool ravel) {
+
+    auto data = this->field(fieldName, container, behaviorIfNotFound, dtype, ravel);
+    if (!data) {
+        return nullptr;
+    }
+    return requireArray(data, "fieldArray");
+}
+
 Zone::DataList Zone::xyz(bool ravel) const {
     const auto coords = coordinateNodes(*this);
     return {
@@ -497,6 +554,26 @@ std::shared_ptr<Data> Zone::y(bool ravel) const {
 
 std::shared_ptr<Data> Zone::z(bool ravel) const {
     return this->xyz(ravel)[2];
+}
+
+Zone::ArrayList Zone::xyzArrays(bool ravel) const {
+    const auto coordinates = this->xyz(ravel);
+    return {
+        requireArray(coordinates[0], "xyzArrays"),
+        requireArray(coordinates[1], "xyzArrays"),
+        requireArray(coordinates[2], "xyzArrays")};
+}
+
+std::shared_ptr<Array> Zone::xArray(bool ravel) const {
+    return this->xyzArrays(ravel)[0];
+}
+
+std::shared_ptr<Array> Zone::yArray(bool ravel) const {
+    return this->xyzArrays(ravel)[1];
+}
+
+std::shared_ptr<Array> Zone::zArray(bool ravel) const {
+    return this->xyzArrays(ravel)[2];
 }
 
 Zone::NamedDataList Zone::allFields(
@@ -664,10 +741,7 @@ Zone::ShapePair Zone::getArrayShapes() const {
     if (shapeCellCenter.empty()) {
         shapeCellCenter = shapeVertex;
         for (auto& value : shapeCellCenter) {
-            if (value == 0) {
-                throw std::runtime_error("getArrayShapes: cannot infer CellCenter shape from zero-sized Vertex shape");
-            }
-            value -= 1;
+            value = value > 0 ? value - 1 : 0;
         }
     } else if (shapeVertex.empty()) {
         shapeVertex = shapeCellCenter;
@@ -697,6 +771,49 @@ void Zone::updateShape() {
     }
 
     this->setData(shapeData);
+}
+
+void Zone::resizeVertexArrays(size_t numberOfPoints, bool preserveValues) {
+    if (numberOfPoints > static_cast<size_t>(std::numeric_limits<int32_t>::max())) {
+        throw std::invalid_argument("resizeVertexArrays: number of points exceeds int32_t range");
+    }
+    using Replacement = std::pair<std::shared_ptr<Node>, std::shared_ptr<Array>>;
+    std::vector<Replacement> replacements;
+
+    for (const auto& coordinate : coordinateNodes(*this)) {
+        auto source = requireArray(coordinate->dataPtr(), "resizeVertexArrays coordinate");
+        replacements.emplace_back(
+            coordinate,
+            resizedOneDimensionalArray(source, numberOfPoints, preserveValues, coordinate->path()));
+    }
+
+    for (const auto& flowSolution : this->directChildrenByType("FlowSolution_t")) {
+        const std::string location = this->inferLocation(flowSolution->name());
+        if (location == "CellCenter") {
+            throw std::invalid_argument(
+                "resizeVertexArrays: cell-centered container is not supported: " + flowSolution->path());
+        }
+        if (location != "Vertex") {
+            throw std::invalid_argument(
+                "resizeVertexArrays: unsupported GridLocation '" + location + "' at " + flowSolution->path());
+        }
+
+        for (const auto& fieldNode : flowSolution->children()) {
+            if (!fieldNode || fieldNode->type() != "DataArray_t") {
+                continue;
+            }
+            auto source = requireArray(fieldNode->dataPtr(), "resizeVertexArrays field");
+            replacements.emplace_back(
+                fieldNode,
+                resizedOneDimensionalArray(source, numberOfPoints, preserveValues, fieldNode->path()));
+        }
+    }
+
+    for (const auto& [node, replacement] : replacements) {
+        node->setData(replacement);
+    }
+    this->updateShape();
+    this->assertFieldsSizeCoherency();
 }
 
 bool Zone::isEmpty() const {

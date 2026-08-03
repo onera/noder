@@ -43,6 +43,8 @@ void bindTestsOfArrayDataAccessors(py::module_ &m) {
 
     m.def("extractStringAscii", &test_extractStringAscii);
     m.def("extractStringUnicode", &test_extractStringUnicode);
+    m.def("checkedSpans", &test_checkedSpans);
+    m.def("readOnlyArray", &test_readOnlyArray);
 }
 
 # endif

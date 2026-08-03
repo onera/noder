@@ -1277,6 +1277,20 @@ def test_extract_string_from_numpy_chars_united():
     assert extracted_string == "ab"
 
 
+def test_revision_tracks_subtree_structure_but_not_array_value_edits():
+    parent = Node("parent")
+    child = Node("child")
+    parent.add_child(child)
+    revision_after_attachment = parent.revision()
+
+    child.set_data(np.array([1.0]))
+    assert parent.revision() > revision_after_attachment
+
+    revision_after_replacement = parent.revision()
+    child.numpy()[0] = 2.0
+    assert parent.revision() == revision_after_replacement
+
+
 
 if __name__ == '__main__':
     test_print_tree()

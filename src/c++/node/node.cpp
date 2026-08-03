@@ -480,6 +480,7 @@ Node::Node(const std::string& name, const std::string& type) :
     _type(type),
     _linkTargetFile(),
     _linkTargetPath(),
+    _revision(0),
     _data(nullptr),
     _navigator(nullptr) {
     ensureFactoryInitialized();
@@ -545,7 +546,11 @@ const std::string& Node::name() const {
 }
 
 void Node::setName(const std::string& name) {
+    if (this->_name == name) {
+        return;
+    }
     this->_name = name;
+    this->markModified();
 }
 
 
@@ -557,12 +562,26 @@ std::shared_ptr<Data> Node::dataPtr() const {
     return this->_data;
 }
 
+std::uint64_t Node::revision() const {
+    return this->_revision;
+}
+
+void Node::markModified() {
+    Node* current = this;
+    while (current != nullptr) {
+        ++current->_revision;
+        auto parent = current->_parent.lock();
+        current = parent.get();
+    }
+}
+
 void Node::setData(std::shared_ptr<Data> d) {
     this->_data = std::move(d);
+    this->markModified();
 }
 
 void Node::setData(const Data& d) {
-    this->_data = d.clone();
+    this->setData(d.clone());
 }
 
 std::string Node::type() const {
@@ -570,7 +589,11 @@ std::string Node::type() const {
 }
 
 void Node::setType(const std::string& type) {
+    if (this->_type == type) {
+        return;
+    }
     this->_type = type;
+    this->markModified();
 }
 
 bool Node::hasLinkTarget() const {
@@ -591,11 +614,16 @@ void Node::setLinkTarget(const std::string& targetFile, const std::string& targe
     }
     _linkTargetFile = targetFile;
     _linkTargetPath = targetPath;
+    this->markModified();
 }
 
 void Node::clearLinkTarget() {
+    if (_linkTargetFile.empty() && _linkTargetPath.empty()) {
+        return;
+    }
     _linkTargetFile.clear();
     _linkTargetPath.clear();
+    this->markModified();
 }
 
 bool Node::noData() const {
@@ -723,8 +751,10 @@ void Node::detach() {
                                             return node.get() == this;
                                         }),
                         siblings.end());
+        parent->markModified();
     }
     this->_parent.reset();
+    ++this->_revision;
 }
 
 void Node::attachTo(
@@ -768,6 +798,7 @@ void Node::attachTo(
     }
 
     node->_children.emplace(siblings.begin() + emplacementIndex, thisPtr);
+    this->markModified();
 }
 
 

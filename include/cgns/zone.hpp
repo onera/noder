@@ -15,6 +15,7 @@
 # include <sstream>
 # include <tuple>
 
+# include "array/array.hpp"
 # include "node/node.hpp"
 
 // Zone is compiled in the same shared library as Node.
@@ -41,6 +42,7 @@ public:
     using NamedData = std::pair<std::string, std::shared_ptr<Data>>;
     using NamedDataList = std::vector<NamedData>;
     using DataList = std::vector<std::shared_ptr<Data>>;
+    using ArrayList = std::vector<std::shared_ptr<Array>>;
     using ShapePair = std::pair<std::vector<size_t>, std::vector<size_t>>;
     using ZoneList = std::vector<std::shared_ptr<Zone>>;
 
@@ -81,6 +83,13 @@ public:
         const std::string& dtype = "float64",
         bool ravel = false);
 
+    std::shared_ptr<Array> fieldArray(
+        const std::string& fieldName,
+        const std::string& container = "FlowSolution",
+        const std::string& behaviorIfNotFound = "create",
+        const std::string& dtype = "float64",
+        bool ravel = false);
+
     DataList xyz(bool ravel = false) const;
     DataList xy(bool ravel = false) const;
     DataList xz(bool ravel = false) const;
@@ -88,6 +97,10 @@ public:
     std::shared_ptr<Data> x(bool ravel = false) const;
     std::shared_ptr<Data> y(bool ravel = false) const;
     std::shared_ptr<Data> z(bool ravel = false) const;
+    ArrayList xyzArrays(bool ravel = false) const;
+    std::shared_ptr<Array> xArray(bool ravel = false) const;
+    std::shared_ptr<Array> yArray(bool ravel = false) const;
+    std::shared_ptr<Array> zArray(bool ravel = false) const;
 
     NamedDataList allFields(
         bool includeCoordinates = true,
@@ -100,6 +113,13 @@ public:
 
     ShapePair getArrayShapes() const;
     void updateShape();
+    /**
+     * @brief Replace all 1D coordinate and vertex-field arrays coherently.
+     *
+     * Cell-centered containers are rejected because resizing only vertex data
+     * would leave their topology ambiguous.
+     */
+    void resizeVertexArrays(size_t numberOfPoints, bool preserveValues = true);
     bool isEmpty() const;
 
     ZoneList boundaries();

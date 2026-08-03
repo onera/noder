@@ -40,4 +40,8 @@ void test_extractStringAscii();
 
 void test_extractStringUnicode();
 
+void test_checkedSpans();
+
+void test_readOnlyArray();
+
 # endif

@@ -286,8 +286,18 @@ Array::Array(ArrayTypeId typeId,
              const std::vector<size_t>& shape,
              const std::vector<size_t>& strides,
              std::shared_ptr<void> owner,
-             ArrayOwnerKind ownerKind) {
-    this->setArrayMembersUsing(typeId, itemsize, data, shape, strides, std::move(owner), ownerKind);
+             ArrayOwnerKind ownerKind) :
+    Array(typeId, itemsize, data, shape, strides, std::move(owner), ownerKind, true) {}
+
+Array::Array(ArrayTypeId typeId,
+             size_t itemsize,
+             void* data,
+             const std::vector<size_t>& shape,
+             const std::vector<size_t>& strides,
+             std::shared_ptr<void> owner,
+             ArrayOwnerKind ownerKind,
+             bool writable) {
+    this->setArrayMembersUsing(typeId, itemsize, data, shape, strides, std::move(owner), ownerKind, writable);
 }
 
 Array Array::bytesView(void* data,
@@ -303,8 +313,9 @@ Array Array::bytesView(void* data,
                        const std::vector<size_t>& shape,
                        const std::vector<size_t>& strides,
                        std::shared_ptr<void> owner,
-                       ArrayOwnerKind ownerKind) {
-    return Array(ArrayTypeId::Bytes, itemsize, data, shape, strides, std::move(owner), ownerKind);
+                       ArrayOwnerKind ownerKind,
+                       bool writable) {
+    return Array(ArrayTypeId::Bytes, itemsize, data, shape, strides, std::move(owner), ownerKind, writable);
 }
 
 Array Array::unicodeView(void* data,
@@ -320,8 +331,9 @@ Array Array::unicodeView(void* data,
                          const std::vector<size_t>& shape,
                          const std::vector<size_t>& strides,
                          std::shared_ptr<void> owner,
-                         ArrayOwnerKind ownerKind) {
-    return Array(ArrayTypeId::Unicode, itemsize, data, shape, strides, std::move(owner), ownerKind);
+                         ArrayOwnerKind ownerKind,
+                         bool writable) {
+    return Array(ArrayTypeId::Unicode, itemsize, data, shape, strides, std::move(owner), ownerKind, writable);
 }
 
 size_t Array::computeSizeFromShape(const std::vector<size_t>& shape) {
@@ -337,6 +349,7 @@ void Array::setArrayMembersAsNull() {
     this->_size = 0;
     this->_shape.clear();
     this->_strides.clear();
+    this->_writable = false;
     this->_must = nullptr;
 }
 
@@ -346,7 +359,8 @@ void Array::setArrayMembersUsing(ArrayTypeId typeId,
                                  const std::vector<size_t>& shape,
                                  const std::vector<size_t>& strides,
                                  std::shared_ptr<void> owner,
-                                 ArrayOwnerKind ownerKind) {
+                                 ArrayOwnerKind ownerKind,
+                                 bool writable) {
     if (shape.size() != strides.size()) {
         throw std::invalid_argument("Array: shape and strides must have the same rank");
     }
@@ -361,6 +375,7 @@ void Array::setArrayMembersUsing(ArrayTypeId typeId,
     this->_size = computeSizeFromShape(shape);
     this->_shape = shape;
     this->_strides = strides;
+    this->_writable = writable;
     this->_must = nullptr;
 
     if (typeId == ArrayTypeId::None) {
@@ -371,6 +386,7 @@ void Array::setArrayMembersUsing(ArrayTypeId typeId,
         this->_dimensions = 0;
         this->_size = 0;
         this->_dtype.itemsize = 0;
+        this->_writable = false;
         return;
     }
 
@@ -565,7 +581,7 @@ std::shared_ptr<Data> Array::ravel(const std::string& order) const {
     if (normalizedOrder == 'K') {
         if (this->isContiguous()) {
         return std::make_shared<Array>(
-                Array(this->_dtype.id, this->_dtype.itemsize, this->_data, {this->_size}, {this->_dtype.itemsize}, this->_owner, this->_ownerKind));
+                Array(this->_dtype.id, this->_dtype.itemsize, this->_data, {this->_size}, {this->_dtype.itemsize}, this->_owner, this->_ownerKind, this->_writable));
         }
         normalizedOrder = 'C';
     }
@@ -574,7 +590,7 @@ std::shared_ptr<Data> Array::ravel(const std::string& order) const {
     if ((normalizedOrder == 'C' && this->isContiguousInStyleC()) ||
         (normalizedOrder == 'F' && this->isContiguousInStyleFortran())) {
         return std::make_shared<Array>(
-            Array(this->_dtype.id, this->_dtype.itemsize, this->_data, {this->_size}, {this->_dtype.itemsize}, this->_owner, this->_ownerKind));
+            Array(this->_dtype.id, this->_dtype.itemsize, this->_data, {this->_size}, {this->_dtype.itemsize}, this->_owner, this->_ownerKind, this->_writable));
     }
 
     const size_t byteCount = this->_size * this->_dtype.itemsize;
@@ -630,7 +646,7 @@ std::shared_ptr<Data> Array::take(int64_t index, size_t axis) const {
     }
 
     return std::make_shared<Array>(
-        Array(this->_dtype.id, this->_dtype.itemsize, newData, newShape, newStrides, this->_owner, this->_ownerKind));
+        Array(this->_dtype.id, this->_dtype.itemsize, newData, newShape, newStrides, this->_owner, this->_ownerKind, this->_writable));
 }
 
 int64_t Array::itemAsInt64(const std::vector<size_t>& indices) const {
@@ -653,6 +669,9 @@ int64_t Array::itemAsInt64(const std::vector<size_t>& indices) const {
 }
 
 void Array::setItemFromInt64(const std::vector<size_t>& indices, int64_t value) {
+    if (!this->isWritable()) {
+        throw std::runtime_error("Array::setItemFromInt64: array is read-only");
+    }
     const size_t byteOffset = this->dimensions() == 0 ? 0 : this->getByteOffsetFromIndices(indices);
     auto* bytes = static_cast<std::uint8_t*>(this->rawData()) + byteOffset;
 

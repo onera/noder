@@ -46,6 +46,7 @@ Array& Array::operator=(const Array& other) {
         this->_size = other._size;
         this->_shape = other._shape;
         this->_strides = other._strides;
+        this->_writable = other._writable;
         this->_must = nullptr;
         return *this;
     }

@@ -48,6 +48,8 @@ class Array(Data):
         ...
     def isScalar(self) -> bool:
         ...
+    def isWritable(self) -> bool:
+        ...
     def print(self, arg0: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def shape(self) -> list[int]:
@@ -703,6 +705,12 @@ class Node:
         Reload this node payload from file using this node path.
         
         See C++ counterpart: :ref:`cpp-node-reloadnodedata`.
+        """
+    def revision(self) -> int:
+        """
+        Return the revision incremented by structural changes and payload replacement in this subtree.
+        
+        In-place edits of array values do not increment this revision.
         """
     def root(self) -> Node:
         """

@@ -7,6 +7,7 @@
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -68,6 +69,7 @@ private:
     size_t _size;
     std::vector<size_t> _shape;
     std::vector<size_t> _strides;
+    bool _writable;
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
     class Assertions;
@@ -92,6 +94,14 @@ public:
           const std::vector<size_t>& strides,
           std::shared_ptr<void> owner,
           ArrayOwnerKind ownerKind);
+    Array(ArrayTypeId typeId,
+          size_t itemsize,
+          void* data,
+          const std::vector<size_t>& shape,
+          const std::vector<size_t>& strides,
+          std::shared_ptr<void> owner,
+          ArrayOwnerKind ownerKind,
+          bool writable);
     Array(const std::string& string);
     Array(const char* string);
     Array(const Array& other);
@@ -122,7 +132,8 @@ public:
                            const std::vector<size_t>& shape,
                            const std::vector<size_t>& strides,
                            std::shared_ptr<void> owner,
-                           ArrayOwnerKind ownerKind);
+                           ArrayOwnerKind ownerKind,
+                           bool writable = true);
 
     static Array unicodeView(void* data,
                              size_t itemsize,
@@ -134,7 +145,8 @@ public:
                              const std::vector<size_t>& shape,
                              const std::vector<size_t>& strides,
                              std::shared_ptr<void> owner,
-                             ArrayOwnerKind ownerKind);
+                             ArrayOwnerKind ownerKind,
+                             bool writable = true);
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
     Assertions& must() const;
@@ -163,6 +175,15 @@ public:
     bool isContiguous() const;
     bool isContiguousInStyleC() const;
     bool isContiguousInStyleFortran() const;
+    bool isWritable() const { return this->_writable; }
+
+    /** @brief Checked flat read-only view over a contiguous typed array. */
+    template <typename T>
+    std::span<const T> readOnlySpan() const;
+
+    /** @brief Checked flat writable view over a contiguous typed array. */
+    template <typename T>
+    std::span<T> writableSpan();
 
     template <typename T>
     bool hasDataOfType() const;
@@ -273,7 +294,8 @@ private:
                               const std::vector<size_t>& shape,
                               const std::vector<size_t>& strides,
                               std::shared_ptr<void> owner,
-                              ArrayOwnerKind ownerKind = ArrayOwnerKind::ManagedBuffer);
+                              ArrayOwnerKind ownerKind = ArrayOwnerKind::ManagedBuffer,
+                              bool writable = true);
 
     template <typename T>
     Array& setElementsAs(const T& scalar);
@@ -460,6 +482,31 @@ inline constexpr ArrayTypeId Array::typeIdFor() {
 template <typename T>
 inline bool Array::hasDataOfType() const {
     return this->_dtype.id == typeIdFor<T>();
+}
+
+template <typename T>
+inline std::span<const T> Array::readOnlySpan() const {
+    if (!this->hasDataOfType<T>()) {
+        throw std::invalid_argument("Array::readOnlySpan: requested type does not match array dtype");
+    }
+    if (!this->isContiguous()) {
+        throw std::invalid_argument("Array::readOnlySpan: array must be contiguous");
+    }
+    return {reinterpret_cast<const T*>(this->rawData()), this->size()};
+}
+
+template <typename T>
+inline std::span<T> Array::writableSpan() {
+    if (!this->hasDataOfType<T>()) {
+        throw std::invalid_argument("Array::writableSpan: requested type does not match array dtype");
+    }
+    if (!this->isContiguous()) {
+        throw std::invalid_argument("Array::writableSpan: array must be contiguous");
+    }
+    if (!this->isWritable()) {
+        throw std::runtime_error("Array::writableSpan: array is read-only");
+    }
+    return {reinterpret_cast<T*>(this->rawData()), this->size()};
 }
 
 #endif

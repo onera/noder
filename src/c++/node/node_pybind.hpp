@@ -467,6 +467,11 @@ Return node payload as a Data-compatible Python object, or None when empty.
 
 See C++ counterpart: :ref:`cpp-node-data`.
 )doc")
+        .def("revision", &Node::revision, R"doc(
+Return the revision incremented by structural changes and payload replacement in this subtree.
+
+In-place edits of array values do not increment this revision.
+)doc")
         .def("numpy", [](const Node& node) -> py::object {
             std::shared_ptr<Data> data = node.dataPtr();
             if (!data || data->isNone()) {

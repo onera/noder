@@ -149,6 +149,19 @@ def test_array_init_example():
     # docs:end array_init_example
 
 
+def test_read_only_numpy_array_remains_read_only():
+    values = np.arange(3.0)
+    values.setflags(write=False)
+
+    array = Array(values)
+
+    assert not array.isWritable()
+    assert array.getItemAtIndex(1) == 1.0
+    assert not array.getPyArray().flags.writeable
+    with pytest.raises(ValueError):
+        array[0] = 4.0
+
+
 def test_array_getitem_example():
     # docs:start array_getitem_example
     from noder.core import Array
@@ -328,4 +341,3 @@ def test_array_print_example():
     array = Array(np.array([1, 2, 3], dtype=np.int32))
     array.print(40)
     # docs:end array_print_example
-

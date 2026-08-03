@@ -52,3 +52,9 @@ def test_extractStringAscii(): return test_in_cpp.extractStringAscii()
 
 
 def test_extractStringUnicode(): return test_in_cpp.extractStringUnicode()
+
+
+def test_checked_spans(): return test_in_cpp.checkedSpans()
+
+
+def test_read_only_array(): return test_in_cpp.readOnlyArray()

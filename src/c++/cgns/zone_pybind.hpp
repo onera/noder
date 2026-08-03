@@ -305,6 +305,26 @@ Not implemented on purpose: ``save`` and ``useEquation``.
             py::arg("dtype") = py::str("float64"),
             py::arg("ravel") = false)
         .def(
+            "field_array",
+            [](Zone& zone,
+               const std::string& fieldName,
+               const std::string& container,
+               const std::string& behaviorIfNotFound,
+               const py::object& dtype,
+               bool ravel) {
+                return zone.fieldArray(
+                    fieldName,
+                    container,
+                    behaviorIfNotFound,
+                    dtypeNameFromPyObject(dtype),
+                    ravel);
+            },
+            py::arg("field_name"),
+            py::arg("container") = "FlowSolution",
+            py::arg("behavior_if_not_found") = "create",
+            py::arg("dtype") = py::str("float64"),
+            py::arg("ravel") = false)
+        .def(
             "xyz",
             [](const Zone& zone, const std::string& returnType, bool ravel) {
                 return pyObjectFromCoordinates(zone.xyz(ravel), returnType);
@@ -374,6 +394,9 @@ Not implemented on purpose: ``save`` and ``useEquation``.
         .def("x", [](const Zone& zone, bool ravel) { return pyObjectFromData(zone.x(ravel)); }, py::arg("ravel") = false)
         .def("y", [](const Zone& zone, bool ravel) { return pyObjectFromData(zone.y(ravel)); }, py::arg("ravel") = false)
         .def("z", [](const Zone& zone, bool ravel) { return pyObjectFromData(zone.z(ravel)); }, py::arg("ravel") = false)
+        .def("x_array", &Zone::xArray, py::arg("ravel") = false)
+        .def("y_array", &Zone::yArray, py::arg("ravel") = false)
+        .def("z_array", &Zone::zArray, py::arg("ravel") = false)
         .def(
             "all_fields",
             [](const Zone& zone,
@@ -393,6 +416,11 @@ Not implemented on purpose: ``save`` and ``useEquation``.
         .def("has_fields", &Zone::hasFields)
         .def("get_array_shapes", &Zone::getArrayShapes)
         .def("update_shape", &Zone::updateShape)
+        .def(
+            "resize_vertex_arrays",
+            &Zone::resizeVertexArrays,
+            py::arg("number_of_points"),
+            py::arg("preserve_values") = true)
         .def("is_empty", &Zone::isEmpty)
         .def("boundaries", &Zone::boundaries)
         .def("boundary", &Zone::boundary, py::arg("index") = "i", py::arg("bound") = "min")
