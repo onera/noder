@@ -30,6 +30,33 @@ def _new_cgns_tree():
     tree.add_children([version, base])
     return tree
 
+
+def _write_handcrafted_cgns_dataset(filename, node_path, cgns_type, shape, *, dtype=np.int32, chunks=None):
+    h5py = pytest.importorskip("h5py")
+    with h5py.File(filename, "w", track_order=True) as h5file:
+        h5file.attrs["name"] = np.bytes_("HDF5 MotherNode")
+        h5file.attrs["label"] = np.bytes_("Root Node of HDF5 File")
+        h5file.attrs["type"] = np.bytes_("MT")
+
+        parent = h5file
+        components = [component for component in node_path.strip("/").split("/") if component]
+        for index, component in enumerate(components):
+            parent = parent.create_group(component, track_order=True)
+            parent.attrs["name"] = np.bytes_(component)
+            parent.attrs["label"] = np.bytes_("DataArray_t")
+            parent.attrs["type"] = np.bytes_("MT" if index < len(components) - 1 else cgns_type)
+
+        dataset_kwargs = {"shape": shape, "dtype": dtype}
+        if chunks is not None:
+            dataset_kwargs["chunks"] = chunks
+        else:
+            dataset_kwargs["data"] = np.zeros(shape, dtype=dtype)
+        parent.create_dataset(" data", **dataset_kwargs)
+
+
+def _write_handcrafted_array_constructor_file(filename, node_path, *, shape=(2, 3), cgns_type="I4", chunks=None):
+    _write_handcrafted_cgns_dataset(filename, node_path, cgns_type, shape, chunks=chunks)
+
 @pytest.mark.parametrize("dtype", dtypes.floating_and_integral_types)
 @pytest.mark.parametrize("order", ["C", "F"])
 def test_write_and_read_numerical_numpy(tmp_path, dtype, order):
@@ -227,6 +254,46 @@ def test_read_rank_2_cgns_string_dataset(tmp_path):
 
     assert "Kilogram" in value
     assert "Radian" in value
+
+
+def test_read_reports_exact_dataset_path_for_invalid_cgns_type(tmp_path):
+    from noder import read
+
+    filename = tmp_path / "invalid_type.cgns"
+    _write_handcrafted_array_constructor_file(filename, "/Base/Zone", cgns_type="INVALID")
+
+    with pytest.raises(RuntimeError) as error:
+        read(str(filename))
+
+    message = str(error.value)
+    assert "for HDF5 dataset '/Base/Zone/ data'" in message
+    assert "node path '/Base/Zone'" in message
+    assert "CGNS type 'INVALID'" in message
+    assert "shape [3, 2]" in message
+    assert "Unsupported type in read: INVALID" in message
+
+
+def test_read_reports_exact_dataset_path_for_array_shape_overflow(tmp_path):
+    from noder import read
+
+    filename = tmp_path / "overflow_shape.cgns"
+    _write_handcrafted_array_constructor_file(
+        filename,
+        "/Base/Zone",
+        shape=(2**32, 2**32),
+        cgns_type="I4",
+        chunks=(1, 1),
+    )
+
+    with pytest.raises(RuntimeError) as error:
+        read(str(filename))
+
+    message = str(error.value)
+    assert "for HDF5 dataset '/Base/Zone/ data'" in message
+    assert "node path '/Base/Zone'" in message
+    assert "CGNS type 'I4'" in message
+    assert "shape [4294967296, 4294967296]" in message
+    assert "shape product overflow" in message
 
 
 @pytest.mark.parametrize('order',['C','F'])

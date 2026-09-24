@@ -21,6 +21,7 @@ void bindTestsOfArray(py::module_ &m) {
     sm.def("constructorPyArray", &test_constructorPyArray);
     sm.def("constructorString", &test_constructorString);
     sm.def("constructorAnotherArray", &test_constructorAnotherArray);
+    sm.def("constructorRejectsInvalidMetadata", &test_constructorRejectsInvalidMetadata);
 
     sm.def("getArrayProperties", &test_getArrayProperties);
     sm.def("getFlatIndex", &test_getFlatIndex);

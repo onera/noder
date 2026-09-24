@@ -24,6 +24,40 @@ void test_constructorAnotherArray() {
     Array array(other);
 }
 
+void test_constructorRejectsInvalidMetadata() {
+    int32_t value = 1;
+
+    try {
+        Array invalidItemsize(
+            ArrayTypeId::Int32,
+            0,
+            &value,
+            {1},
+            {sizeof(int32_t)},
+            std::shared_ptr<void>());
+        throw py::value_error("Array accepted a zero itemsize for a numeric dtype");
+    } catch (const std::invalid_argument& error) {
+        if (std::string(error.what()) != "Array: itemsize must be positive for non-empty dtypes") {
+            throw py::value_error("Array reported the wrong zero-itemsize error");
+        }
+    }
+
+    try {
+        Array invalidData(
+            ArrayTypeId::Int32,
+            sizeof(int32_t),
+            nullptr,
+            {1},
+            {sizeof(int32_t)},
+            std::shared_ptr<void>());
+        throw py::value_error("Array accepted null data for a non-empty shape");
+    } catch (const std::invalid_argument& error) {
+        if (std::string(error.what()) != "Array: data pointer must not be null when size > 0") {
+            throw py::value_error("Array reported the wrong null-data error");
+        }
+    }
+}
+
 void test_getArrayProperties() {
     Array array = arrayfactory::zeros<int8_t>({3,3});
     

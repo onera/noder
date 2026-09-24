@@ -26,10 +26,81 @@ constexpr size_t kCGNSLongStringAttrLen = 33;
 constexpr size_t kCGNSTypeAttrLen = 3;
 constexpr unsigned kCGNSLinkCreationOrderFlags = H5P_CRT_ORDER_TRACKED | H5P_CRT_ORDER_INDEXED;
 
+class cgns_read_error final : public std::runtime_error {
+public:
+    using std::runtime_error::runtime_error;
+};
+
+class hdf5_handle {
+public:
+    using close_function = herr_t (*)(hid_t);
+
+    hdf5_handle(hid_t id, close_function close) : _id(id), _close(close) {}
+
+    hdf5_handle(const hdf5_handle&) = delete;
+    hdf5_handle& operator=(const hdf5_handle&) = delete;
+
+    hdf5_handle(hdf5_handle&& other) noexcept : _id(other._id), _close(other._close) {
+        other._id = -1;
+        other._close = nullptr;
+    }
+
+    hdf5_handle& operator=(hdf5_handle&& other) noexcept {
+        if (this != &other) {
+            reset();
+            _id = other._id;
+            _close = other._close;
+            other._id = -1;
+            other._close = nullptr;
+        }
+        return *this;
+    }
+
+    ~hdf5_handle() {
+        reset();
+    }
+
+    hid_t get() const {
+        return _id;
+    }
+
+    void reset() noexcept {
+        if (_id >= 0 && _close != nullptr) {
+            _close(_id);
+        }
+        _id = -1;
+        _close = nullptr;
+    }
+
+private:
+    hid_t _id;
+    close_function _close;
+};
+
 void check_status(herr_t status, const std::string& msg) {
     if (status < 0) {
         throw std::runtime_error("HDF5 error: " + msg);
     }
+}
+
+std::string shape_string(const std::vector<size_t>& shape) {
+    std::ostringstream stream;
+    stream << "[";
+    for (size_t i = 0; i < shape.size(); ++i) {
+        if (i != 0) {
+            stream << ", ";
+        }
+        stream << shape[i];
+    }
+    stream << "]";
+    return stream.str();
+}
+
+std::string hdf5_child_path(const std::string& parent, const std::string& child) {
+    if (parent.empty() || parent == "/") {
+        return "/" + child;
+    }
+    return parent + "/" + child;
 }
 
 hid_t make_cgns_group_creation_plist() {
@@ -427,15 +498,6 @@ void write_array(hid_t loc, const std::string& name, const Array& array, const s
     throw std::runtime_error("Unsupported Array dtype for CGNS write: " + cgnsType);
 }
 
-template <typename T>
-Array read_numeric_array(hid_t dset, const std::vector<size_t>& shape) {
-    Array array = arrayfactory::empty<T>(shape, 'F');
-    check_status(
-        H5Dread(dset, hdfTypeFromCgnsType(cgnsTypeFromArray(array)), H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()),
-        "read numeric dataset");
-    return array;
-}
-
 void write_node_rec(
     hid_t file,
     hid_t gcpl,
@@ -609,76 +671,124 @@ Array readArrayFromDataset(hid_t dset, const std::vector<size_t>& shape, const s
     throw std::runtime_error("Unsupported type in read: " + cgnsType);
 }
 
-std::shared_ptr<Node> read_node_rec(hid_t file, const std::string& path, const char order = 'C') {
-    hid_t group = H5Gopen2(file, path.c_str(), H5P_DEFAULT);
-    if (group < 0) {
+std::shared_ptr<Node> read_node_rec(hid_t file, const std::string& path, const char order);
+
+std::shared_ptr<Node> read_node_rec_impl(hid_t file, const std::string& path, const char order) {
+    hdf5_handle group(H5Gopen2(file, path.c_str(), H5P_DEFAULT), H5Gclose);
+    if (group.get() < 0) {
         throw std::runtime_error("Failed to open group: " + path);
     }
-    std::string name = read_string_attr(group, "name");
-    std::string label = read_string_attr(group, "label");
+
+    std::string name = read_string_attr(group.get(), "name");
+    std::string label = read_string_attr(group.get(), "label");
     if (label.empty()) {
         label = "DataArray_t";
     }
 
     auto node = make_node_for_cgns_label(name, label);
-    if (is_link_group(group)) {
+    if (is_link_group(group.get())) {
         std::string targetFile = read_int8_string_dataset(file, path + "/ file");
         std::string targetPath = read_int8_string_dataset(file, path + "/ path");
         if (targetPath.empty()) {
-            H5Gclose(group);
             throw std::runtime_error("Link node has empty target path at " + path);
         }
         node->setLinkTarget(targetFile, targetPath);
-        H5Gclose(group);
         return node;
     }
 
-    std::string dataPath = path + "/ data";
-    if (H5Lexists(file, dataPath.c_str(), H5P_DEFAULT)) {
-        hid_t dset = H5Dopen2(file, dataPath.c_str(), H5P_DEFAULT);
-        hid_t space = H5Dget_space(dset);
-        int ndims = H5Sget_simple_extent_ndims(space);
-        std::vector<hsize_t> dims(ndims == 0 ? 0 : static_cast<size_t>(ndims));
-        if (ndims > 0) {
-            H5Sget_simple_extent_dims(space, dims.data(), nullptr);
-        }
-        std::vector<size_t> shape(dims.begin(), dims.end());
-
-        std::string cgnsType = read_string_attr(group, "type");
-        if (cgnsType.empty()) {
-            cgnsType = "MT";
-        }
-
-        if (cgnsType != "MT") {
-            if (cgnsType != "C1") {
-                std::reverse(shape.begin(), shape.end());
+    const std::string dataPath = hdf5_child_path(path, " data");
+    const htri_t dataExists = H5Lexists(file, dataPath.c_str(), H5P_DEFAULT);
+    if (dataExists < 0) {
+        throw std::runtime_error("HDF5 error: cannot check for dataset " + dataPath);
+    }
+    if (dataExists > 0) {
+        std::string cgnsType = "unknown";
+        std::vector<size_t> shape;
+        try {
+            hdf5_handle dset(H5Dopen2(file, dataPath.c_str(), H5P_DEFAULT), H5Dclose);
+            if (dset.get() < 0) {
+                throw std::runtime_error("Failed to open dataset: " + dataPath);
             }
-            node->setData(readArrayFromDataset(dset, shape, cgnsType, order));
-        }
 
-        H5Sclose(space);
-        H5Dclose(dset);
+            hdf5_handle space(H5Dget_space(dset.get()), H5Sclose);
+            if (space.get() < 0) {
+                throw std::runtime_error("Failed to open dataspace: " + dataPath);
+            }
+
+            const int ndims = H5Sget_simple_extent_ndims(space.get());
+            if (ndims < 0) {
+                throw std::runtime_error("HDF5 error: cannot get dataset rank: " + dataPath);
+            }
+
+            std::vector<hsize_t> dims(ndims == 0 ? 0 : static_cast<size_t>(ndims));
+            if (ndims > 0) {
+                check_status(H5Sget_simple_extent_dims(space.get(), dims.data(), nullptr),
+                             "get dataset dimensions: " + dataPath);
+            }
+            shape.assign(dims.begin(), dims.end());
+
+            cgnsType = read_string_attr(group.get(), "type");
+            if (cgnsType.empty()) {
+                cgnsType = "MT";
+            }
+
+            if (cgnsType != "MT") {
+                if (cgnsType != "C1") {
+                    std::reverse(shape.begin(), shape.end());
+                }
+                node->setData(readArrayFromDataset(dset.get(), shape, cgnsType, order));
+            }
+        } catch (const cgns_read_error&) {
+            throw;
+        } catch (const std::exception& error) {
+            throw cgns_read_error(
+                "Failed to read/construct Array for HDF5 dataset '" + dataPath +
+                "' (node path '" + path + "', node name '" + name + "', label '" + label +
+                "', CGNS type '" + cgnsType + "', shape " + shape_string(shape) +
+                ", order '" + std::string(1, order) + "'): " + error.what());
+        }
     }
 
-    hsize_t nObjs;
-    H5Gget_num_objs(group, &nObjs);
+    hsize_t nObjs = 0;
+    check_status(H5Gget_num_objs(group.get(), &nObjs), "enumerate children of " + path);
     for (hsize_t i = 0; i < nObjs; ++i) {
-        if (H5Gget_objtype_by_idx(group, i) != H5G_GROUP) {
+        const int objectType = H5Gget_objtype_by_idx(group.get(), i);
+        if (objectType < 0) {
+            throw std::runtime_error("HDF5 error: cannot inspect child " + std::to_string(i) + " of " + path);
+        }
+        if (objectType != H5G_GROUP) {
             continue;
         }
-        char nameBuf[256];
-        H5Gget_objname_by_idx(group, i, nameBuf, sizeof(nameBuf));
-        std::string childName(nameBuf);
+
+        const ssize_t nameLength = H5Gget_objname_by_idx(group.get(), i, nullptr, 0);
+        if (nameLength < 0) {
+            throw std::runtime_error("HDF5 error: cannot get child name " + std::to_string(i) + " of " + path);
+        }
+        std::string childName(static_cast<size_t>(nameLength) + 1, '\0');
+        check_status(
+            H5Gget_objname_by_idx(group.get(), i, childName.data(), childName.size()),
+            "get child name " + std::to_string(i) + " of " + path);
+        childName.resize(static_cast<size_t>(nameLength));
+
         if (childName == " data" || childName == " file" || childName == " path" || childName == " link") {
             continue;
         }
-        std::string childPath = path + "/" + childName;
+        const std::string childPath = hdf5_child_path(path, childName);
         auto child = read_node_rec(file, childPath, order);
         child->attachTo(node);
     }
 
-    H5Gclose(group);
     return node;
+}
+
+std::shared_ptr<Node> read_node_rec(hid_t file, const std::string& path, const char order) {
+    try {
+        return read_node_rec_impl(file, path, order);
+    } catch (const cgns_read_error&) {
+        throw;
+    } catch (const std::exception& error) {
+        throw cgns_read_error("Failed to read HDF5 node at path '" + path + "': " + error.what());
+    }
 }
 
 } // namespace
@@ -705,10 +815,16 @@ void write_node(const std::string& filename, std::shared_ptr<Node> root, const f
 }
 
 std::shared_ptr<Node> read(const std::string& filename, const char order) {
-    hid_t file = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
-    auto root = read_node_rec(file, "/", order);
-    H5Fclose(file);
-    return root;
+    hdf5_handle file(H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
+    if (file.get() < 0) {
+        throw std::runtime_error("Failed to open HDF5 file: " + filename);
+    }
+
+    try {
+        return read_node_rec(file.get(), "/", order);
+    } catch (const std::exception& error) {
+        throw std::runtime_error("Failed to read HDF5 file '" + filename + "': " + error.what());
+    }
 }
 
 } // namespace io::hdf5::cgns

@@ -11,6 +11,7 @@ void test_constructorEmpty();
 void test_constructorPyArray();
 void test_constructorString();
 void test_constructorAnotherArray();
+void test_constructorRejectsInvalidMetadata();
 
 void test_getArrayProperties();
 void test_getFlatIndex();

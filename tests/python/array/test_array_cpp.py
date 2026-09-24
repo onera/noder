@@ -6,6 +6,7 @@ def test_constructorEmpty(): return test_in_cpp.constructorEmpty()
 def test_constructorPyArray(): return test_in_cpp.constructorPyArray()
 def test_constructorString(): return test_in_cpp.constructorString()
 def test_constructorAnotherArray(): return test_in_cpp.constructorAnotherArray()
+def test_constructorRejectsInvalidMetadata(): return test_in_cpp.constructorRejectsInvalidMetadata()
 
 def test_getArrayProperties(): return test_in_cpp.getArrayProperties()
 def test_getFlatIndex(): return test_in_cpp.getFlatIndex()
