@@ -244,12 +244,14 @@ include_directories(
 file(GLOB_RECURSE CPP_FILES "src/c++/*.cpp")
 file(GLOB_RECURSE HPP_FILES "include/*.hpp")
 file(GLOB_RECURSE PYBIND_CPP_FILES "src/c++/*_pybind.cpp")
+file(GLOB_RECURSE APP_CPP_FILES "src/c++/apps/*.cpp")
 set(CORE_PYTHON_ONLY_SRC
     ${CMAKE_SOURCE_DIR}/src/c++/io/hdf5/cgns/node_pycgns_converter.cpp
 )
 set(CORE_SHARED_SRC ${CPP_FILES} ${HPP_FILES})
 list(REMOVE_ITEM CORE_SHARED_SRC ${PYBIND_CPP_FILES})
 list(REMOVE_ITEM CORE_SHARED_SRC ${CORE_PYTHON_ONLY_SRC})
+list(REMOVE_ITEM CORE_SHARED_SRC ${APP_CPP_FILES})
 
 if (MSVC)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
@@ -376,6 +378,40 @@ endif()
 add_dependencies(_cgns core_shared)
 if(APPLE)
     target_link_options(_cgns PRIVATE "-Wl,-force_load,$<TARGET_FILE:core_shared>")
+endif()
+
+option(ENABLE_CGNSVIZ "Build the optional terminal CGNS/HDF5 explorer" ON)
+if(ENABLE_CGNSVIZ)
+    if(NOT ENABLE_HDF5_IO)
+        message(FATAL_ERROR "ENABLE_CGNSVIZ requires ENABLE_HDF5_IO")
+    endif()
+
+    add_executable(cgnsviz ${APP_CPP_FILES})
+    target_include_directories(cgnsviz PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/src/c++
+    )
+    target_link_libraries(cgnsviz PRIVATE core_shared ${HDF5_LIBRARIES})
+    if(STDCXXFS_LIBRARY)
+        target_link_libraries(cgnsviz PRIVATE ${STDCXXFS_LIBRARY})
+    endif()
+    if(MSVC)
+        set_target_properties(cgnsviz PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS OFF)
+    elseif(APPLE)
+        set_target_properties(cgnsviz PROPERTIES
+            INSTALL_RPATH "@loader_path"
+            BUILD_WITH_INSTALL_RPATH TRUE
+        )
+    elseif(UNIX)
+        set_target_properties(cgnsviz PROPERTIES
+            INSTALL_RPATH "$ORIGIN"
+            BUILD_WITH_INSTALL_RPATH TRUE
+        )
+    endif()
+    # Keep the native executable beside core_shared and the Python launcher.
+    # The PEP 621 console-script entry point exposes it through the active
+    # Python environment's Scripts/bin directory without duplicating DLLs.
+    install(TARGETS cgnsviz RUNTIME DESTINATION ${NODER_PACKAGE_DIR})
 endif()
 
 install(TARGETS core_shared EXPORT noderTargets DESTINATION ${NODER_PACKAGE_DIR})

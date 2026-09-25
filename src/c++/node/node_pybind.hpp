@@ -558,9 +558,44 @@ See C++ counterpart: :ref:`cpp-node-getparameters`.
             py::arg("transform_numpy_scalars") = false)
                 
         .def("children", &Node::children, R"doc(
-Return direct children preserving insertion order.
+Return all direct children preserving insertion order.
+
+For lazily-backed nodes, this resolves all direct children. Use
+``loaded_children()`` and ``ensure_children_loaded()`` for paged inspection.
 
 See C++ counterpart: :ref:`cpp-node-children`.
+)doc")
+        .def("loaded_children", &Node::loadedChildren, R"doc(
+Return currently materialized direct children without triggering lazy loading.
+)doc")
+        .def("ensure_children_loaded",
+             [](Node& node, const size_t minimumChildren) {
+                 if (minimumChildren == 0) {
+                     node.ensureChildrenLoaded();
+                 } else {
+                     node.ensureChildrenLoaded(minimumChildren);
+                 }
+             },
+             R"doc(
+Ensure direct children are materialized.
+
+``minimum_children=0`` means all direct children. A positive value enables
+paged inspection of lazy trees.
+)doc",
+             py::arg("minimum_children") = 0)
+        .def("children_load_state", [](const Node& node) {
+            switch (node.childrenLoadState()) {
+                case ChildrenLoadState::Unloaded:
+                    return std::string("unloaded");
+                case ChildrenLoadState::Partial:
+                    return std::string("partial");
+                case ChildrenLoadState::Complete:
+                    return std::string("complete");
+            }
+            return std::string("unknown");
+        }, R"doc(Return direct-child loading state.)doc")
+        .def("has_data", &Node::hasData, R"doc(
+Return whether a payload exists without forcing lazy payload loading.
 )doc")
         .def("type", &Node::type, R"doc(
 Return node type.

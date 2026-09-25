@@ -15,6 +15,79 @@ except ImportError:
 pytestmark = pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
 
 
+def _write_handcrafted_lazy_cgns_file(filename):
+    h5py = pytest.importorskip("h5py")
+    with h5py.File(filename, "w", track_order=True) as h5file:
+        h5file.attrs["name"] = np.bytes_("HDF5 MotherNode")
+        h5file.attrs["label"] = np.bytes_("Root Node of HDF5 File")
+        h5file.attrs["type"] = np.bytes_("MT")
+
+        entries = [
+            ("First", "I4", np.array([7], dtype=np.int32)),
+            ("Second", "C1", np.frombuffer(b"BLADE\x00", dtype=np.int8)),
+            ("Third", "MT", None),
+        ]
+        for name, cgns_type, payload in entries:
+            group = h5file.create_group(name, track_order=True)
+            group.attrs["name"] = np.bytes_(name)
+            group.attrs["label"] = np.bytes_("DataArray_t")
+            group.attrs["type"] = np.bytes_(cgns_type)
+            if payload is not None:
+                group.create_dataset(" data", data=payload)
+
+        nested = h5file.create_group("Nested", track_order=True)
+        nested.attrs["name"] = np.bytes_("Nested")
+        nested.attrs["label"] = np.bytes_("UserDefinedData_t")
+        nested.attrs["type"] = np.bytes_("MT")
+        leaf = nested.create_group("Leaf", track_order=True)
+        leaf.attrs["name"] = np.bytes_("Leaf")
+        leaf.attrs["label"] = np.bytes_("DataArray_t")
+        leaf.attrs["type"] = np.bytes_("I4")
+        leaf.create_dataset(" data", data=np.array([42], dtype=np.int32))
+
+
+def test_lazy_hdf5_reader_is_metadata_first_and_navigation_aware(tmp_path):
+    filename = str(tmp_path / "lazy.cgns")
+    _write_handcrafted_lazy_cgns_file(filename)
+
+    reader = gio.LazyHdf5Reader(filename)
+    root = reader.root()
+
+    assert reader.is_open()
+    assert root.children_load_state() == "unloaded"
+    assert root.loaded_children() == []
+
+    reader.ensure_children_loaded(root, 2)
+    assert root.children_load_state() == "partial"
+    assert [child.name() for child in root.loaded_children()] == ["First", "Second"]
+    assert root.loaded_children()[0].has_data()
+    assert root.loaded_children()[0].children_load_state() == "unloaded"
+
+    first = root.loaded_children()[0]
+    np.testing.assert_array_equal(first.numpy(), np.array([7], dtype=np.int32))
+
+    second = root.loaded_children()[1]
+    assert second.data().extractString() == "BLADE"
+
+    # Existing Navigation APIs resolve the remaining lazy metadata as needed.
+    third = root.pick().by_name("Third")
+    assert third is not None
+    assert root.children_load_state() == "complete"
+    assert [child.name() for child in root.loaded_children()] == [
+        "First", "Second", "Third", "Nested"
+    ]
+
+    nested = root.pick().by_name("Nested")
+    assert nested is not None
+    assert nested.children_load_state() == "unloaded"
+    leaf = root.pick().by_name("Leaf")
+    assert leaf is not None
+    assert int(leaf.numpy()[0]) == 42
+
+    reader.close()
+    assert not reader.is_open()
+
+
 def _new_cgns_tree():
     from noder.core import Node
 

@@ -8,6 +8,7 @@
 
 #ifdef ENABLE_HDF5_IO
 #include "io/io_numpy.hpp"
+#include "io/hdf5/lazycgns/lazy_hdf5_reader_pybind.hpp"
 #endif
 
 
@@ -65,6 +66,9 @@ Example
         py::arg("filename"),
         py::arg("order")='F');
     #ifdef ENABLE_HDF5_IO
+    bindLazyHdf5Reader(io_m);
+    // The lazy reader owns its HDF5 lifetime and exposes explicit close/open
+    // state for applications that need to release a file before cleanup.
     io_m.def(
         "write_numpy",
         &io::write_numpy,

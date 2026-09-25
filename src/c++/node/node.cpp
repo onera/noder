@@ -153,7 +153,7 @@ std::shared_ptr<Node> findSiblingByNameExcluding(
     const std::string& siblingName,
     const Node* ignoredNode) {
 
-    for (const auto& sibling : parent->children()) {
+    for (const auto& sibling : parent->loadedChildren()) {
         if (!sibling) {
             continue;
         }
@@ -192,7 +192,7 @@ bool hasSiblingNameConflict(
         return false;
     }
 
-    for (const auto& sibling : parent->children()) {
+    for (const auto& sibling : parent->loadedChildren()) {
         if (!sibling) {
             continue;
         }
@@ -482,6 +482,7 @@ Node::Node(const std::string& name, const std::string& type) :
     _linkTargetPath(),
     _revision(0),
     _data(nullptr),
+    _expansion(nullptr),
     _navigator(nullptr) {
     ensureFactoryInitialized();
     if (Node::dataFactory) {
@@ -495,7 +496,7 @@ Node::Node(const std::string& name, const std::string& type) :
 
 
 // Destructor
-Node::~Node() { 
+Node::~Node() {
     
     #ifndef NDEBUG
     std::cout << "entering destructor of " << this->name() << std::endl;
@@ -555,11 +556,26 @@ void Node::setName(const std::string& name) {
 
 
 const Data& Node::data() const {
+    ensureDataLoaded();
     return *this->_data;
 }
 
 std::shared_ptr<Data> Node::dataPtr() const {
+    ensureDataLoaded();
     return this->_data;
+}
+
+bool Node::hasData() const {
+    if (_expansion) {
+        return _expansion->hasData(*this);
+    }
+    return _data && !_data->isNone();
+}
+
+void Node::ensureDataLoaded() const {
+    if (_expansion) {
+        _expansion->ensureDataLoaded(*const_cast<Node*>(this));
+    }
 }
 
 std::uint64_t Node::revision() const {
@@ -577,6 +593,9 @@ void Node::markModified() {
 
 void Node::setData(std::shared_ptr<Data> d) {
     this->_data = std::move(d);
+    if (_expansion) {
+        _expansion->dataAssigned(*this);
+    }
     this->markModified();
 }
 
@@ -627,16 +646,35 @@ void Node::clearLinkTarget() {
 }
 
 bool Node::noData() const {
+    ensureDataLoaded();
     return _data->isNone();
 }
 
 
 const std::vector<std::shared_ptr<Node>>& Node::children() const {
+    ensureChildrenLoaded();
     return _children;
 }
 
+const std::vector<std::shared_ptr<Node>>& Node::loadedChildren() const {
+    return _children;
+}
+
+ChildrenLoadState Node::childrenLoadState() const {
+    if (_expansion) {
+        return _expansion->childrenLoadState(*this);
+    }
+    return ChildrenLoadState::Complete;
+}
+
+void Node::ensureChildrenLoaded(const size_t minimumChildren) const {
+    if (_expansion) {
+        _expansion->ensureChildrenLoaded(*const_cast<Node*>(this), minimumChildren);
+    }
+}
+
 bool Node::hasChildren() const {
-    return !_children.empty();
+    return !children().empty();
 }
 
 std::vector<std::shared_ptr<Node>> Node::siblings(bool includeMyself) const {
@@ -671,9 +709,10 @@ bool Node::hasSiblings() const {
 }
 
 std::vector<std::string> Node::getChildrenNames() const {
+    const auto& loadedChildren = children();
     std::vector<std::string> names;
-    names.reserve(_children.size());
-    for (const auto& child : _children) {
+    names.reserve(loadedChildren.size());
+    for (const auto& child : loadedChildren) {
         if (child) {
             names.push_back(child->name());
         }
@@ -878,13 +917,14 @@ std::shared_ptr<Node> Node::copy(bool deep) const {
         copiedNode->setLinkTarget(_linkTargetFile, _linkTargetPath);
     }
 
+    const std::shared_ptr<Data> sourceData = dataPtr();
     if (deep) {
-        copiedNode->setData(_data->copy(true));
+        copiedNode->setData(sourceData->copy(true));
     } else {
-        copiedNode->setData(_data);
+        copiedNode->setData(sourceData);
     }
 
-    for (const auto& child : _children) {
+    for (const auto& child : children()) {
         if (!child) {
             continue;
         }
@@ -1071,6 +1111,18 @@ void Node::merge(std::shared_ptr<Node> node) {
     mergeChildrenRecursively(thisPtr, node);
 }
 
+void Node::setExpansion(std::shared_ptr<NodeExpansion> expansion) {
+    _expansion = std::move(expansion);
+}
+
+void Node::clearExpansion() {
+    _expansion.reset();
+}
+
+bool Node::hasExpansion() const {
+    return static_cast<bool>(_expansion);
+}
+
 
 std::string Node::path() const {
     std::vector<std::string> ancestors;
@@ -1147,6 +1199,8 @@ std::string Node::printTreeImpl(
         std::string markers,
         bool skipDescendantsOfSiblingsOfAncestors,
         bool skipThisNodeDescendants) const {
+
+    ensureDataLoaded();
 
     std::string this_markers;
     std::string fmt_name;

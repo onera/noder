@@ -29,9 +29,11 @@
 # include <utility>
 # include <sstream>
 # include <tuple>
+# include <limits>
 
 # include "data/data.hpp"
 # include "node/navigation.hpp"
+# include "node/node_expansion.hpp"
 # include "node/node_group.hpp"
 # include "utils/data_types.hpp"
 # include "utils/compat.hpp"
@@ -112,6 +114,8 @@ private:
     std::string _linkTargetPath;
     std::uint64_t _revision;
     static std::function<std::shared_ptr<Data>()> dataFactory;
+
+    std::shared_ptr<NodeExpansion> _expansion;
 
     mutable std::shared_ptr<Navigation> _navigator;
 
@@ -197,6 +201,12 @@ public:
     /** @brief Read payload shared pointer. */
     std::shared_ptr<Data> dataPtr() const;
 
+    /** @brief True when a payload exists, without forcing lazy payload loading. */
+    bool hasData() const;
+
+    /** @brief Ensure the payload is fully loaded when a lazy backend is attached. */
+    void ensureDataLoaded() const;
+
     /** @brief Revision of this subtree's structural and payload replacements. */
     std::uint64_t revision() const;
 
@@ -230,6 +240,18 @@ public:
 
     /** @brief Child list accessor (in insertion order). */
     const std::vector<std::shared_ptr<Node>>& children() const;
+    /**
+     * @brief Return only children currently materialized in this node.
+     *
+     * Unlike children(), this accessor never asks a lazy backend to load more
+     * children.  It is intended for paged views such as cgnsviz.
+     */
+    const std::vector<std::shared_ptr<Node>>& loadedChildren() const;
+    /** @brief Current direct-child loading state. */
+    ChildrenLoadState childrenLoadState() const;
+    /** @brief Ensure at least minimumChildren direct children are materialized. */
+    void ensureChildrenLoaded(
+        size_t minimumChildren = std::numeric_limits<size_t>::max()) const;
     /** @brief True when node has at least one child. */
     bool hasChildren() const;
     /** @brief Siblings accessor with optional self inclusion. */
@@ -300,6 +322,18 @@ public:
     void saveThisNodeOnly(const std::string& filename, const std::string& backend = "hdf5");
     /** @brief Merge another subtree into this node (same-root strategy). */
     void merge(std::shared_ptr<Node> node);
+
+    /**
+     * @brief Attach a backend-neutral lazy expansion provider.
+     *
+     * This is primarily intended for reader implementations.  The provider
+     * is optional; ordinary Nodes remain fully eager.
+     */
+    void setExpansion(std::shared_ptr<NodeExpansion> expansion);
+    /** @brief Remove the lazy expansion provider, if any. */
+    void clearExpansion();
+    /** @brief True when a lazy expansion provider is attached. */
+    bool hasExpansion() const;
 
     /** @brief Build absolute path from root to this node. */
     std::string path() const;

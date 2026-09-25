@@ -32,6 +32,9 @@ dependencies = [
   "pybind11>=2.12",
 ]
 
+[project.scripts]
+cgnsviz = "noder.cgnsviz:main"
+
 [project.optional-dependencies]
 test = [
   "pytest >=6",
@@ -83,6 +86,7 @@ Python3_FIND_STRATEGY = "LOCATION"
 Python3_FIND_REGISTRY = "NEVER"
 Python3_FIND_FRAMEWORK = "NEVER"
 Python3_USE_STATIC_LIBS = "OFF"
+ENABLE_CGNSVIZ = "ON"
 
 
 [tool.setuptools.data-files]
@@ -107,10 +111,12 @@ noder = [
   "*.py",
   "*.pyi",
   "*.dll",  # <-- include Windows runtime DLLs
+  "*.exe",
   "**/*.hpp",
   "**/*.cpp",
   "**/*.py",
   "**/*.dll",
+  "**/*.exe",
   "**/*.so",
   "**/*.py",
   "**/*.pyi",

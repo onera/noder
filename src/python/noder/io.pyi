@@ -7,7 +7,32 @@ See C++ counterpart: :ref:`cpp-io-module`.
 from __future__ import annotations
 from noder.core import Node
 import numpy
-__all__: list[str] = ['ENABLE_HDF5_IO', 'Node', 'read', 'read_numpy', 'write_numpy']
+import typing
+__all__: list[str] = ['ENABLE_HDF5_IO', 'LazyHdf5Reader', 'Node', 'read', 'read_numpy', 'write_numpy']
+class LazyHdf5Reader:
+    """
+
+    Lazy metadata-first reader for CGNS/HDF5 files.
+
+    The returned root is a regular Node. Direct children and payloads are loaded
+    on demand, so ``loaded_children()`` can be used for paged terminal views.
+    """
+    def __init__(self, filename: str, order: str = 'F') -> None:
+        ...
+    def close(self) -> None:
+        ...
+    def ensure_children_loaded(self, node: Node, minimum_children: typing.SupportsInt | typing.SupportsIndex = 0) -> None:
+        ...
+    def ensure_data_loaded(self, node: Node) -> None:
+        ...
+    def filename(self) -> str:
+        ...
+    def is_open(self) -> bool:
+        ...
+    def order(self) -> str:
+        ...
+    def root(self) -> Node:
+        ...
 def read(filename: str, order: str = 'F') -> Node:
     """
     Read a Node hierarchy from file.

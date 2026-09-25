@@ -529,9 +529,16 @@ class Node:
         """
     def children(self) -> list[Node]:
         """
-        Return direct children preserving insertion order.
+        Return all direct children preserving insertion order.
+
+        For lazily-backed nodes, this resolves all direct children. Use
+        ``loaded_children()`` and ``ensure_children_loaded()`` for paged inspection.
         
         See C++ counterpart: :ref:`cpp-node-children`.
+        """
+    def children_load_state(self) -> str:
+        """
+        Return direct-child loading state.
         """
     def clear_link_target(self) -> None:
         """
@@ -562,6 +569,13 @@ class Node:
         Detach from current parent.
         
         See C++ counterpart: :ref:`cpp-node-detach`.
+        """
+    def ensure_children_loaded(self, minimum_children: typing.SupportsInt | typing.SupportsIndex = 0) -> None:
+        """
+        Ensure direct children are materialized.
+
+        ``minimum_children=0`` means all direct children. A positive value enables
+        paged inspection of lazy trees.
         """
     def get(self, name: str = '', type: str = '', data: str = '', depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
         """
@@ -607,6 +621,10 @@ class Node:
         
         See C++ counterpart: :ref:`cpp-node-haschildren`.
         """
+    def has_data(self) -> bool:
+        """
+        Return whether a payload exists without forcing lazy payload loading.
+        """
     def has_link_target(self) -> bool:
         """
         Whether link metadata is defined for this node.
@@ -651,6 +669,10 @@ class Node:
         Return link target path.
         
         See C++ counterpart: :ref:`cpp-node-linktargetpath`.
+        """
+    def loaded_children(self) -> list[Node]:
+        """
+        Return currently materialized direct children without triggering lazy loading.
         """
     def merge(self, node: Node) -> None:
         """
