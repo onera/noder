@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 from typing import Optional
@@ -39,11 +40,25 @@ def _write_smoke_file(filename: Path) -> None:
         h5file.attrs["label"] = np.bytes_("Root Node of HDF5 File")
         h5file.attrs["type"] = np.bytes_("MT")
 
+        zone_type = h5file.create_group("ZoneType", track_order=True)
+        zone_type.attrs["name"] = np.bytes_("ZoneType")
+        zone_type.attrs["label"] = np.bytes_("ZoneType_t")
+        zone_type.attrs["type"] = np.bytes_("C1")
+        zone_type.create_dataset(
+            " data", data=np.frombuffer(b"Structured", dtype=np.int8)
+        )
+
+        small_numbers = h5file.create_group("SmallNumbers", track_order=True)
+        small_numbers.attrs["name"] = np.bytes_("SmallNumbers")
+        small_numbers.attrs["label"] = np.bytes_("DataArray_t")
+        small_numbers.attrs["type"] = np.bytes_("I4")
+        small_numbers.create_dataset(" data", data=np.arange(9, dtype=np.int32))
+
         child = h5file.create_group("SmokeData", track_order=True)
         child.attrs["name"] = np.bytes_("SmokeData")
         child.attrs["label"] = np.bytes_("DataArray_t")
         child.attrs["type"] = np.bytes_("I4")
-        child.create_dataset(" data", data=np.array([7, 11], dtype=np.int32))
+        child.create_dataset(" data", data=np.arange(22, dtype=np.int32))
 
         large_child = h5file.create_group("LargeData", track_order=True)
         large_child.attrs["name"] = np.bytes_("LargeData")
@@ -76,7 +91,7 @@ def test_cgnsviz_non_interactive_smoke(tmp_path):
 
     result = subprocess.run(
         [str(executable), str(filename), "--non-interactive"],
-        input="\nj\nk\nj\n\nk\nj\nq\n",
+        input="\nj\n\nj\n\nj\nq\n",
         text=True,
         capture_output=True,
         check=False,
@@ -88,5 +103,13 @@ def test_cgnsviz_non_interactive_smoke(tmp_path):
     assert "SmokeData" in result.stdout
     assert "DataArray_t" in result.stdout
     assert "[press Enter to show payload]" in result.stdout
-    assert result.stdout.count("Array int32 [ 7 11 ]") >= 2
-    assert result.stdout.count("[too big size to show]") >= 2
+    plain_output = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", result.stdout)
+    assert "ZoneType  ZoneType_t  Structured" in plain_output
+    assert "SmallNumbers  DataArray_t  Array int32 [ 0 1 2 3 4 5 6 7 8 ]" in plain_output
+    assert "Array int32 [ 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 ]" in plain_output
+    assert "[too big size to show]" not in plain_output
+    assert "[min=0, max=64, mean=32, median=32]" in plain_output
+    assert not any(
+        "SmokeData  DataArray_t  Array int32" in line
+        for line in plain_output.splitlines()
+    )

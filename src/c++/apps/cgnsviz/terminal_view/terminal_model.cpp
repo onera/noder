@@ -1,10 +1,14 @@
 #include "apps/cgnsviz/terminal_view/terminal_model.hpp"
 
+#include "array/array.hpp"
+
 #ifdef ENABLE_HDF5_IO
 #include "io/hdf5/lazycgns/lazy_hdf5_reader.hpp"
 #endif
 
 #include <algorithm>
+#include <cmath>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <sstream>
@@ -44,6 +48,83 @@ std::shared_ptr<Node> childAt(const std::shared_ptr<Node>& parent, const std::si
         return nullptr;
     }
     return children[index];
+}
+
+bool isNumericalArray(const Data& data) {
+    const auto* array = dynamic_cast<const Array*>(&data);
+    if (array == nullptr) {
+        return false;
+    }
+    const char kind = array->dtypeKind();
+    return kind == 'b' || kind == 'i' || kind == 'u' || kind == 'f';
+}
+
+template <typename T>
+std::string numericalSummaryForType(const Array& array) {
+    if (array.size() == 0) {
+        return "empty array";
+    }
+
+    std::vector<T> values;
+    values.reserve(array.size());
+
+    long double sum = 0.0L;
+    bool containsNaN = false;
+    for (std::size_t index = 0; index < array.size(); ++index) {
+        const T value = array.getItemAtIndex<T>(index);
+        values.push_back(value);
+        const long double numericValue = static_cast<long double>(value);
+        containsNaN = containsNaN || std::isnan(numericValue);
+        sum += numericValue;
+    }
+
+    if (containsNaN) {
+        return "min=nan, max=nan, mean=nan, median=nan";
+    }
+
+    std::sort(values.begin(), values.end());
+    const auto minIterator = std::min_element(values.begin(), values.end());
+    const auto maxIterator = std::max_element(values.begin(), values.end());
+    const long double mean = sum / static_cast<long double>(values.size());
+    long double median = static_cast<long double>(values[values.size() / 2]);
+    if (values.size() % 2 == 0) {
+        median = (
+            static_cast<long double>(values[(values.size() / 2) - 1]) +
+            static_cast<long double>(values[values.size() / 2])) / 2.0L;
+    }
+
+    std::ostringstream stream;
+    stream << std::setprecision(15);
+    stream << "min=" << *minIterator
+           << ", max=" << *maxIterator
+           << ", mean=" << mean
+           << ", median=" << median;
+    return stream.str();
+}
+
+std::string numericalSummary(const Array& array) {
+    switch (array.typeId()) {
+        case ArrayTypeId::Bool: return numericalSummaryForType<bool>(array);
+        case ArrayTypeId::Int8: return numericalSummaryForType<int8_t>(array);
+        case ArrayTypeId::Int16: return numericalSummaryForType<int16_t>(array);
+        case ArrayTypeId::Int32: return numericalSummaryForType<int32_t>(array);
+        case ArrayTypeId::Int64: return numericalSummaryForType<int64_t>(array);
+        case ArrayTypeId::UInt8: return numericalSummaryForType<uint8_t>(array);
+        case ArrayTypeId::UInt16: return numericalSummaryForType<uint16_t>(array);
+        case ArrayTypeId::UInt32: return numericalSummaryForType<uint32_t>(array);
+        case ArrayTypeId::UInt64: return numericalSummaryForType<uint64_t>(array);
+        case ArrayTypeId::Float32: return numericalSummaryForType<float>(array);
+        case ArrayTypeId::Float64: return numericalSummaryForType<double>(array);
+        case ArrayTypeId::None:
+        case ArrayTypeId::Bytes:
+        case ArrayTypeId::Unicode:
+            break;
+    }
+    throw std::invalid_argument("cannot summarize a non-numerical array");
+}
+
+std::string numericalArrayText(const Array& array) {
+    return "Array " + array.dtype() + " " + array.getPrintString(0);
 }
 
 } // namespace
@@ -103,7 +184,17 @@ std::string TerminalModel::payloadMarker(const std::shared_ptr<Node>& node) cons
         return "  \033[33m[too big size to show]\033[0m";
     }
 
-    return "  \033[36m" + iterator->second.text + "\033[0m";
+    if (iterator->second.state == PayloadDisplay::State::Summary) {
+        return "  \033[36m[" + iterator->second.markerText + "]\033[0m";
+    }
+
+    if (!iterator->second.markerText.empty()) {
+        return "  \033[36m" + iterator->second.markerText + "\033[0m";
+    }
+
+    // Numerical arrays are rendered in the status area below the navigation.
+    // Lightweight values such as strings remain visible beside their node.
+    return "";
 }
 
 void TerminalModel::moveSelection(const long long delta) {
@@ -198,21 +289,43 @@ void TerminalModel::enterSelectedPayload() {
     }
 
     const Data& data = selected->data();
-    if (data.size() > _payloadElementLimit) {
+    const auto* array = dynamic_cast<const Array*>(&data);
+    const bool numerical = array != nullptr && isNumericalArray(data);
+    if (numerical && data.size() > _payloadElementLimit) {
+        const std::string summary = numericalSummary(*array);
+        const std::string summaryText = "Array " + data.dtype() + " " + summary;
+        _payloadDisplays[selected.get()] = PayloadDisplay{
+            PayloadDisplay::State::Summary,
+            summaryText,
+            summary};
+
+        std::ostringstream stream;
+        stream << selected->path() << " : " << selected->type() << "\n";
+        stream << "payload (" << data.size() << " element(s), " << data.dtype() << "): ";
+        stream << summaryText;
+        _statusMessage = stream.str();
+        return;
+    }
+
+    if (!numerical && data.size() > _payloadElementLimit) {
         _payloadDisplays[selected.get()] = PayloadDisplay{
             PayloadDisplay::State::TooBig,
+            "",
             ""};
         _statusMessage = "Payload has " + std::to_string(data.size()) +
             " elements; display limit is " + std::to_string(_payloadElementLimit) + ".";
         return;
     }
 
-    const std::string payloadText = data.hasString()
-        ? data.extractString()
-        : data.shortInfo();
+    const std::string payloadText = numerical
+        ? numericalArrayText(*array)
+        : data.hasString() ? data.extractString() : data.shortInfo();
     _payloadDisplays[selected.get()] = PayloadDisplay{
         PayloadDisplay::State::Displayed,
-        payloadText};
+        payloadText,
+        data.hasString() || data.isScalar() || (numerical && data.size() <= 9)
+            ? payloadText
+            : ""};
 
     std::ostringstream stream;
     stream << selected->path() << " : " << selected->type() << "\n";

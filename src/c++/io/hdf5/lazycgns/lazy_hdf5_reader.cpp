@@ -26,6 +26,16 @@ namespace {
 
 constexpr size_t kMaximumSize = std::numeric_limits<size_t>::max();
 
+// HDF5 1.10 exposes the v1 object-info structure as H5O_info_t, while
+// HDF5 1.12+ keeps the v1 structure under its explicit H5O_info1_t name and
+// uses a newer structure for H5O_info_t.  H5Oget_info_by_name1 must receive
+// the v1 structure on every supported HDF5 release.
+#if H5_VERSION_GE(1, 12, 0)
+using hdf5_object_info_v1 = H5O_info1_t;
+#else
+using hdf5_object_info_v1 = H5O_info_t;
+#endif
+
 class hdf5_handle {
 public:
     using close_function = herr_t (*)(hid_t);
@@ -462,12 +472,11 @@ public:
                 }
 
                 const std::string childPath = hdf5ChildPath(record.hdf5Path, childName);
-                H5O_info_t objectInfo{};
+                hdf5_object_info_v1 objectInfo{};
                 check_status(
-                    // H5Oget_info_by_name() has different signatures across
-                    // supported HDF5 releases.  The v1 entry point keeps the
-                    // four-argument API available on both HDF5 1.10 and newer
-                    // headers used by the wheel builds.
+                    // Use the v1 entry point with the matching v1 structure;
+                    // HDF5 1.14 otherwise rejects H5O_info_t (which is its
+                    // v2 structure) at compile time.
                     H5Oget_info_by_name1(
                         _file.get(), childPath.c_str(), &objectInfo, H5P_DEFAULT),
                     "inspect child object '" + childPath + "'");

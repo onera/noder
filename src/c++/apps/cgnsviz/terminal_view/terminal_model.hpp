@@ -63,11 +63,13 @@ private:
     struct PayloadDisplay {
         enum class State {
             Displayed,
+            Summary,
             TooBig
         };
 
         State state;
         std::string text;
+        std::string markerText;
     };
 
     void ensureVisiblePage();
