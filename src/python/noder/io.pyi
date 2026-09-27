@@ -11,9 +11,9 @@ import typing
 __all__: list[str] = ['ENABLE_HDF5_IO', 'LazyHdf5Reader', 'Node', 'read', 'read_numpy', 'write_numpy']
 class LazyHdf5Reader:
     """
-
+    
     Lazy metadata-first reader for CGNS/HDF5 files.
-
+    
     The returned root is a regular Node. Direct children and payloads are loaded
     on demand, so ``loaded_children()`` can be used for paged terminal views.
     """

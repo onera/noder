@@ -530,7 +530,7 @@ class Node:
     def children(self) -> list[Node]:
         """
         Return all direct children preserving insertion order.
-
+        
         For lazily-backed nodes, this resolves all direct children. Use
         ``loaded_children()`` and ``ensure_children_loaded()`` for paged inspection.
         
@@ -573,7 +573,7 @@ class Node:
     def ensure_children_loaded(self, minimum_children: typing.SupportsInt | typing.SupportsIndex = 0) -> None:
         """
         Ensure direct children are materialized.
-
+        
         ``minimum_children=0`` means all direct children. A positive value enables
         paged inspection of lazy trees.
         """

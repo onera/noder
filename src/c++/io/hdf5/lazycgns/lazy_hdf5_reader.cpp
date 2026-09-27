@@ -464,8 +464,12 @@ public:
                 const std::string childPath = hdf5ChildPath(record.hdf5Path, childName);
                 H5O_info_t objectInfo{};
                 check_status(
-                    H5Oget_info_by_name(
-                        _file.get(), childPath.c_str(), &objectInfo, H5O_INFO_BASIC, H5P_DEFAULT),
+                    // H5Oget_info_by_name() has different signatures across
+                    // supported HDF5 releases.  The v1 entry point keeps the
+                    // four-argument API available on both HDF5 1.10 and newer
+                    // headers used by the wheel builds.
+                    H5Oget_info_by_name1(
+                        _file.get(), childPath.c_str(), &objectInfo, H5P_DEFAULT),
                     "inspect child object '" + childPath + "'");
                 if (objectInfo.type != H5O_TYPE_GROUP) {
                     continue;

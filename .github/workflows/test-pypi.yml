@@ -10,6 +10,8 @@ jobs:
     name: Build ${{ matrix.cibw_build }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      # A failing wheel build must not cancel the other OS/Python legs.
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
