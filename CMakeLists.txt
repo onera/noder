@@ -16,6 +16,18 @@ if(DEFINED SKBUILD_PROJECT_VERSION)
     string(REGEX MATCH "^[0-9]+(\\.[0-9]+){0,3}" NODER_CMAKE_PACKAGE_VERSION "${SKBUILD_PROJECT_VERSION}")
 endif()
 if(NOT NODER_CMAKE_PACKAGE_VERSION)
+    execute_process(
+        COMMAND git describe --tags --abbrev=0 --match "v[0-9]*"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        OUTPUT_VARIABLE NODER_GIT_TAG
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+    if(NODER_GIT_TAG MATCHES "^v([0-9]+\\.[0-9]+\\.[0-9]+)")
+        set(NODER_CMAKE_PACKAGE_VERSION "${CMAKE_MATCH_1}")
+    endif()
+endif()
+if(NOT NODER_CMAKE_PACKAGE_VERSION)
     set(NODER_CMAKE_PACKAGE_VERSION "0.0.0")
 endif()
 
@@ -387,6 +399,9 @@ if(ENABLE_CGNSVIZ)
     endif()
 
     add_executable(cgnsviz ${APP_CPP_FILES})
+    target_compile_definitions(cgnsviz PRIVATE
+        NODER_VERSION="${NODER_CMAKE_PACKAGE_VERSION}"
+    )
     target_include_directories(cgnsviz PRIVATE
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/src/c++

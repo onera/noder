@@ -23,8 +23,13 @@
 #else
 #include <cerrno>
 #include <sys/ioctl.h>
+#include <sys/select.h>
 #include <termios.h>
 #include <unistd.h>
+#endif
+
+#ifndef NODER_VERSION
+#define NODER_VERSION "unknown"
 #endif
 
 namespace cgnsviz::terminal {
@@ -41,6 +46,17 @@ std::string loadStateName(const ChildrenLoadState state) {
             return "complete";
     }
     return "unknown";
+}
+
+std::string compactMatchPath(const std::string& path) {
+    const std::size_t firstSeparator = path.find('/');
+    const std::size_t lastSeparator = path.rfind('/');
+    if (firstSeparator == std::string::npos || firstSeparator == lastSeparator) {
+        return {};
+    }
+    return path.substr(
+        firstSeparator + 1,
+        lastSeparator - firstSeparator - 1);
 }
 
 std::shared_ptr<Node> childAt(const std::shared_ptr<Node>& parent, const std::size_t index) {
@@ -127,6 +143,22 @@ std::string numericalSummary(const Array& array) {
     throw std::invalid_argument("cannot summarize a non-numerical array");
 }
 
+std::string shapeText(const Data& data) {
+    const std::vector<std::size_t> shape = data.shape();
+    if (shape.empty()) {
+        return "scalar";
+    }
+
+    std::ostringstream stream;
+    for (std::size_t index = 0; index < shape.size(); ++index) {
+        if (index > 0) {
+            stream << 'x';
+        }
+        stream << shape[index];
+    }
+    return stream.str();
+}
+
 std::string numericalArrayText(const Array& array) {
     return "Array " + array.dtype() + " " + array.getPrintString(0);
 }
@@ -203,20 +235,22 @@ std::string numericalValueText(const T value) {
 template <typename T>
 void appendNumericalPayloadLines(const Array& array, std::vector<std::string>& lines) {
     constexpr std::size_t lineWidth = 96;
-    std::string line = "[ ";
+    std::string line;
     for (std::size_t index = 0; index < array.size(); ++index) {
         const std::string value = numericalValueText(array.getItemAtIndex<T>(index));
-        if (line.size() > 2 && line.size() + value.size() + 1 > lineWidth) {
-            line += "]";
+        const std::size_t separatorSize = line.empty() ? 0 : 1;
+        if (!line.empty() && line.size() + separatorSize + value.size() > lineWidth) {
             lines.push_back(line);
-            line = "[ ";
+            line.clear();
         }
-        line += value + " ";
+        if (!line.empty()) {
+            line += ' ';
+        }
+        line += value;
     }
-    if (line == "[ ") {
-        lines.emplace_back("[ ]");
+    if (line.empty()) {
+        lines.emplace_back();
     } else {
-        line += "]";
         lines.push_back(line);
     }
 }
@@ -281,17 +315,19 @@ TerminalModel::TerminalModel(
       _current(nullptr),
       _selectedIndex(0),
       _firstVisibleIndex(0),
+      _rootSelected(false),
       _pageSize(std::max<std::size_t>(1, pageSize)),
       _payloadElementLimit(payloadElementLimit),
       _maxPayloadChars(std::max<std::size_t>(1, maxPayloadChars)),
       _viewportRows(24),
       _statusMessage(),
-      _payloadViewActive(false),
+      _viewMode(ViewMode::Node),
       _payloadNode(nullptr),
       _payloadLines(),
       _payloadScrollOffset(0),
       _searchResults(),
       _searchResultIndex(0),
+      _firstVisibleMatchIndex(0),
       _searchExpression() {
 
     if (!_reader) {
@@ -306,15 +342,26 @@ TerminalModel::TerminalModel(
 
 void TerminalModel::setViewportRows(const std::size_t rows) {
     _viewportRows = std::max<std::size_t>(1, rows);
-    if (_payloadViewActive) {
-        scrollPayload(0);
-    } else {
-        ensureSelectionVisible();
+    switch (_viewMode) {
+        case ViewMode::Node:
+            ensureSelectionVisible();
+            break;
+        case ViewMode::Matches:
+            ensureMatchSelectionVisible();
+            break;
+        case ViewMode::Payload:
+            scrollPayload(0);
+            break;
     }
 }
 
 std::size_t TerminalModel::childViewportRows() const {
     constexpr std::size_t reservedRows = 8;
+    return _viewportRows > reservedRows ? _viewportRows - reservedRows : 1;
+}
+
+std::size_t TerminalModel::matchViewportRows() const {
+    constexpr std::size_t reservedRows = 9;
     return _viewportRows > reservedRows ? _viewportRows - reservedRows : 1;
 }
 
@@ -352,6 +399,15 @@ std::shared_ptr<Node> TerminalModel::currentNode() const {
 }
 
 std::shared_ptr<Node> TerminalModel::selectedNode() const {
+    if (_viewMode == ViewMode::Payload) {
+        return _payloadNode;
+    }
+    if (_viewMode == ViewMode::Matches) {
+        return selectedMatch();
+    }
+    if (_rootSelected) {
+        return _current;
+    }
     return childAt(_current, _selectedIndex);
 }
 
@@ -363,7 +419,27 @@ const std::string& TerminalModel::statusMessage() const {
     return _statusMessage;
 }
 
-void TerminalModel::selectSearchResult(const std::shared_ptr<Node>& node) {
+void TerminalModel::selectRoot() {
+    _current = _reader->root();
+    _selectedIndex = 0;
+    _firstVisibleIndex = 0;
+    _rootSelected = true;
+    _viewMode = ViewMode::Node;
+    _payloadNode.reset();
+    _payloadLines.clear();
+    _payloadScrollOffset = 0;
+    _statusMessage.clear();
+    ensureVisiblePage();
+}
+
+std::shared_ptr<Node> TerminalModel::selectedMatch() const {
+    if (_searchResultIndex >= _searchResults.size()) {
+        return nullptr;
+    }
+    return _searchResults[_searchResultIndex];
+}
+
+void TerminalModel::selectNodeInNodeView(const std::shared_ptr<Node>& node) {
     if (!node) {
         return;
     }
@@ -373,6 +449,7 @@ void TerminalModel::selectSearchResult(const std::shared_ptr<Node>& node) {
         _current = node;
         _selectedIndex = 0;
         _firstVisibleIndex = 0;
+        _rootSelected = true;
         ensureVisiblePage();
         return;
     }
@@ -393,11 +470,33 @@ void TerminalModel::selectSearchResult(const std::shared_ptr<Node>& node) {
     _current = parent;
     _selectedIndex = static_cast<std::size_t>(std::distance(siblings.begin(), iterator));
     _firstVisibleIndex = _selectedIndex;
+    _rootSelected = false;
     ensureSelectionVisible();
     ensureVisiblePage();
 }
 
+void TerminalModel::ensureMatchSelectionVisible() {
+    const std::size_t visibleRows = matchViewportRows();
+    if (_searchResultIndex < _firstVisibleMatchIndex) {
+        _firstVisibleMatchIndex = _searchResultIndex;
+        return;
+    }
+
+    const std::size_t lastVisibleExclusive = _firstVisibleMatchIndex >
+            std::numeric_limits<std::size_t>::max() - visibleRows
+        ? std::numeric_limits<std::size_t>::max()
+        : _firstVisibleMatchIndex + visibleRows;
+    if (_searchResultIndex >= lastVisibleExclusive) {
+        _firstVisibleMatchIndex = _searchResultIndex - visibleRows + 1;
+    }
+}
+
 void TerminalModel::search(const std::string& predicate, const bool outward) {
+    if (_viewMode != ViewMode::Node) {
+        _statusMessage = "Search is available from the node view only.";
+        return;
+    }
+
     const std::shared_ptr<Node> anchor = selectedNode() ? selectedNode() : _current;
     if (!anchor) {
         _statusMessage = "Search cannot start without a selected node.";
@@ -410,47 +509,33 @@ void TerminalModel::search(const std::string& predicate, const bool outward) {
         ? predicate.substr(1)
         : predicate;
     const std::string expression = direction + normalizedPredicate;
-    try {
-        _searchResults = anchor->pick().allByPredicate(expression);
-        if (!_searchResults.empty()) {
-            selectSearchResult(_searchResults.front());
-        }
-    } catch (const std::exception& error) {
+
+    if (normalizedPredicate.empty()) {
         _searchResults.clear();
-        _searchResultIndex = 0;
         _searchExpression = expression;
+        _viewMode = ViewMode::Matches;
+        _searchResultIndex = 0;
+        _firstVisibleMatchIndex = 0;
+        _statusMessage = "Search " + expression + ": 0 matches.";
+        return;
+    }
+
+    try {
+        auto results = anchor->pick().allByPredicate(expression);
+        _searchResults = std::move(results);
+    } catch (const std::exception& error) {
         _statusMessage = "Search error: " + std::string(error.what());
         return;
     }
 
+    _viewMode = ViewMode::Matches;
     _searchExpression = expression;
     _searchResultIndex = 0;
-    if (_searchResults.empty()) {
-        _statusMessage = "Search " + expression + ": no matches.";
-        return;
-    }
-
-    _statusMessage = "Search " + expression + ": match 1/" +
-        std::to_string(_searchResults.size());
-}
-
-void TerminalModel::nextSearchResult(const bool previous) {
-    if (_searchResults.empty()) {
-        _statusMessage = "No active search results.";
-        return;
-    }
-
-    if (previous) {
-        _searchResultIndex = _searchResultIndex == 0
-            ? _searchResults.size() - 1
-            : _searchResultIndex - 1;
-    } else {
-        _searchResultIndex = (_searchResultIndex + 1) % _searchResults.size();
-    }
-    selectSearchResult(_searchResults[_searchResultIndex]);
-    _statusMessage = "Search " + _searchExpression + ": match " +
-        std::to_string(_searchResultIndex + 1) + "/" +
-        std::to_string(_searchResults.size());
+    _firstVisibleMatchIndex = 0;
+    ensureMatchSelectionVisible();
+    _statusMessage = "Search " + expression + ": " +
+        std::to_string(_searchResults.size()) + " match" +
+        (_searchResults.size() == 1 ? "" : "es") + ".";
 }
 
 std::string TerminalModel::payloadMarker(const std::shared_ptr<Node>& node) const {
@@ -487,6 +572,19 @@ void TerminalModel::moveSelection(const long long delta) {
         return;
     }
 
+    if (_rootSelected) {
+        if (delta <= 0) {
+            return;
+        }
+        const std::size_t amount = static_cast<std::size_t>(delta);
+        _rootSelected = false;
+        _selectedIndex = std::min(
+            amount == 0 ? 0 : amount - 1,
+            _current->loadedChildren().size() - 1);
+        ensureSelectionVisible();
+        return;
+    }
+
     if (delta < 0) {
         const std::size_t amount = static_cast<std::size_t>(-delta);
         _selectedIndex = amount > _selectedIndex ? 0 : _selectedIndex - amount;
@@ -520,7 +618,33 @@ void TerminalModel::moveSelection(const long long delta) {
     ensureSelectionVisible();
 }
 
+void TerminalModel::moveMatchSelection(const long long delta) {
+    if (_searchResults.empty()) {
+        _searchResultIndex = 0;
+        _firstVisibleMatchIndex = 0;
+        return;
+    }
+
+    if (delta < 0) {
+        const std::size_t amount = static_cast<std::size_t>(-delta);
+        _searchResultIndex = amount > _searchResultIndex
+            ? 0
+            : _searchResultIndex - amount;
+        ensureMatchSelectionVisible();
+        return;
+    }
+
+    const std::size_t amount = static_cast<std::size_t>(delta);
+    const std::size_t target = _searchResultIndex >
+            std::numeric_limits<std::size_t>::max() - amount
+        ? std::numeric_limits<std::size_t>::max()
+        : _searchResultIndex + amount;
+    _searchResultIndex = std::min(target, _searchResults.size() - 1);
+    ensureMatchSelectionVisible();
+}
+
 void TerminalModel::selectFirstChild() {
+    _rootSelected = false;
     _selectedIndex = 0;
     _firstVisibleIndex = 0;
     ensureVisiblePage();
@@ -529,15 +653,46 @@ void TerminalModel::selectFirstChild() {
 void TerminalModel::selectLastChild() {
     _current->ensureChildrenLoaded();
     if (_current->loadedChildren().empty()) {
+        _rootSelected = false;
         _selectedIndex = 0;
         _firstVisibleIndex = 0;
         return;
     }
+    _rootSelected = false;
     _selectedIndex = _current->loadedChildren().size() - 1;
     ensureSelectionVisible();
 }
 
+void TerminalModel::selectFirstMatch() {
+    _searchResultIndex = 0;
+    _firstVisibleMatchIndex = 0;
+    ensureMatchSelectionVisible();
+}
+
+void TerminalModel::selectLastMatch() {
+    if (_searchResults.empty()) {
+        _searchResultIndex = 0;
+        _firstVisibleMatchIndex = 0;
+        return;
+    }
+    _searchResultIndex = _searchResults.size() - 1;
+    ensureMatchSelectionVisible();
+}
+
 void TerminalModel::enterSelectedChildren() {
+    if (_rootSelected) {
+        _current->ensureChildrenLoaded(_pageSize);
+        if (_current->loadedChildren().empty()) {
+            _statusMessage = "Root node has no children.";
+            return;
+        }
+        _rootSelected = false;
+        _selectedIndex = 0;
+        _firstVisibleIndex = 0;
+        _statusMessage.clear();
+        return;
+    }
+
     const std::shared_ptr<Node> selected = selectedNode();
     if (!selected) {
         _statusMessage = "No child is selected.";
@@ -553,6 +708,28 @@ void TerminalModel::enterSelectedChildren() {
     _current = selected;
     _selectedIndex = 0;
     _firstVisibleIndex = 0;
+    _rootSelected = false;
+    _statusMessage.clear();
+}
+
+void TerminalModel::enterSelectedMatchChildren() {
+    const std::shared_ptr<Node> selected = selectedMatch();
+    if (!selected) {
+        _statusMessage = "No match is selected.";
+        return;
+    }
+
+    selected->ensureChildrenLoaded(_pageSize);
+    if (selected->loadedChildren().empty()) {
+        _statusMessage = "Match '" + selected->name() + "' has no children.";
+        return;
+    }
+
+    _current = selected;
+    _selectedIndex = 0;
+    _firstVisibleIndex = 0;
+    _rootSelected = selected.get() == _reader->root().get();
+    _viewMode = ViewMode::Node;
     _statusMessage.clear();
 }
 
@@ -584,6 +761,39 @@ void TerminalModel::leaveToParent() {
     _statusMessage.clear();
 }
 
+void TerminalModel::leaveMatchesToParent() {
+    const std::shared_ptr<Node> selected = selectedMatch();
+    if (!selected) {
+        _statusMessage = "No match is selected.";
+        return;
+    }
+
+    if (!selected->parent().lock()) {
+        _statusMessage = "Match '" + selected->name() + "' has no parent node.";
+        return;
+    }
+
+    _viewMode = ViewMode::Node;
+    selectNodeInNodeView(selected);
+    _statusMessage.clear();
+}
+
+void TerminalModel::showMatches() {
+    if (_searchExpression.empty()) {
+        _statusMessage = "No active search results.";
+        return;
+    }
+
+    _viewMode = ViewMode::Matches;
+    _payloadNode.reset();
+    _payloadLines.clear();
+    _payloadScrollOffset = 0;
+    ensureMatchSelectionVisible();
+    _statusMessage = "Search " + _searchExpression + ": " +
+        std::to_string(_searchResults.size()) + " match" +
+        (_searchResults.size() == 1 ? "" : "es") + ".";
+}
+
 void TerminalModel::rememberPayload(const std::shared_ptr<Node>& selected, const Data& data) {
     const auto* array = dynamic_cast<const Array*>(&data);
     const bool numerical = array != nullptr && isNumericalArray(data);
@@ -604,7 +814,7 @@ void TerminalModel::rememberPayload(const std::shared_ptr<Node>& selected, const
         display.markerText = marker;
     } else if (numerical) {
         const std::string summary = numericalSummary(*array);
-        payloadText = "Array " + data.dtype() + " " + summary;
+        payloadText = summary;
         display.text = payloadText;
         if (data.size() <= 9) {
             display.state = PayloadDisplay::State::Displayed;
@@ -630,7 +840,8 @@ void TerminalModel::rememberPayload(const std::shared_ptr<Node>& selected, const
     _payloadDisplays[selected.get()] = display;
     std::ostringstream stream;
     stream << selected->path() << " : " << selected->type() << "\n";
-    stream << "payload (" << data.size() << " element(s), " << data.dtype() << "): ";
+    stream << "payload (" << data.size() << " element(s), " << data.dtype()
+           << ", shape=" << shapeText(data) << "): ";
     stream << payloadText;
     _statusMessage = stream.str();
 }
@@ -665,12 +876,16 @@ void TerminalModel::enterSelectedPayloadView() {
     _payloadNode = selected;
     _payloadLines = detailedPayloadLines(data);
     _payloadScrollOffset = 0;
-    _payloadViewActive = true;
+    _viewMode = ViewMode::Payload;
     _statusMessage.clear();
 }
 
+void TerminalModel::enterSelectedMatchPayload() {
+    enterSelectedPayloadView();
+}
+
 void TerminalModel::scrollPayload(const long long delta) {
-    if (!_payloadViewActive || _payloadLines.empty()) {
+    if (_viewMode != ViewMode::Payload || _payloadLines.empty()) {
         _payloadScrollOffset = 0;
         return;
     }
@@ -696,91 +911,156 @@ void TerminalModel::scrollPayload(const long long delta) {
 }
 
 void TerminalModel::leavePayloadView() {
-    _payloadViewActive = false;
+    const std::shared_ptr<Node> payloadNode = _payloadNode;
+    _viewMode = ViewMode::Node;
     _payloadNode.reset();
     _payloadLines.clear();
     _payloadScrollOffset = 0;
+    if (payloadNode) {
+        selectNodeInNodeView(payloadNode);
+    }
     _statusMessage.clear();
 }
 
 bool TerminalModel::handle(const Key key) {
-    if (_payloadViewActive) {
-        switch (key) {
-            case Key::Up:
-                scrollPayload(-1);
-                break;
-            case Key::Down:
-                scrollPayload(1);
-                break;
-            case Key::PageUp:
-                scrollPayload(-static_cast<long long>(payloadViewportRows()));
-                break;
-            case Key::PageDown:
-                scrollPayload(static_cast<long long>(payloadViewportRows()));
-                break;
-            case Key::Home:
-                _payloadScrollOffset = 0;
-                break;
-            case Key::End:
-                scrollPayload(std::numeric_limits<long long>::max());
-                break;
-            case Key::Enter:
-                leavePayloadView();
-                break;
-            case Key::Quit:
-                return false;
-            case Key::Left:
-            case Key::Right:
-            case Key::ShiftEnter:
-            case Key::SearchInward:
-            case Key::SearchOutward:
-            case Key::NextMatch:
-            case Key::PreviousMatch:
-            case Key::Unknown:
-                break;
-        }
+    if (key == Key::Quit) {
+        return false;
+    }
+
+    if (key == Key::SelectRoot) {
+        selectRoot();
         return true;
     }
 
-    switch (key) {
-        case Key::Up:
-            moveSelection(-1);
+    if (key == Key::ShowMatches) {
+        showMatches();
+        return true;
+    }
+
+    switch (_viewMode) {
+        case ViewMode::Payload:
+            switch (key) {
+                case Key::Up:
+                    scrollPayload(-1);
+                    break;
+                case Key::Down:
+                    scrollPayload(1);
+                    break;
+                case Key::PageUp:
+                    scrollPayload(-static_cast<long long>(payloadViewportRows()));
+                    break;
+                case Key::PageDown:
+                    scrollPayload(static_cast<long long>(payloadViewportRows()));
+                    break;
+                case Key::Home:
+                    _payloadScrollOffset = 0;
+                    break;
+                case Key::End:
+                    scrollPayload(std::numeric_limits<long long>::max());
+                    break;
+                case Key::Enter:
+                    leavePayloadView();
+                    break;
+                case Key::Left:
+                case Key::Right:
+                case Key::ShiftEnter:
+                case Key::SearchInward:
+                case Key::SearchOutward:
+                case Key::Escape:
+                    leavePayloadView();
+                    break;
+                case Key::Unknown:
+                case Key::ShowMatches:
+                case Key::Quit:
+                    break;
+            }
             break;
-        case Key::Down:
-            moveSelection(1);
+
+        case ViewMode::Matches:
+            switch (key) {
+                case Key::Up:
+                    moveMatchSelection(-1);
+                    break;
+                case Key::Down:
+                    moveMatchSelection(1);
+                    break;
+                case Key::PageUp:
+                    moveMatchSelection(-static_cast<long long>(matchViewportRows()));
+                    break;
+                case Key::PageDown:
+                    moveMatchSelection(static_cast<long long>(matchViewportRows()));
+                    break;
+                case Key::Home:
+                    selectFirstMatch();
+                    break;
+                case Key::End:
+                    selectLastMatch();
+                    break;
+                case Key::Left:
+                    leaveMatchesToParent();
+                    break;
+                case Key::Right:
+                    enterSelectedMatchChildren();
+                    break;
+                case Key::Enter:
+                    enterSelectedPayload();
+                    break;
+                case Key::ShiftEnter:
+                    enterSelectedMatchPayload();
+                    break;
+                case Key::Escape:
+                    _viewMode = ViewMode::Node;
+                    _statusMessage.clear();
+                    break;
+                case Key::SearchInward:
+                case Key::SearchOutward:
+                case Key::Unknown:
+                case Key::ShowMatches:
+                case Key::Quit:
+                    break;
+            }
             break;
-        case Key::PageUp:
-            moveSelection(-static_cast<long long>(_pageSize));
-            break;
-        case Key::PageDown:
-            moveSelection(static_cast<long long>(_pageSize));
-            break;
-        case Key::Home:
-            selectFirstChild();
-            break;
-        case Key::End:
-            selectLastChild();
-            break;
-        case Key::Left:
-            leaveToParent();
-            break;
-        case Key::Right:
-            enterSelectedChildren();
-            break;
-        case Key::Enter:
-            enterSelectedPayload();
-            break;
-        case Key::ShiftEnter:
-            enterSelectedPayloadView();
-            break;
-        case Key::SearchInward:
-        case Key::SearchOutward:
-        case Key::NextMatch:
-        case Key::PreviousMatch:
-            break;
-        case Key::Quit:
-            return false;
-        case Key::Unknown:
+
+        case ViewMode::Node:
+            switch (key) {
+                case Key::Up:
+                    moveSelection(-1);
+                    break;
+                case Key::Down:
+                    moveSelection(1);
+                    break;
+                case Key::PageUp:
+                    moveSelection(-static_cast<long long>(_pageSize));
+                    break;
+                case Key::PageDown:
+                    moveSelection(static_cast<long long>(_pageSize));
+                    break;
+                case Key::Home:
+                    selectFirstChild();
+                    break;
+                case Key::End:
+                    selectLastChild();
+                    break;
+                case Key::Left:
+                    leaveToParent();
+                    break;
+                case Key::Right:
+                    enterSelectedChildren();
+                    break;
+                case Key::Enter:
+                    enterSelectedPayload();
+                    break;
+                case Key::ShiftEnter:
+                    enterSelectedPayloadView();
+                    break;
+                case Key::SearchInward:
+                case Key::SearchOutward:
+                case Key::Escape:
+                case Key::Unknown:
+                case Key::ShowMatches:
+                case Key::Quit:
+                    break;
+            }
             break;
     }
     return true;
@@ -793,11 +1073,17 @@ void TerminalModel::renderNodes(std::ostream& output) const {
         visibleRows > remaining ? std::numeric_limits<std::size_t>::max() : _firstVisibleIndex + visibleRows);
 
     output << "\x1b[2J\x1b[H";
-    output << "cgnsviz  " << _reader->filename() << "\n";
-    output << "path: \033[1;4m" << _current->path() << "\033[0m\n";
+    output << "CGNSviz from package NODER v" << NODER_VERSION << " (c) ONERA\n";
+    output << "file:  " << _reader->filename() << "\n";
+    output << "path: " << (_rootSelected ? "\033[1;7m" : "\033[1;4m")
+           << _current->path() << "\033[0m\n";
     output << "type: " << _current->type()
            << "    children: " << loadStateName(_current->childrenLoadState())
-           << "    loaded: " << _current->loadedChildren().size() << "\n\n";
+           << "    loaded: " << _current->loadedChildren().size();
+    if (_rootSelected) {
+        output << "    selection: root";
+    }
+    output << "\n\n";
 
     const auto& children = _current->loadedChildren();
     if (children.empty()) {
@@ -813,7 +1099,7 @@ void TerminalModel::renderNodes(std::ostream& output) const {
             if (!child) {
                 continue;
             }
-            output << (index == _selectedIndex ? " >\033[7m" : "  ");
+            output << (!_rootSelected && index == _selectedIndex ? " >\033[7m" : "  ");
             output << child->name() << "  \033[90m" << child->type() << "\033[0m"
                    << payloadMarker(child) << "\n";
         }
@@ -822,9 +1108,50 @@ void TerminalModel::renderNodes(std::ostream& output) const {
         }
     }
 
-    output << "\n[Up/Down] select  [PgUp/PgDn] page  [Home/End] first/last  [Right] open  [Left] parent\n"
+    output << "\n[Up/Down] select  [PgUp/PgDn] page  [Home/End] first/last  [Ctrl+Home] root  [Right] open  [Left] parent\n"
                "[Enter] summary  [Shift+Enter] details  [/] descendant search  [\\] ancestor search\n"
-               "[n/N] next/previous match  [q] quit\n";
+               "[m] matches  [q] quit\n";
+    if (!_statusMessage.empty()) {
+        output << "\n" << _statusMessage << "\n";
+    }
+}
+
+void TerminalModel::renderMatches(std::ostream& output) const {
+    const std::size_t visibleRows = matchViewportRows();
+
+    output << "\x1b[2J\x1b[H";
+    output << "cgnsviz  matches view\n";
+    output << "search: " << _searchExpression << "    matches: "
+           << _searchResults.size() << "\n\n";
+
+    if (_searchResults.empty()) {
+        output << "(no matches)\n";
+    } else {
+        const std::size_t first = std::min(_firstVisibleMatchIndex, _searchResults.size());
+        const std::size_t last = std::min(_searchResults.size(), first + visibleRows);
+        if (first > 0) {
+            output << "  ... previous matches hidden ...\n";
+        }
+        for (std::size_t index = first; index < last; ++index) {
+            const auto& match = _searchResults[index];
+            if (!match) {
+                continue;
+            }
+            const std::string path = compactMatchPath(match->path());
+            output << (index == _searchResultIndex ? " >\033[7m" : "  ");
+            output << match->name() << "  \033[90m" << match->type() << "\033[0m";
+            if (!path.empty()) {
+                output << "  \033[2m" << path << "\033[0m";
+            }
+            output << payloadMarker(match) << "\n";
+        }
+        if (last < _searchResults.size()) {
+            output << "  ... more matches available ...\n";
+        }
+    }
+
+    output << "\n[Up/Down] select  [PgUp/PgDn] page  [Home/End] first/last  [Right] children  [Left] parent\n"
+               "[Enter] summary  [Shift+Enter] details  [Escape] node view  [m] matches  [q] quit\n";
     if (!_statusMessage.empty()) {
         output << "\n" << _statusMessage << "\n";
     }
@@ -838,7 +1165,8 @@ void TerminalModel::renderPayload(std::ostream& output) const {
         const Data& data = _payloadNode->data();
         output << "type: " << _payloadNode->type()
                << "    dtype: " << data.dtype()
-               << "    elements: " << data.size() << "\n\n";
+               << "    elements: " << data.size()
+               << "    shape: " << shapeText(data) << "\n\n";
     } else {
         output << "\n";
     }
@@ -853,15 +1181,21 @@ void TerminalModel::renderPayload(std::ostream& output) const {
         }
     }
 
-    output << "\n[Up/Down] scroll  [PgUp/PgDn] page  [Home/End] first/last  [Enter] back  [q] quit\n";
+    output << "\n[Up/Down] scroll  [PgUp/PgDn] page  [Home/End] first/last  [Enter] back to node view  [m] matches  [q] quit\n";
 }
 
 void TerminalModel::render(std::ostream& output) const {
-    if (_payloadViewActive) {
-        renderPayload(output);
-        return;
+    switch (_viewMode) {
+        case ViewMode::Node:
+            renderNodes(output);
+            break;
+        case ViewMode::Matches:
+            renderMatches(output);
+            break;
+        case ViewMode::Payload:
+            renderPayload(output);
+            break;
     }
-    renderNodes(output);
 }
 
 namespace {
@@ -956,6 +1290,20 @@ int readByte() {
 #endif
 }
 
+int readByteIfAvailable() {
+#ifdef _WIN32
+    return _kbhit() != 0 ? _getch() : -1;
+#else
+    fd_set readSet;
+    FD_ZERO(&readSet);
+    FD_SET(STDIN_FILENO, &readSet);
+    timeval timeout{};
+    timeout.tv_usec = 50000;
+    const int ready = select(STDIN_FILENO + 1, &readSet, nullptr, nullptr, &timeout);
+    return ready > 0 && FD_ISSET(STDIN_FILENO, &readSet) ? readByte() : -1;
+#endif
+}
+
 Key parseCsiSequence(const std::string& sequence) {
     if (sequence == "A") return Key::Up;
     if (sequence == "B") return Key::Down;
@@ -963,6 +1311,9 @@ Key parseCsiSequence(const std::string& sequence) {
     if (sequence == "D") return Key::Left;
     if (sequence == "5~") return Key::PageUp;
     if (sequence == "6~") return Key::PageDown;
+    if (sequence == "1;5H" || sequence == "1;5~" || sequence == "7;5~") {
+        return Key::SelectRoot;
+    }
     if (sequence == "H" || sequence == "1~" || sequence == "7~") return Key::Home;
     if (sequence == "F" || sequence == "4~" || sequence == "8~") return Key::End;
     if (sequence == "13;2u" || sequence == "27;2;13~") return Key::ShiftEnter;
@@ -1010,18 +1361,19 @@ Key readKey() {
             case 81: return Key::PageDown;
             case 71: return Key::Home;
             case 79: return Key::End;
+            case 119: return Key::SelectRoot;
             default: return Key::Unknown;
         }
     }
-#else
+#endif
+
     if (first == 27) {
-        const int second = readByte();
+        const int second = readByteIfAvailable();
         if (second != '[') {
-            return Key::Unknown;
+            return Key::Escape;
         }
         return readCsiSequence([]() { return readByte(); });
     }
-#endif
 
     if (first == '\r' || first == '\n') {
 #ifdef _WIN32
@@ -1034,8 +1386,8 @@ Key readKey() {
     if (first == 'q' || first == 'Q') return Key::Quit;
     if (first == '/') return Key::SearchInward;
     if (first == '\\') return Key::SearchOutward;
-    if (first == 'n') return Key::NextMatch;
-    if (first == 'N') return Key::PreviousMatch;
+    if (first == 'm') return Key::ShowMatches;
+    if (first == 27) return Key::Escape;
     return Key::Unknown;
 }
 
@@ -1091,21 +1443,19 @@ int runTerminal(TerminalModel& model, std::istream& input, std::ostream& output)
             model.search(predicate, value == '\\');
             model.render(output);
             continue;
-        } else if (value == 'n') {
-            model.nextSearchResult(false);
-            model.render(output);
-            continue;
-        } else if (value == 'N') {
-            model.nextSearchResult(true);
+        } else if (value == 'm') {
+            model.handle(Key::ShowMatches);
             model.render(output);
             continue;
         } else if (value == '\x1b') {
-            char bracket = 0;
-            if (input.get(bracket) && bracket == '[') {
+            if (input.peek() == '[') {
+                input.get();
                 key = readCsiSequence([&input]() {
                     char next = 0;
                     return input.get(next) ? static_cast<int>(next) : -1;
                 });
+            } else {
+                key = Key::Escape;
             }
         } else {
             switch (value) {
@@ -1145,10 +1495,6 @@ int runInteractiveTerminal(TerminalModel& model) {
             if (accepted) {
                 model.search(predicate, key == Key::SearchOutward);
             }
-        } else if (key == Key::NextMatch) {
-            model.nextSearchResult(false);
-        } else if (key == Key::PreviousMatch) {
-            model.nextSearchResult(true);
         } else if (!model.handle(key)) {
             return 0;
         }

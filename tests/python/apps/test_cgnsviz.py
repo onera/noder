@@ -54,11 +54,22 @@ def _write_smoke_file(filename: Path) -> None:
         nested_leaf = nested.create_group("NestedLeaf", track_order=True)
         nested_leaf.attrs["name"] = np.bytes_("NestedLeaf")
         nested_leaf.attrs["label"] = np.bytes_("UserDefinedData_t")
-        nested_leaf.attrs["type"] = np.bytes_("MT")
+        nested_leaf.attrs["type"] = np.bytes_("C1")
+        nested_leaf.create_dataset(
+            " data", data=np.frombuffer(b"leaf-one", dtype=np.int8)
+        )
         nested_leaf_two = nested.create_group("NestedLeafTwo", track_order=True)
         nested_leaf_two.attrs["name"] = np.bytes_("NestedLeafTwo")
         nested_leaf_two.attrs["label"] = np.bytes_("UserDefinedData_t")
-        nested_leaf_two.attrs["type"] = np.bytes_("MT")
+        nested_leaf_two.attrs["type"] = np.bytes_("C1")
+        nested_leaf_two.create_dataset(
+            " data", data=np.frombuffer(b"leaf-two", dtype=np.int8)
+        )
+        matrix = nested.create_group("MatrixData", track_order=True)
+        matrix.attrs["name"] = np.bytes_("MatrixData")
+        matrix.attrs["label"] = np.bytes_("DataArray_t")
+        matrix.attrs["type"] = np.bytes_("I4")
+        matrix.create_dataset(" data", data=np.arange(6, dtype=np.int32).reshape(2, 3))
 
         small_numbers = h5file.create_group("SmallNumbers", track_order=True)
         small_numbers.attrs["name"] = np.bytes_("SmallNumbers")
@@ -93,6 +104,24 @@ def _write_smoke_file(filename: Path) -> None:
             " data",
             data=np.frombuffer(long_text.encode("ascii"), dtype=np.int8),
         )
+
+
+def _write_root_search_file(filename: Path) -> None:
+    h5py = pytest.importorskip("h5py")
+    with h5py.File(filename, "w", track_order=True) as h5file:
+        h5file.attrs["name"] = np.bytes_("HDF5 MotherNode")
+        h5file.attrs["label"] = np.bytes_("Root Node of HDF5 File")
+        h5file.attrs["type"] = np.bytes_("MT")
+
+        for base_name, zone_name in (("BaseOne", "ZoneOne"), ("BaseTwo", "ZoneTwo")):
+            base = h5file.create_group(base_name, track_order=True)
+            base.attrs["name"] = np.bytes_(base_name)
+            base.attrs["label"] = np.bytes_("CGNSBase_t")
+            base.attrs["type"] = np.bytes_("MT")
+            zone = base.create_group(zone_name, track_order=True)
+            zone.attrs["name"] = np.bytes_(zone_name)
+            zone.attrs["label"] = np.bytes_("Zone_t")
+            zone.attrs["type"] = np.bytes_("MT")
 
 
 def test_cgnsviz_non_interactive_smoke(tmp_path):
@@ -136,6 +165,10 @@ def test_cgnsviz_non_interactive_smoke(tmp_path):
 
     assert result.returncode == 0, result.stderr
     assert "cgnsviz" in result.stdout
+    assert re.search(
+        r"CGNSviz from package NODER v[0-9]+\.[0-9]+\.[0-9]+ \(c\) ONERA",
+        result.stdout,
+    )
     assert "SmokeData" in result.stdout
     assert "DataArray_t" in result.stdout
     assert "[press Enter to show payload]" in result.stdout
@@ -144,9 +177,10 @@ def test_cgnsviz_non_interactive_smoke(tmp_path):
     plain_output = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", result.stdout)
     assert "ZoneType  ZoneType_t  Structured" in plain_output
     assert "SmallNumbers  DataArray_t  Array int32 [ 0 1 2 3 4 5 6 7 8 ]" in plain_output
-    assert "payload (9 element(s), int32): Array int32 min=0, max=8, mean=4, median=4" in plain_output
-    assert "payload (9 element(s), int32): Array int32 [ 0 1 2 3 4 5 6 7 8 ]" not in plain_output
-    assert "[ 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 ]" in plain_output
+    assert "payload (9 element(s), int32, shape=9): min=0, max=8, mean=4, median=4" in plain_output
+    assert "payload (9 element(s), int32, shape=9): Array int32" not in plain_output
+    assert "0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29" in plain_output
+    assert "[ 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 ]" not in plain_output
     assert "[too big size to show]" not in plain_output
     assert "[min=0, max=74, mean=37, median=37]" in plain_output
     assert '[big str: 20 words "FirstWord ... LastWord"]' in plain_output
@@ -173,7 +207,24 @@ def test_cgnsviz_predicate_search_smoke(tmp_path):
 
     result = subprocess.run(
         [str(executable), str(filename), "--non-interactive"],
-        input="l\n/n:NestedLeaf*\nn\nN\n\\n:NestedSmoke\n/n:\nq\n",
+        input=(
+            "l\n"
+            "/n:NestedLeaf*\n"
+            "j\n"
+            "\n"
+            "\x1b[27;2;13~\n"
+            "m\n"
+            "l\n"
+            "h\n"
+            "\\n:NestedSmoke\n"
+            "h\n"
+            "/q:invalid\n"
+            "m\n"
+            "h\n"
+            "/\n"
+            "\x1bq\n"
+            "q\n"
+        ),
         text=True,
         capture_output=True,
         check=False,
@@ -181,8 +232,102 @@ def test_cgnsviz_predicate_search_smoke(tmp_path):
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.count("Search /n:NestedLeaf*: match 1/2") >= 2
-    assert "Search /n:NestedLeaf*: match 2/2" in result.stdout
+    assert "cgnsviz  matches view" in result.stdout
+    assert "search: /n:NestedLeaf*    matches: 2" in result.stdout
+    assert "Search /n:NestedLeaf*: 2 matches." in result.stdout
     assert "NestedLeaf" in result.stdout
-    assert "Search \\n:NestedSmoke: match 1/1" in result.stdout
+    assert "leaf-two" in result.stdout
+    assert "cgnsviz  payload view" in result.stdout
+    assert "[Enter] back to node view" in result.stdout
+    assert "[m] matches" in result.stdout
+    assert "[Escape] node view" in result.stdout
+    assert "Match 'NestedLeafTwo' has no children." in result.stdout
+    assert "Search \\n:NestedSmoke: 1 match." in result.stdout
     assert "Search error: invalid predicate" in result.stdout
+    assert "search: \\n:NestedSmoke    matches: 1" in result.stdout
+    assert "search: /    matches: 0" in result.stdout
+    assert "(no matches)" in result.stdout
+    assert "[n/N]" not in result.stdout
+
+    plain_output = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", result.stdout)
+    assert "NestedLeafTwo  UserDefinedData_t  ZoneType/NestedSmoke" in plain_output
+    last_screen = result.stdout.rsplit("\x1b[2J\x1b[H", maxsplit=1)[-1]
+    assert "cgnsviz  matches view" not in last_screen
+    assert "path:" in last_screen
+
+
+def test_cgnsviz_multidimensional_payload_metadata(tmp_path):
+    executable = _cgnsviz_executable()
+    if executable is None:
+        pytest.skip("cgnsviz executable is not available; configure with ENABLE_CGNSVIZ=ON")
+
+    filename = tmp_path / "cgnsviz-multidimensional.cgns"
+    _write_smoke_file(filename)
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join(
+        [str(executable.parent), environment.get("PATH", "")]
+    )
+
+    result = subprocess.run(
+        [str(executable), str(filename), "--non-interactive"],
+        input=(
+            "l\n"
+            "l\n"
+            "\x1b[F\n"
+            "\x1b[27;2;13~\n"
+            "\n"
+            "q\n"
+        ),
+        text=True,
+        capture_output=True,
+        check=False,
+        env=environment,
+    )
+
+    assert result.returncode == 0, result.stderr
+    plain_output = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", result.stdout)
+    assert "MatrixData  DataArray_t  Array int32 [ 0 1 2 3 4 5 ]" in plain_output
+    assert "payload (6 element(s), int32, shape=3x2): min=0, max=5, mean=2.5, median=2.5" in plain_output
+    assert "elements: 6    shape: 3x2" in plain_output
+    payload_screens = [
+        re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", screen)
+        for screen in result.stdout.split("\x1b[2J\x1b[H")
+        if "cgnsviz  payload view" in screen
+    ]
+    assert payload_screens
+    assert "0 1 2 3 4 5" in payload_screens[-1]
+    assert "[ 0 1 2 3 4 5 ]" not in payload_screens[-1]
+
+
+def test_cgnsviz_ctrl_home_searches_from_root(tmp_path):
+    executable = _cgnsviz_executable()
+    if executable is None:
+        pytest.skip("cgnsviz executable is not available; configure with ENABLE_CGNSVIZ=ON")
+
+    filename = tmp_path / "cgnsviz-root-search.cgns"
+    _write_root_search_file(filename)
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join(
+        [str(executable.parent), environment.get("PATH", "")]
+    )
+
+    result = subprocess.run(
+        [str(executable), str(filename), "--non-interactive"],
+        input=(
+            "/t:Zone_t\n"
+            "\x1b[1;5H"
+            "/t:Zone_t\n"
+            "q\n"
+        ),
+        text=True,
+        capture_output=True,
+        check=False,
+        env=environment,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Search /t:Zone_t: 1 match." in result.stdout
+    assert "Search /t:Zone_t: 2 matches." in result.stdout
+    assert "ZoneOne" in result.stdout
+    assert "ZoneTwo" in result.stdout
+    assert "selection: root" in result.stdout

@@ -23,20 +23,21 @@ enum class Key {
     PageDown,
     Home,
     End,
+    SelectRoot,
     Left,
     Right,
     Enter,
     ShiftEnter,
     SearchInward,
     SearchOutward,
-    NextMatch,
-    PreviousMatch,
+    ShowMatches,
+    Escape,
     Quit,
     Unknown
 };
 
 /**
- * @brief State model for the non-search cgnsviz terminal view.
+ * @brief State model for the cgnsviz node, matches, and payload views.
  *
  * The model contains no terminal I/O.  It provides deterministic navigation
  * and rendering over a lazy Node tree so that it can also be tested without
@@ -59,10 +60,10 @@ public:
     /** @brief Set the available terminal height in rows. */
     void setViewportRows(std::size_t rows);
 
-    /** @brief Currently displayed node (the parent of the selected row). */
+    /** @brief Current node-view parent, or the current matches context. */
     std::shared_ptr<Node> currentNode() const;
 
-    /** @brief Currently selected child, or null when there are no children. */
+    /** @brief Currently selected node in the active node or matches view. */
     std::shared_ptr<Node> selectedNode() const;
 
     /** @brief Current selected row index. */
@@ -74,10 +75,13 @@ public:
     /** @brief Search from the selected node using one directional predicate block. */
     void search(const std::string& predicate, bool outward);
 
-    /** @brief Select the next or previous result of the last search. */
-    void nextSearchResult(bool previous = false);
-
 private:
+    enum class ViewMode {
+        Node,
+        Matches,
+        Payload
+    };
+
     struct PayloadDisplay {
         enum class State {
             Displayed,
@@ -92,39 +96,53 @@ private:
 
     void ensureVisiblePage();
     void ensureSelectionVisible();
+    void ensureMatchSelectionVisible();
+    void selectRoot();
     void moveSelection(long long delta);
+    void moveMatchSelection(long long delta);
     void selectFirstChild();
     void selectLastChild();
+    void selectFirstMatch();
+    void selectLastMatch();
     void enterSelectedPayload();
     void enterSelectedPayloadView();
+    void enterSelectedMatchPayload();
     void scrollPayload(long long delta);
     void leavePayloadView();
     void enterSelectedChildren();
+    void enterSelectedMatchChildren();
     void leaveToParent();
-    void selectSearchResult(const std::shared_ptr<Node>& node);
+    void leaveMatchesToParent();
+    void showMatches();
+    void selectNodeInNodeView(const std::shared_ptr<Node>& node);
+    std::shared_ptr<Node> selectedMatch() const;
     void rememberPayload(const std::shared_ptr<Node>& node, const Data& data);
     std::string payloadMarker(const std::shared_ptr<Node>& node) const;
     std::size_t childViewportRows() const;
+    std::size_t matchViewportRows() const;
     std::size_t payloadViewportRows() const;
     void renderNodes(std::ostream& output) const;
+    void renderMatches(std::ostream& output) const;
     void renderPayload(std::ostream& output) const;
 
     std::shared_ptr<io::hdf5::cgns::LazyHdf5Reader> _reader;
     std::shared_ptr<Node> _current;
     std::size_t _selectedIndex;
     std::size_t _firstVisibleIndex;
+    bool _rootSelected;
     std::size_t _pageSize;
     std::size_t _payloadElementLimit;
     std::size_t _maxPayloadChars;
     std::size_t _viewportRows;
     std::string _statusMessage;
     std::unordered_map<const Node*, PayloadDisplay> _payloadDisplays;
-    bool _payloadViewActive;
+    ViewMode _viewMode;
     std::shared_ptr<Node> _payloadNode;
     std::vector<std::string> _payloadLines;
     std::size_t _payloadScrollOffset;
     std::vector<std::shared_ptr<Node>> _searchResults;
     std::size_t _searchResultIndex;
+    std::size_t _firstVisibleMatchIndex;
     std::string _searchExpression;
 };
 
