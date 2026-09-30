@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace io::hdf5::cgns {
 class LazyHdf5Reader;
@@ -20,9 +21,12 @@ enum class Key {
     Down,
     PageUp,
     PageDown,
+    Home,
+    End,
     Left,
     Right,
     Enter,
+    ShiftEnter,
     Quit,
     Unknown
 };
@@ -39,13 +43,17 @@ public:
     TerminalModel(
         std::shared_ptr<io::hdf5::cgns::LazyHdf5Reader> reader,
         std::size_t pageSize = 5,
-        std::size_t payloadElementLimit = 64);
+        std::size_t payloadElementLimit = 64,
+        std::size_t maxPayloadChars = 80);
 
     /** @brief Apply one navigation key.  Returns false when the view should quit. */
     bool handle(Key key);
 
     /** @brief Render the current screen as plain text/ANSI-compatible text. */
     void render(std::ostream& output) const;
+
+    /** @brief Set the available terminal height in rows. */
+    void setViewportRows(std::size_t rows);
 
     /** @brief Currently displayed node (the parent of the selected row). */
     std::shared_ptr<Node> currentNode() const;
@@ -73,19 +81,37 @@ private:
     };
 
     void ensureVisiblePage();
+    void ensureSelectionVisible();
     void moveSelection(long long delta);
+    void selectFirstChild();
+    void selectLastChild();
     void enterSelectedPayload();
+    void enterSelectedPayloadView();
+    void scrollPayload(long long delta);
+    void leavePayloadView();
     void enterSelectedChildren();
     void leaveToParent();
+    void rememberPayload(const std::shared_ptr<Node>& node, const Data& data);
     std::string payloadMarker(const std::shared_ptr<Node>& node) const;
+    std::size_t childViewportRows() const;
+    std::size_t payloadViewportRows() const;
+    void renderNodes(std::ostream& output) const;
+    void renderPayload(std::ostream& output) const;
 
     std::shared_ptr<io::hdf5::cgns::LazyHdf5Reader> _reader;
     std::shared_ptr<Node> _current;
     std::size_t _selectedIndex;
+    std::size_t _firstVisibleIndex;
     std::size_t _pageSize;
     std::size_t _payloadElementLimit;
+    std::size_t _maxPayloadChars;
+    std::size_t _viewportRows;
     std::string _statusMessage;
     std::unordered_map<const Node*, PayloadDisplay> _payloadDisplays;
+    bool _payloadViewActive;
+    std::shared_ptr<Node> _payloadNode;
+    std::vector<std::string> _payloadLines;
+    std::size_t _payloadScrollOffset;
 };
 
 /** @brief Run the platform-neutral key loop around a TerminalModel. */

@@ -6,6 +6,7 @@
 #include "io/hdf5/lazycgns/lazy_hdf5_reader.hpp"
 #endif
 
+#include <cctype>
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
@@ -13,12 +14,15 @@
 #include <limits>
 #include <sstream>
 #include <stdexcept>
+#include <type_traits>
 #include <vector>
 
 #ifdef _WIN32
 #include <conio.h>
+#include <windows.h>
 #else
 #include <cerrno>
+#include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
 #endif
@@ -127,18 +131,165 @@ std::string numericalArrayText(const Array& array) {
     return "Array " + array.dtype() + " " + array.getPrintString(0);
 }
 
+std::string compactString(const std::string& value) {
+    std::string result;
+    result.reserve(value.size());
+    bool pendingSpace = false;
+    for (const unsigned char character : value) {
+        if (std::isspace(character) != 0) {
+            pendingSpace = !result.empty();
+            continue;
+        }
+        if (pendingSpace) {
+            result.push_back(' ');
+            pendingSpace = false;
+        }
+        result.push_back(static_cast<char>(character));
+    }
+    return result;
+}
+
+std::string shortWord(const std::string& word) {
+    constexpr std::size_t maxWordCharacters = 24;
+    if (word.size() <= maxWordCharacters) {
+        return word;
+    }
+    return word.substr(0, maxWordCharacters - 3) + "...";
+}
+
+std::string stringMarkerText(const std::string& value, const std::size_t maxCharacters) {
+    const std::string compact = compactString(value);
+    if (value.size() <= maxCharacters) {
+        return compact;
+    }
+
+    std::istringstream words(value);
+    std::string first;
+    std::string last;
+    std::string word;
+    std::size_t wordCount = 0;
+    while (words >> word) {
+        if (wordCount == 0) {
+            first = word;
+        }
+        last = word;
+        ++wordCount;
+    }
+
+    std::ostringstream summary;
+    summary << "big str: " << wordCount << " words";
+    if (wordCount > 0) {
+        summary << " \"" << shortWord(first);
+        if (wordCount > 1) {
+            summary << " ... " << shortWord(last);
+        }
+        summary << "\"";
+    }
+    return summary.str();
+}
+
+template <typename T>
+std::string numericalValueText(const T value) {
+    std::ostringstream stream;
+    stream << std::setprecision(15);
+    if constexpr (std::is_same_v<T, bool>) {
+        stream << (value ? 1 : 0);
+    } else {
+        stream << +value;
+    }
+    return stream.str();
+}
+
+template <typename T>
+void appendNumericalPayloadLines(const Array& array, std::vector<std::string>& lines) {
+    constexpr std::size_t lineWidth = 96;
+    std::string line = "[ ";
+    for (std::size_t index = 0; index < array.size(); ++index) {
+        const std::string value = numericalValueText(array.getItemAtIndex<T>(index));
+        if (line.size() > 2 && line.size() + value.size() + 1 > lineWidth) {
+            line += "]";
+            lines.push_back(line);
+            line = "[ ";
+        }
+        line += value + " ";
+    }
+    if (line == "[ ") {
+        lines.emplace_back("[ ]");
+    } else {
+        line += "]";
+        lines.push_back(line);
+    }
+}
+
+std::vector<std::string> detailedPayloadLines(const Data& data) {
+    const auto* array = dynamic_cast<const Array*>(&data);
+    if (array != nullptr && isNumericalArray(data)) {
+        std::vector<std::string> lines;
+        switch (array->typeId()) {
+            case ArrayTypeId::Bool: appendNumericalPayloadLines<bool>(*array, lines); break;
+            case ArrayTypeId::Int8: appendNumericalPayloadLines<int8_t>(*array, lines); break;
+            case ArrayTypeId::Int16: appendNumericalPayloadLines<int16_t>(*array, lines); break;
+            case ArrayTypeId::Int32: appendNumericalPayloadLines<int32_t>(*array, lines); break;
+            case ArrayTypeId::Int64: appendNumericalPayloadLines<int64_t>(*array, lines); break;
+            case ArrayTypeId::UInt8: appendNumericalPayloadLines<uint8_t>(*array, lines); break;
+            case ArrayTypeId::UInt16: appendNumericalPayloadLines<uint16_t>(*array, lines); break;
+            case ArrayTypeId::UInt32: appendNumericalPayloadLines<uint32_t>(*array, lines); break;
+            case ArrayTypeId::UInt64: appendNumericalPayloadLines<uint64_t>(*array, lines); break;
+            case ArrayTypeId::Float32: appendNumericalPayloadLines<float>(*array, lines); break;
+            case ArrayTypeId::Float64: appendNumericalPayloadLines<double>(*array, lines); break;
+            case ArrayTypeId::None:
+            case ArrayTypeId::Bytes:
+            case ArrayTypeId::Unicode:
+                break;
+        }
+        return lines;
+    }
+
+    const std::string value = data.hasString() ? data.extractString() : data.shortInfo();
+    std::vector<std::string> lines;
+    constexpr std::size_t lineWidth = 96;
+    std::size_t lineStart = 0;
+    while (lineStart <= value.size()) {
+        const std::size_t newline = value.find('\n', lineStart);
+        const std::size_t lineEnd = newline == std::string::npos ? value.size() : newline;
+        if (lineStart == lineEnd) {
+            lines.emplace_back();
+        } else {
+            for (std::size_t offset = lineStart; offset < lineEnd; offset += lineWidth) {
+                lines.push_back(value.substr(offset, std::min(lineWidth, lineEnd - offset)));
+            }
+        }
+        if (newline == std::string::npos) {
+            break;
+        }
+        lineStart = newline + 1;
+    }
+    if (lines.empty()) {
+        lines.emplace_back();
+    }
+    return lines;
+}
+
 } // namespace
 
 TerminalModel::TerminalModel(
     std::shared_ptr<io::hdf5::cgns::LazyHdf5Reader> reader,
     const std::size_t pageSize,
-    const std::size_t payloadElementLimit)
+    const std::size_t payloadElementLimit,
+    const std::size_t maxPayloadChars)
     : _reader(std::move(reader)),
       _current(nullptr),
       _selectedIndex(0),
+      _firstVisibleIndex(0),
       _pageSize(std::max<std::size_t>(1, pageSize)),
       _payloadElementLimit(payloadElementLimit),
-      _statusMessage() {
+      _maxPayloadChars(std::max<std::size_t>(1, maxPayloadChars)),
+      _viewportRows(24),
+      _statusMessage(),
+      _payloadViewActive(false),
+      _payloadNode(nullptr),
+      _payloadLines(),
+      _payloadScrollOffset(0) {
 
     if (!_reader) {
         throw std::invalid_argument("TerminalModel: reader cannot be null");
@@ -150,8 +301,47 @@ TerminalModel::TerminalModel(
     ensureVisiblePage();
 }
 
+void TerminalModel::setViewportRows(const std::size_t rows) {
+    _viewportRows = std::max<std::size_t>(1, rows);
+    if (_payloadViewActive) {
+        scrollPayload(0);
+    } else {
+        ensureSelectionVisible();
+    }
+}
+
+std::size_t TerminalModel::childViewportRows() const {
+    constexpr std::size_t reservedRows = 8;
+    return _viewportRows > reservedRows ? _viewportRows - reservedRows : 1;
+}
+
+std::size_t TerminalModel::payloadViewportRows() const {
+    constexpr std::size_t reservedRows = 6;
+    return _viewportRows > reservedRows ? _viewportRows - reservedRows : 1;
+}
+
 void TerminalModel::ensureVisiblePage() {
-    _current->ensureChildrenLoaded(_selectedIndex + _pageSize);
+    ensureSelectionVisible();
+    const std::size_t requestedCount = std::max(_pageSize, childViewportRows());
+    const std::size_t remaining = std::numeric_limits<std::size_t>::max() - _selectedIndex;
+    _current->ensureChildrenLoaded(
+        requestedCount > remaining ? std::numeric_limits<std::size_t>::max() : _selectedIndex + requestedCount);
+}
+
+void TerminalModel::ensureSelectionVisible() {
+    const std::size_t visibleRows = childViewportRows();
+    if (_selectedIndex < _firstVisibleIndex) {
+        _firstVisibleIndex = _selectedIndex;
+        return;
+    }
+
+    const std::size_t lastVisibleExclusive = _firstVisibleIndex >
+            std::numeric_limits<std::size_t>::max() - visibleRows
+        ? std::numeric_limits<std::size_t>::max()
+        : _firstVisibleIndex + visibleRows;
+    if (_selectedIndex >= lastVisibleExclusive) {
+        _firstVisibleIndex = _selectedIndex - visibleRows + 1;
+    }
 }
 
 std::shared_ptr<Node> TerminalModel::currentNode() const {
@@ -207,6 +397,7 @@ void TerminalModel::moveSelection(const long long delta) {
     if (delta < 0) {
         const std::size_t amount = static_cast<std::size_t>(-delta);
         _selectedIndex = amount > _selectedIndex ? 0 : _selectedIndex - amount;
+        ensureSelectionVisible();
         return;
     }
 
@@ -216,6 +407,7 @@ void TerminalModel::moveSelection(const long long delta) {
         : _selectedIndex + amount;
     if (target < _current->loadedChildren().size()) {
         _selectedIndex = target;
+        ensureSelectionVisible();
         return;
     }
 
@@ -226,11 +418,30 @@ void TerminalModel::moveSelection(const long long delta) {
         _current->ensureChildrenLoaded(requested);
         if (target < _current->loadedChildren().size()) {
             _selectedIndex = target;
+            ensureSelectionVisible();
             return;
         }
     }
 
     _selectedIndex = _current->loadedChildren().size() - 1;
+    ensureSelectionVisible();
+}
+
+void TerminalModel::selectFirstChild() {
+    _selectedIndex = 0;
+    _firstVisibleIndex = 0;
+    ensureVisiblePage();
+}
+
+void TerminalModel::selectLastChild() {
+    _current->ensureChildrenLoaded();
+    if (_current->loadedChildren().empty()) {
+        _selectedIndex = 0;
+        _firstVisibleIndex = 0;
+        return;
+    }
+    _selectedIndex = _current->loadedChildren().size() - 1;
+    ensureSelectionVisible();
 }
 
 void TerminalModel::enterSelectedChildren() {
@@ -248,6 +459,7 @@ void TerminalModel::enterSelectedChildren() {
 
     _current = selected;
     _selectedIndex = 0;
+    _firstVisibleIndex = 0;
     _statusMessage.clear();
 }
 
@@ -274,7 +486,60 @@ void TerminalModel::leaveToParent() {
     _selectedIndex = iterator == siblings.end()
         ? 0
         : static_cast<std::size_t>(std::distance(siblings.begin(), iterator));
+    _firstVisibleIndex = _selectedIndex;
+    ensureSelectionVisible();
     _statusMessage.clear();
+}
+
+void TerminalModel::rememberPayload(const std::shared_ptr<Node>& selected, const Data& data) {
+    const auto* array = dynamic_cast<const Array*>(&data);
+    const bool numerical = array != nullptr && isNumericalArray(data);
+
+    std::string payloadText;
+    PayloadDisplay display{
+        PayloadDisplay::State::Displayed,
+        "",
+        ""};
+
+    if (data.hasString()) {
+        const std::string stringValue = data.extractString();
+        const std::string marker = stringMarkerText(stringValue, _maxPayloadChars);
+        const bool summarized = stringValue.size() > _maxPayloadChars;
+        payloadText = summarized ? marker : stringValue;
+        display.state = summarized ? PayloadDisplay::State::Summary : PayloadDisplay::State::Displayed;
+        display.text = payloadText;
+        display.markerText = marker;
+    } else if (numerical) {
+        const std::string summary = numericalSummary(*array);
+        payloadText = "Array " + data.dtype() + " " + summary;
+        display.text = payloadText;
+        if (data.size() <= 9) {
+            display.state = PayloadDisplay::State::Displayed;
+            display.markerText = numericalArrayText(*array);
+        } else {
+            display.state = PayloadDisplay::State::Summary;
+            display.markerText = summary;
+        }
+    } else if (!numerical && data.size() > _payloadElementLimit) {
+        display.state = PayloadDisplay::State::TooBig;
+        _payloadDisplays[selected.get()] = display;
+        _statusMessage = "Payload has " + std::to_string(data.size()) +
+            " elements; display limit is " + std::to_string(_payloadElementLimit) + ".";
+        return;
+    } else {
+        payloadText = data.shortInfo();
+        display.text = payloadText;
+        display.markerText = data.isScalar()
+            ? payloadText
+            : "";
+    }
+
+    _payloadDisplays[selected.get()] = display;
+    std::ostringstream stream;
+    stream << selected->path() << " : " << selected->type() << "\n";
+    stream << "payload (" << data.size() << " element(s), " << data.dtype() << "): ";
+    stream << payloadText;
+    _statusMessage = stream.str();
 }
 
 void TerminalModel::enterSelectedPayload() {
@@ -288,53 +553,98 @@ void TerminalModel::enterSelectedPayload() {
         return;
     }
 
+    rememberPayload(selected, selected->data());
+}
+
+void TerminalModel::enterSelectedPayloadView() {
+    const std::shared_ptr<Node> selected = selectedNode();
+    if (!selected) {
+        _statusMessage = "No child is selected.";
+        return;
+    }
+    if (!selected->hasData()) {
+        _statusMessage = "Node '" + selected->name() + "' has no payload.";
+        return;
+    }
+
     const Data& data = selected->data();
-    const auto* array = dynamic_cast<const Array*>(&data);
-    const bool numerical = array != nullptr && isNumericalArray(data);
-    if (numerical && data.size() > _payloadElementLimit) {
-        const std::string summary = numericalSummary(*array);
-        const std::string summaryText = "Array " + data.dtype() + " " + summary;
-        _payloadDisplays[selected.get()] = PayloadDisplay{
-            PayloadDisplay::State::Summary,
-            summaryText,
-            summary};
+    rememberPayload(selected, data);
+    _payloadNode = selected;
+    _payloadLines = detailedPayloadLines(data);
+    _payloadScrollOffset = 0;
+    _payloadViewActive = true;
+    _statusMessage.clear();
+}
 
-        std::ostringstream stream;
-        stream << selected->path() << " : " << selected->type() << "\n";
-        stream << "payload (" << data.size() << " element(s), " << data.dtype() << "): ";
-        stream << summaryText;
-        _statusMessage = stream.str();
+void TerminalModel::scrollPayload(const long long delta) {
+    if (!_payloadViewActive || _payloadLines.empty()) {
+        _payloadScrollOffset = 0;
         return;
     }
 
-    if (!numerical && data.size() > _payloadElementLimit) {
-        _payloadDisplays[selected.get()] = PayloadDisplay{
-            PayloadDisplay::State::TooBig,
-            "",
-            ""};
-        _statusMessage = "Payload has " + std::to_string(data.size()) +
-            " elements; display limit is " + std::to_string(_payloadElementLimit) + ".";
+    const std::size_t visibleRows = payloadViewportRows();
+    const std::size_t maximumOffset = _payloadLines.size() > visibleRows
+        ? _payloadLines.size() - visibleRows
+        : 0;
+    if (delta < 0) {
+        const std::size_t amount = static_cast<std::size_t>(-delta);
+        _payloadScrollOffset = amount > _payloadScrollOffset
+            ? 0
+            : _payloadScrollOffset - amount;
         return;
     }
 
-    const std::string payloadText = numerical
-        ? numericalArrayText(*array)
-        : data.hasString() ? data.extractString() : data.shortInfo();
-    _payloadDisplays[selected.get()] = PayloadDisplay{
-        PayloadDisplay::State::Displayed,
-        payloadText,
-        data.hasString() || data.isScalar() || (numerical && data.size() <= 9)
-            ? payloadText
-            : ""};
+    const std::size_t amount = static_cast<std::size_t>(delta);
+    if (amount >= maximumOffset || _payloadScrollOffset >= maximumOffset - amount) {
+        _payloadScrollOffset = maximumOffset;
+    } else {
+        _payloadScrollOffset += amount;
+    }
+}
 
-    std::ostringstream stream;
-    stream << selected->path() << " : " << selected->type() << "\n";
-    stream << "payload (" << data.size() << " element(s), " << data.dtype() << "): ";
-    stream << payloadText;
-    _statusMessage = stream.str();
+void TerminalModel::leavePayloadView() {
+    _payloadViewActive = false;
+    _payloadNode.reset();
+    _payloadLines.clear();
+    _payloadScrollOffset = 0;
+    _statusMessage.clear();
 }
 
 bool TerminalModel::handle(const Key key) {
+    if (_payloadViewActive) {
+        switch (key) {
+            case Key::Up:
+                scrollPayload(-1);
+                break;
+            case Key::Down:
+                scrollPayload(1);
+                break;
+            case Key::PageUp:
+                scrollPayload(-static_cast<long long>(payloadViewportRows()));
+                break;
+            case Key::PageDown:
+                scrollPayload(static_cast<long long>(payloadViewportRows()));
+                break;
+            case Key::Home:
+                _payloadScrollOffset = 0;
+                break;
+            case Key::End:
+                scrollPayload(std::numeric_limits<long long>::max());
+                break;
+            case Key::Enter:
+                leavePayloadView();
+                break;
+            case Key::Quit:
+                return false;
+            case Key::Left:
+            case Key::Right:
+            case Key::ShiftEnter:
+            case Key::Unknown:
+                break;
+        }
+        return true;
+    }
+
     switch (key) {
         case Key::Up:
             moveSelection(-1);
@@ -348,6 +658,12 @@ bool TerminalModel::handle(const Key key) {
         case Key::PageDown:
             moveSelection(static_cast<long long>(_pageSize));
             break;
+        case Key::Home:
+            selectFirstChild();
+            break;
+        case Key::End:
+            selectLastChild();
+            break;
         case Key::Left:
             leaveToParent();
             break;
@@ -357,6 +673,9 @@ bool TerminalModel::handle(const Key key) {
         case Key::Enter:
             enterSelectedPayload();
             break;
+        case Key::ShiftEnter:
+            enterSelectedPayloadView();
+            break;
         case Key::Quit:
             return false;
         case Key::Unknown:
@@ -365,7 +684,12 @@ bool TerminalModel::handle(const Key key) {
     return true;
 }
 
-void TerminalModel::render(std::ostream& output) const {
+void TerminalModel::renderNodes(std::ostream& output) const {
+    const std::size_t visibleRows = childViewportRows();
+    const std::size_t remaining = std::numeric_limits<std::size_t>::max() - _firstVisibleIndex;
+    _current->ensureChildrenLoaded(
+        visibleRows > remaining ? std::numeric_limits<std::size_t>::max() : _firstVisibleIndex + visibleRows);
+
     output << "\x1b[2J\x1b[H";
     output << "cgnsviz  " << _reader->filename() << "\n";
     output << "path: \033[1;4m" << _current->path() << "\033[0m\n";
@@ -377,7 +701,12 @@ void TerminalModel::render(std::ostream& output) const {
     if (children.empty()) {
         output << "(no children)\n";
     } else {
-        for (std::size_t index = 0; index < children.size(); ++index) {
+        const std::size_t first = std::min(_firstVisibleIndex, children.size());
+        const std::size_t last = std::min(children.size(), first + visibleRows);
+        if (first > 0) {
+            output << "  ... previous children hidden ...\n";
+        }
+        for (std::size_t index = first; index < last; ++index) {
             const auto& child = children[index];
             if (!child) {
                 continue;
@@ -386,18 +715,68 @@ void TerminalModel::render(std::ostream& output) const {
             output << child->name() << "  \033[90m" << child->type() << "\033[0m"
                    << payloadMarker(child) << "\n";
         }
-        if (_current->childrenLoadState() != ChildrenLoadState::Complete) {
+        if (last < children.size() || _current->childrenLoadState() != ChildrenLoadState::Complete) {
             output << "  ... more children available ...\n";
         }
     }
 
-    output << "\n[Up/Down] select  [PgUp/PgDn] page  [Right] open  [Left] parent  [Enter] payload  [q] quit\n";
+    output << "\n[Up/Down] select  [PgUp/PgDn] page  [Home/End] first/last  [Right] open  [Left] parent\n"
+               "[Enter] summary  [Shift+Enter] details  [q] quit\n";
     if (!_statusMessage.empty()) {
         output << "\n" << _statusMessage << "\n";
     }
 }
 
+void TerminalModel::renderPayload(std::ostream& output) const {
+    output << "\x1b[2J\x1b[H";
+    output << "cgnsviz  payload view\n";
+    output << "path: " << (_payloadNode ? _payloadNode->path() : "") << "\n";
+    if (_payloadNode) {
+        const Data& data = _payloadNode->data();
+        output << "type: " << _payloadNode->type()
+               << "    dtype: " << data.dtype()
+               << "    elements: " << data.size() << "\n\n";
+    } else {
+        output << "\n";
+    }
+
+    const std::size_t first = std::min(_payloadScrollOffset, _payloadLines.size());
+    const std::size_t last = std::min(_payloadLines.size(), first + payloadViewportRows());
+    if (_payloadLines.empty()) {
+        output << "(empty payload)\n";
+    } else {
+        for (std::size_t index = first; index < last; ++index) {
+            output << _payloadLines[index] << "\n";
+        }
+    }
+
+    output << "\n[Up/Down] scroll  [PgUp/PgDn] page  [Home/End] first/last  [Enter] back  [q] quit\n";
+}
+
+void TerminalModel::render(std::ostream& output) const {
+    if (_payloadViewActive) {
+        renderPayload(output);
+        return;
+    }
+    renderNodes(output);
+}
+
 namespace {
+
+std::size_t terminalRows() {
+#ifdef _WIN32
+    CONSOLE_SCREEN_BUFFER_INFO info{};
+    if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &info)) {
+        return static_cast<std::size_t>(info.srWindow.Bottom - info.srWindow.Top + 1);
+    }
+#else
+    winsize size{};
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &size) == 0 && size.ws_row > 0) {
+        return static_cast<std::size_t>(size.ws_row);
+    }
+#endif
+    return 24;
+}
 
 #ifndef _WIN32
 class RawTerminal {
@@ -424,6 +803,24 @@ public:
 
 private:
     termios _original{};
+};
+
+class ModifiedKeyMode {
+public:
+    explicit ModifiedKeyMode(std::ostream& output) : _output(output) {
+        // Ask xterm-compatible terminals to preserve Shift+Enter as a distinct
+        // CSI sequence. Terminals without this feature safely ignore it.
+        _output << "\x1b[>4;2m";
+        _output.flush();
+    }
+
+    ~ModifiedKeyMode() {
+        _output << "\x1b[>4;0m";
+        _output.flush();
+    }
+
+private:
+    std::ostream& _output;
 };
 #endif
 
@@ -456,6 +853,43 @@ int readByte() {
 #endif
 }
 
+Key parseCsiSequence(const std::string& sequence) {
+    if (sequence == "A") return Key::Up;
+    if (sequence == "B") return Key::Down;
+    if (sequence == "C") return Key::Right;
+    if (sequence == "D") return Key::Left;
+    if (sequence == "5~") return Key::PageUp;
+    if (sequence == "6~") return Key::PageDown;
+    if (sequence == "H" || sequence == "1~" || sequence == "7~") return Key::Home;
+    if (sequence == "F" || sequence == "4~" || sequence == "8~") return Key::End;
+    if (sequence == "13;2u" || sequence == "27;2;13~") return Key::ShiftEnter;
+    return Key::Unknown;
+}
+
+template <typename ReadNext>
+Key readCsiSequence(ReadNext&& readNext) {
+    const int first = readNext();
+    if (first < 0) {
+        return Key::Unknown;
+    }
+
+    std::string sequence(1, static_cast<char>(first));
+    if (std::isalpha(static_cast<unsigned char>(first)) != 0) {
+        return parseCsiSequence(sequence);
+    }
+
+    while (true) {
+        const int value = readNext();
+        if (value < 0) {
+            return Key::Unknown;
+        }
+        sequence.push_back(static_cast<char>(value));
+        if (value == '~' || std::isalpha(static_cast<unsigned char>(value)) != 0) {
+            return parseCsiSequence(sequence);
+        }
+    }
+}
+
 Key readKey() {
     const int first = readByte();
     if (first < 0) {
@@ -471,6 +905,8 @@ Key readKey() {
             case 77: return Key::Right;
             case 73: return Key::PageUp;
             case 81: return Key::PageDown;
+            case 71: return Key::Home;
+            case 79: return Key::End;
             default: return Key::Unknown;
         }
     }
@@ -480,24 +916,18 @@ Key readKey() {
         if (second != '[') {
             return Key::Unknown;
         }
-        const int third = readByte();
-        switch (third) {
-            case 'A': return Key::Up;
-            case 'B': return Key::Down;
-            case 'C': return Key::Right;
-            case 'D': return Key::Left;
-            case '5':
-                if (readByte() == '~') return Key::PageUp;
-                return Key::Unknown;
-            case '6':
-                if (readByte() == '~') return Key::PageDown;
-                return Key::Unknown;
-            default: return Key::Unknown;
-        }
+        return readCsiSequence([]() { return readByte(); });
     }
 #endif
 
-    if (first == '\r' || first == '\n') return Key::Enter;
+    if (first == '\r' || first == '\n') {
+#ifdef _WIN32
+        if ((GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0) {
+            return Key::ShiftEnter;
+        }
+#endif
+        return Key::Enter;
+    }
     if (first == 'q' || first == 'Q') return Key::Quit;
     return Key::Unknown;
 }
@@ -506,17 +936,31 @@ Key readKey() {
 
 int runTerminal(TerminalModel& model, std::istream& input, std::ostream& output) {
     model.render(output);
-    char value = 0;
-    while (input.get(value)) {
+    while (input.good()) {
+        char value = 0;
+        if (!input.get(value)) {
+            break;
+        }
+
         Key key = Key::Unknown;
-        switch (value) {
-            case 'k': key = Key::Up; break;
-            case 'j': key = Key::Down; break;
-            case 'h': key = Key::Left; break;
-            case 'l': key = Key::Right; break;
-            case 'q': key = Key::Quit; break;
-            case '\n': case '\r': key = Key::Enter; break;
-            default: break;
+        if (value == '\x1b') {
+            char bracket = 0;
+            if (input.get(bracket) && bracket == '[') {
+                key = readCsiSequence([&input]() {
+                    char next = 0;
+                    return input.get(next) ? static_cast<int>(next) : -1;
+                });
+            }
+        } else {
+            switch (value) {
+                case 'k': key = Key::Up; break;
+                case 'j': key = Key::Down; break;
+                case 'h': key = Key::Left; break;
+                case 'l': key = Key::Right; break;
+                case 'q': key = Key::Quit; break;
+                case '\n': case '\r': key = Key::Enter; break;
+                default: break;
+            }
         }
         if (!model.handle(key)) {
             return 0;
@@ -529,14 +973,17 @@ int runTerminal(TerminalModel& model, std::istream& input, std::ostream& output)
 int runInteractiveTerminal(TerminalModel& model) {
 #ifndef _WIN32
     RawTerminal rawTerminal;
+    ModifiedKeyMode modifiedKeyMode(std::cout);
 #endif
     AlternateScreen alternateScreen(std::cout);
+    model.setViewportRows(terminalRows());
     model.render(std::cout);
     std::cout.flush();
     while (true) {
         if (!model.handle(readKey())) {
             return 0;
         }
+        model.setViewportRows(terminalRows());
         model.render(std::cout);
         std::cout.flush();
     }

@@ -16,6 +16,7 @@ struct Options {
     char order = 'F';
     std::size_t pageSize = 5;
     std::size_t payloadLimit = 64;
+    std::size_t maxChars = 80;
     bool interactive = true;
 };
 
@@ -35,7 +36,7 @@ std::size_t parseSize(const std::string& value, const char* option) {
 Options parseOptions(int argc, char** argv) {
     if (argc < 2) {
         throw std::invalid_argument(
-            "usage: cgnsviz FILE [--order C|F] [--page-size N] [--payload-limit N] [--non-interactive]");
+            "usage: cgnsviz FILE [--order C|F] [--page-size N] [--payload-limit N] [--max-chars N] [--non-interactive]");
     }
 
     Options options;
@@ -61,11 +62,16 @@ Options parseOptions(int argc, char** argv) {
                 throw std::invalid_argument("--payload-limit requires an integer");
             }
             options.payloadLimit = parseSize(argv[++index], "--payload-limit");
+        } else if (option == "--max-chars") {
+            if (index + 1 >= argc) {
+                throw std::invalid_argument("--max-chars requires an integer");
+            }
+            options.maxChars = parseSize(argv[++index], "--max-chars");
         } else if (option == "--non-interactive") {
             options.interactive = false;
         } else if (option == "--help" || option == "-h") {
             throw std::invalid_argument(
-                "usage: cgnsviz FILE [--order C|F] [--page-size N] [--payload-limit N] [--non-interactive]");
+                "usage: cgnsviz FILE [--order C|F] [--page-size N] [--payload-limit N] [--max-chars N] [--non-interactive]");
         } else {
             throw std::invalid_argument("unknown option: " + option);
         }
@@ -78,12 +84,16 @@ Options parseOptions(int argc, char** argv) {
 int main(int argc, char** argv) {
     try {
         if (argc == 2 && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h")) {
-            std::cout << "usage: cgnsviz FILE [--order C|F] [--page-size N] [--payload-limit N] [--non-interactive]\n";
+            std::cout << "usage: cgnsviz FILE [--order C|F] [--page-size N] [--payload-limit N] [--max-chars N] [--non-interactive]\n";
             return 0;
         }
         const Options options = parseOptions(argc, argv);
         auto reader = std::make_shared<io::hdf5::cgns::LazyHdf5Reader>(options.filename, options.order);
-        cgnsviz::terminal::TerminalModel model(reader, options.pageSize, options.payloadLimit);
+        cgnsviz::terminal::TerminalModel model(
+            reader,
+            options.pageSize,
+            options.payloadLimit,
+            options.maxChars);
         if (!options.interactive) {
             return cgnsviz::terminal::runTerminal(model, std::cin, std::cout);
         }
