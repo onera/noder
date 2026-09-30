@@ -241,7 +241,7 @@ include_directories(
     ${PYBIND11_INCLUDE_DIRS}
 )
 
-file(GLOB_RECURSE CPP_FILES "src/c++/*.cpp")
+file(GLOB_RECURSE CPP_FILES CONFIGURE_DEPENDS "src/c++/*.cpp")
 file(GLOB_RECURSE HPP_FILES "include/*.hpp")
 file(GLOB_RECURSE PYBIND_CPP_FILES "src/c++/*_pybind.cpp")
 file(GLOB_RECURSE APP_CPP_FILES "src/c++/apps/*.cpp")

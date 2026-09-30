@@ -159,6 +159,14 @@ public:
         const size_t& depth=100);
     /** @} */
 
+    /** @name Directional predicate explorer
+     *  @{
+     */
+    std::shared_ptr<Node> byPredicate(const std::string& expression);
+
+    std::vector<std::shared_ptr<Node>> allByPredicate(const std::string& expression);
+    /** @} */
+
 };
 
 # endif 

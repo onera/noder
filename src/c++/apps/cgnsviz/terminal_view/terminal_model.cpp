@@ -289,7 +289,10 @@ TerminalModel::TerminalModel(
       _payloadViewActive(false),
       _payloadNode(nullptr),
       _payloadLines(),
-      _payloadScrollOffset(0) {
+      _payloadScrollOffset(0),
+      _searchResults(),
+      _searchResultIndex(0),
+      _searchExpression() {
 
     if (!_reader) {
         throw std::invalid_argument("TerminalModel: reader cannot be null");
@@ -358,6 +361,96 @@ std::size_t TerminalModel::selectedIndex() const {
 
 const std::string& TerminalModel::statusMessage() const {
     return _statusMessage;
+}
+
+void TerminalModel::selectSearchResult(const std::shared_ptr<Node>& node) {
+    if (!node) {
+        return;
+    }
+
+    const std::shared_ptr<Node> parent = node->parent().lock();
+    if (!parent) {
+        _current = node;
+        _selectedIndex = 0;
+        _firstVisibleIndex = 0;
+        ensureVisiblePage();
+        return;
+    }
+
+    parent->ensureChildrenLoaded();
+    const auto& siblings = parent->loadedChildren();
+    const auto iterator = std::find_if(
+        siblings.begin(),
+        siblings.end(),
+        [&node](const std::shared_ptr<Node>& sibling) {
+            return sibling && sibling.get() == node.get();
+        });
+    if (iterator == siblings.end()) {
+        throw std::runtime_error(
+            "predicate search result is not attached to its parent child list");
+    }
+
+    _current = parent;
+    _selectedIndex = static_cast<std::size_t>(std::distance(siblings.begin(), iterator));
+    _firstVisibleIndex = _selectedIndex;
+    ensureSelectionVisible();
+    ensureVisiblePage();
+}
+
+void TerminalModel::search(const std::string& predicate, const bool outward) {
+    const std::shared_ptr<Node> anchor = selectedNode() ? selectedNode() : _current;
+    if (!anchor) {
+        _statusMessage = "Search cannot start without a selected node.";
+        return;
+    }
+
+    const std::string direction = outward ? "\\" : "/";
+    const std::string normalizedPredicate =
+        !predicate.empty() && predicate.front() == direction.front()
+        ? predicate.substr(1)
+        : predicate;
+    const std::string expression = direction + normalizedPredicate;
+    try {
+        _searchResults = anchor->pick().allByPredicate(expression);
+        if (!_searchResults.empty()) {
+            selectSearchResult(_searchResults.front());
+        }
+    } catch (const std::exception& error) {
+        _searchResults.clear();
+        _searchResultIndex = 0;
+        _searchExpression = expression;
+        _statusMessage = "Search error: " + std::string(error.what());
+        return;
+    }
+
+    _searchExpression = expression;
+    _searchResultIndex = 0;
+    if (_searchResults.empty()) {
+        _statusMessage = "Search " + expression + ": no matches.";
+        return;
+    }
+
+    _statusMessage = "Search " + expression + ": match 1/" +
+        std::to_string(_searchResults.size());
+}
+
+void TerminalModel::nextSearchResult(const bool previous) {
+    if (_searchResults.empty()) {
+        _statusMessage = "No active search results.";
+        return;
+    }
+
+    if (previous) {
+        _searchResultIndex = _searchResultIndex == 0
+            ? _searchResults.size() - 1
+            : _searchResultIndex - 1;
+    } else {
+        _searchResultIndex = (_searchResultIndex + 1) % _searchResults.size();
+    }
+    selectSearchResult(_searchResults[_searchResultIndex]);
+    _statusMessage = "Search " + _searchExpression + ": match " +
+        std::to_string(_searchResultIndex + 1) + "/" +
+        std::to_string(_searchResults.size());
 }
 
 std::string TerminalModel::payloadMarker(const std::shared_ptr<Node>& node) const {
@@ -639,6 +732,10 @@ bool TerminalModel::handle(const Key key) {
             case Key::Left:
             case Key::Right:
             case Key::ShiftEnter:
+            case Key::SearchInward:
+            case Key::SearchOutward:
+            case Key::NextMatch:
+            case Key::PreviousMatch:
             case Key::Unknown:
                 break;
         }
@@ -675,6 +772,11 @@ bool TerminalModel::handle(const Key key) {
             break;
         case Key::ShiftEnter:
             enterSelectedPayloadView();
+            break;
+        case Key::SearchInward:
+        case Key::SearchOutward:
+        case Key::NextMatch:
+        case Key::PreviousMatch:
             break;
         case Key::Quit:
             return false;
@@ -721,7 +823,8 @@ void TerminalModel::renderNodes(std::ostream& output) const {
     }
 
     output << "\n[Up/Down] select  [PgUp/PgDn] page  [Home/End] first/last  [Right] open  [Left] parent\n"
-               "[Enter] summary  [Shift+Enter] details  [q] quit\n";
+               "[Enter] summary  [Shift+Enter] details  [/] descendant search  [\\] ancestor search\n"
+               "[n/N] next/previous match  [q] quit\n";
     if (!_statusMessage.empty()) {
         output << "\n" << _statusMessage << "\n";
     }
@@ -929,7 +1032,43 @@ Key readKey() {
         return Key::Enter;
     }
     if (first == 'q' || first == 'Q') return Key::Quit;
+    if (first == '/') return Key::SearchInward;
+    if (first == '\\') return Key::SearchOutward;
+    if (first == 'n') return Key::NextMatch;
+    if (first == 'N') return Key::PreviousMatch;
     return Key::Unknown;
+}
+
+std::string readInteractiveSearchLine(const bool outward, bool& accepted) {
+    accepted = false;
+    std::string predicate;
+    std::cout << (outward ? "\\" : "/") << std::flush;
+    while (true) {
+        const int value = readByte();
+        if (value < 0) {
+            return predicate;
+        }
+        if (value == '\r' || value == '\n') {
+            std::cout << "\n" << std::flush;
+            accepted = true;
+            return predicate;
+        }
+        if (value == 27) {
+            std::cout << "\n" << std::flush;
+            return predicate;
+        }
+        if (value == 8 || value == 127) {
+            if (!predicate.empty()) {
+                predicate.pop_back();
+                std::cout << "\b \b" << std::flush;
+            }
+            continue;
+        }
+        if (std::isprint(static_cast<unsigned char>(value)) != 0) {
+            predicate.push_back(static_cast<char>(value));
+            std::cout << static_cast<char>(value) << std::flush;
+        }
+    }
 }
 
 } // namespace
@@ -943,7 +1082,24 @@ int runTerminal(TerminalModel& model, std::istream& input, std::ostream& output)
         }
 
         Key key = Key::Unknown;
-        if (value == '\x1b') {
+        if (value == '/' || value == '\\') {
+            std::string predicate;
+            char next = 0;
+            while (input.get(next) && next != '\n' && next != '\r') {
+                predicate.push_back(next);
+            }
+            model.search(predicate, value == '\\');
+            model.render(output);
+            continue;
+        } else if (value == 'n') {
+            model.nextSearchResult(false);
+            model.render(output);
+            continue;
+        } else if (value == 'N') {
+            model.nextSearchResult(true);
+            model.render(output);
+            continue;
+        } else if (value == '\x1b') {
             char bracket = 0;
             if (input.get(bracket) && bracket == '[') {
                 key = readCsiSequence([&input]() {
@@ -980,7 +1136,20 @@ int runInteractiveTerminal(TerminalModel& model) {
     model.render(std::cout);
     std::cout.flush();
     while (true) {
-        if (!model.handle(readKey())) {
+        const Key key = readKey();
+        if (key == Key::SearchInward || key == Key::SearchOutward) {
+            bool accepted = false;
+            const std::string predicate = readInteractiveSearchLine(
+                key == Key::SearchOutward,
+                accepted);
+            if (accepted) {
+                model.search(predicate, key == Key::SearchOutward);
+            }
+        } else if (key == Key::NextMatch) {
+            model.nextSearchResult(false);
+        } else if (key == Key::PreviousMatch) {
+            model.nextSearchResult(true);
+        } else if (!model.handle(key)) {
             return 0;
         }
         model.setViewportRows(terminalRows());

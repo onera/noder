@@ -386,7 +386,15 @@ See C++ counterpart: :ref:`cpp-navigation-class`.
              py::arg("name")=std::string(""),
              py::arg("type")=std::string(""),
              py::arg("data")=std::string(""),
-             py::arg("depth")=100);
+             py::arg("depth")=100)
+        .def("by_predicate",
+             &Navigation::byPredicate,
+             "Get the first node matching a directional predicate expression",
+             py::arg("expression"))
+        .def("all_by_predicate",
+             &Navigation::allByPredicate,
+             "Get all nodes matching a directional predicate expression",
+             py::arg("expression"));
 
     utils::bindClassMethodForScalarTypes(
         navigation,

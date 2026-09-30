@@ -10,6 +10,7 @@
 # include "data/data_factory.hpp"
 # include "node/test_data_pybind.hpp"
 # include "node/test_navigation_pybind.hpp"
+# include "node/test_predicate_explorer_pybind.hpp"
 # include "node/test_node_group_pybind.hpp"
 # include "cgns/test_base_tree_pybind.hpp"
 # include "cgns/test_zone_pybind.hpp"
@@ -54,6 +55,7 @@ PYBIND11_MODULE(tests, m) {
     bindTestsOfNodeFactory(m);
     bindTestsOfData(m);
     bindTestsOfNavigation(m);
+    bindTestsOfPredicateExplorer(m);
     bindTestsOfNodeGroup(m);
     bindTestsOfZone(m);
     bindTestsOfBaseTree(m);

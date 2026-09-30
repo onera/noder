@@ -572,6 +572,22 @@ bool Node::hasData() const {
     return _data && !_data->isNone();
 }
 
+std::optional<bool> Node::dataIsScalar() const {
+    if (_expansion) {
+        const std::optional<bool> result = _expansion->dataIsScalar(*this);
+        if (result.has_value()) {
+            return result;
+        }
+        if (!_data || _data->isNone()) {
+            return std::nullopt;
+        }
+    }
+    if (_data && !_data->isNone()) {
+        return _data->isScalar();
+    }
+    return false;
+}
+
 void Node::ensureDataLoaded() const {
     if (_expansion) {
         _expansion->ensureDataLoaded(*const_cast<Node*>(this));

@@ -1,5 +1,6 @@
 #include "node/navigation.hpp"
 #include "node/node.hpp"
+#include "node/predicate_explorer.hpp"
 
 namespace {
 
@@ -44,6 +45,15 @@ std::string globToRegexPattern(const std::string& globPattern) {
 } // namespace
 
 Navigation::Navigation(Node& inputNode) : _node(inputNode) {}
+
+std::shared_ptr<Node> Navigation::byPredicate(const std::string& expression) {
+    return predicate_explorer::byPredicate(_node, expression);
+}
+
+std::vector<std::shared_ptr<Node>> Navigation::allByPredicate(
+    const std::string& expression) {
+    return predicate_explorer::allByPredicate(_node, expression);
+}
 
 std::shared_ptr<Node> Navigation::childByName(const std::string& name) {
 

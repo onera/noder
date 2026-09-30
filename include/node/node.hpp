@@ -30,6 +30,7 @@
 # include <sstream>
 # include <tuple>
 # include <limits>
+# include <optional>
 
 # include "data/data.hpp"
 # include "node/navigation.hpp"
@@ -203,6 +204,12 @@ public:
 
     /** @brief True when a payload exists, without forcing lazy payload loading. */
     bool hasData() const;
+
+    /**
+     * @brief Inspect whether the payload is scalar without loading it when
+     * the attached backend can answer from metadata.
+     */
+    std::optional<bool> dataIsScalar() const;
 
     /** @brief Ensure the payload is fully loaded when a lazy backend is attached. */
     void ensureDataLoaded() const;

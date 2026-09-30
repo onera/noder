@@ -262,6 +262,10 @@ class Navigation:
         """
         get all nodes by regex-pattern name recursively
         """
+    def all_by_predicate(self, expression: str) -> list[Node]:
+        """
+        Get all nodes matching a directional predicate expression
+        """
     def all_by_type(self, type: str, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> list[Node]:
         """
         get all nodes by exact type recursively
@@ -389,6 +393,10 @@ class Navigation:
     def by_name_regex(self, name_pattern: str, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
         """
         get node by regex-pattern name recursively
+        """
+    def by_predicate(self, expression: str) -> Node:
+        """
+        Get the first node matching a directional predicate expression
         """
     def by_type(self, type: str, depth: typing.SupportsInt | typing.SupportsIndex = 100) -> Node:
         """
@@ -557,6 +565,11 @@ class Node:
         Return node payload as a Data-compatible Python object, or None when empty.
         
         See C++ counterpart: :ref:`cpp-node-data`.
+        """
+    def data_is_scalar(self) -> bool:
+        """
+        Return whether the payload is scalar. Lazy backends may answer this from
+        metadata without loading payload values.
         """
     def descendants(self) -> list[Node]:
         """

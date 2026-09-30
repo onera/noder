@@ -597,6 +597,12 @@ paged inspection of lazy trees.
         .def("has_data", &Node::hasData, R"doc(
 Return whether a payload exists without forcing lazy payload loading.
 )doc")
+        .def("data_is_scalar", [](const Node& node) {
+            return node.dataIsScalar().value_or(false);
+        }, R"doc(
+Return whether the payload is scalar. Lazy backends may answer this from
+metadata without loading payload values.
+)doc")
         .def("type", &Node::type, R"doc(
 Return node type.
 

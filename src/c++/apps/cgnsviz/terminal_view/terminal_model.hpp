@@ -27,6 +27,10 @@ enum class Key {
     Right,
     Enter,
     ShiftEnter,
+    SearchInward,
+    SearchOutward,
+    NextMatch,
+    PreviousMatch,
     Quit,
     Unknown
 };
@@ -67,6 +71,12 @@ public:
     /** @brief Last user-facing status or payload message. */
     const std::string& statusMessage() const;
 
+    /** @brief Search from the selected node using one directional predicate block. */
+    void search(const std::string& predicate, bool outward);
+
+    /** @brief Select the next or previous result of the last search. */
+    void nextSearchResult(bool previous = false);
+
 private:
     struct PayloadDisplay {
         enum class State {
@@ -91,6 +101,7 @@ private:
     void leavePayloadView();
     void enterSelectedChildren();
     void leaveToParent();
+    void selectSearchResult(const std::shared_ptr<Node>& node);
     void rememberPayload(const std::shared_ptr<Node>& node, const Data& data);
     std::string payloadMarker(const std::shared_ptr<Node>& node) const;
     std::size_t childViewportRows() const;
@@ -112,6 +123,9 @@ private:
     std::shared_ptr<Node> _payloadNode;
     std::vector<std::string> _payloadLines;
     std::size_t _payloadScrollOffset;
+    std::vector<std::shared_ptr<Node>> _searchResults;
+    std::size_t _searchResultIndex;
+    std::string _searchExpression;
 };
 
 /** @brief Run the platform-neutral key loop around a TerminalModel. */

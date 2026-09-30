@@ -546,6 +546,48 @@ public:
         return recordFor(node).hasData;
     }
 
+    std::optional<bool> dataIsScalar(const Node& node) const override {
+        const Record& record = recordFor(node);
+        if (!record.hasData || record.isLink || record.dataType == "C1") {
+            return false;
+        }
+
+        const std::string dataPath = hdf5ChildPath(record.hdf5Path, " data");
+        try {
+            hdf5_handle dataset(H5Dopen2(_file.get(), dataPath.c_str(), H5P_DEFAULT), H5Dclose);
+            if (dataset.get() < 0) {
+                throw std::runtime_error("failed to open dataset '" + dataPath + "'");
+            }
+            hdf5_handle space(H5Dget_space(dataset.get()), H5Sclose);
+            if (space.get() < 0) {
+                throw std::runtime_error("failed to open dataspace '" + dataPath + "'");
+            }
+
+            const int rank = H5Sget_simple_extent_ndims(space.get());
+            if (rank < 0) {
+                throw std::runtime_error("cannot determine dataset rank");
+            }
+            if (rank == 0) {
+                return true;
+            }
+            std::vector<hsize_t> dimensions(static_cast<size_t>(rank));
+            check_status(
+                H5Sget_simple_extent_dims(space.get(), dimensions.data(), nullptr),
+                "read dataset dimensions");
+            hsize_t elementCount = 1;
+            for (const hsize_t dimension : dimensions) {
+                elementCount *= dimension;
+            }
+            return elementCount == 1;
+        } catch (const std::exception& error) {
+            throw contextualError(
+                node,
+                record,
+                "inspect scalar payload at dataset '" + dataPath + "'",
+                error.what());
+        }
+    }
+
     void dataAssigned(Node& node) override {
         auto iterator = _records.find(&node);
         if (iterator != _records.end()) {

@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 
 class Node;
 
@@ -44,6 +45,16 @@ public:
 
     /** @brief Inspect whether a payload exists without loading it. */
     virtual bool hasData(const Node& node) const = 0;
+
+    /**
+     * @brief Inspect whether the payload is scalar without loading its values.
+     *
+     * ``std::nullopt`` means that the backend cannot answer from metadata and
+     * that the caller may resolve the payload if it needs the answer.
+     */
+    virtual std::optional<bool> dataIsScalar(const Node& /*node*/) const {
+        return std::nullopt;
+    }
 
     /**
      * @brief Notify the backend that a payload was assigned through Node's

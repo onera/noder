@@ -47,6 +47,18 @@ def _write_smoke_file(filename: Path) -> None:
         zone_type.create_dataset(
             " data", data=np.frombuffer(b"Structured", dtype=np.int8)
         )
+        nested = zone_type.create_group("NestedSmoke", track_order=True)
+        nested.attrs["name"] = np.bytes_("NestedSmoke")
+        nested.attrs["label"] = np.bytes_("UserDefinedData_t")
+        nested.attrs["type"] = np.bytes_("MT")
+        nested_leaf = nested.create_group("NestedLeaf", track_order=True)
+        nested_leaf.attrs["name"] = np.bytes_("NestedLeaf")
+        nested_leaf.attrs["label"] = np.bytes_("UserDefinedData_t")
+        nested_leaf.attrs["type"] = np.bytes_("MT")
+        nested_leaf_two = nested.create_group("NestedLeafTwo", track_order=True)
+        nested_leaf_two.attrs["name"] = np.bytes_("NestedLeafTwo")
+        nested_leaf_two.attrs["label"] = np.bytes_("UserDefinedData_t")
+        nested_leaf_two.attrs["type"] = np.bytes_("MT")
 
         small_numbers = h5file.create_group("SmallNumbers", track_order=True)
         small_numbers.attrs["name"] = np.bytes_("SmallNumbers")
@@ -145,3 +157,32 @@ def test_cgnsviz_non_interactive_smoke(tmp_path):
         "SmokeData  DataArray_t  Array int32" in line
         for line in plain_output.splitlines()
     )
+
+
+def test_cgnsviz_predicate_search_smoke(tmp_path):
+    executable = _cgnsviz_executable()
+    if executable is None:
+        pytest.skip("cgnsviz executable is not available; configure with ENABLE_CGNSVIZ=ON")
+
+    filename = tmp_path / "cgnsviz-search.cgns"
+    _write_smoke_file(filename)
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join(
+        [str(executable.parent), environment.get("PATH", "")]
+    )
+
+    result = subprocess.run(
+        [str(executable), str(filename), "--non-interactive"],
+        input="l\n/n:NestedLeaf*\nn\nN\n\\n:NestedSmoke\n/n:\nq\n",
+        text=True,
+        capture_output=True,
+        check=False,
+        env=environment,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.count("Search /n:NestedLeaf*: match 1/2") >= 2
+    assert "Search /n:NestedLeaf*: match 2/2" in result.stdout
+    assert "NestedLeaf" in result.stdout
+    assert "Search \\n:NestedSmoke: match 1/1" in result.stdout
+    assert "Search error: invalid predicate" in result.stdout
