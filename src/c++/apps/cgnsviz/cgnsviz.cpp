@@ -3,6 +3,10 @@
 #include "apps/cgnsviz/terminal_view/terminal_model.hpp"
 #include "io/hdf5/lazycgns/lazy_hdf5_reader.hpp"
 
+#ifdef ENABLE_MPI
+#include <mpi.h>
+#endif
+
 #include <cstddef>
 #include <iostream>
 #include <memory>
@@ -81,6 +85,43 @@ Options parseOptions(int argc, char** argv) {
 
 } // namespace
 
+#ifdef ENABLE_MPI
+
+class MpiSession {
+public:
+    MpiSession(int& argc, char**& argv) {
+        int initialized = 0;
+        if (MPI_Initialized(&initialized) != MPI_SUCCESS) {
+            throw std::runtime_error("cgnsviz: cannot inspect MPI initialization state");
+        }
+        if (initialized != 0) {
+            return;
+        }
+        if (MPI_Init(&argc, &argv) != MPI_SUCCESS) {
+            throw std::runtime_error("cgnsviz: cannot initialize MPI");
+        }
+        _ownsInitialization = true;
+    }
+
+    MpiSession(const MpiSession&) = delete;
+    MpiSession& operator=(const MpiSession&) = delete;
+
+    ~MpiSession() {
+        if (!_ownsInitialization) {
+            return;
+        }
+        int finalized = 0;
+        if (MPI_Finalized(&finalized) == MPI_SUCCESS && finalized == 0) {
+            MPI_Finalize();
+        }
+    }
+
+private:
+    bool _ownsInitialization = false;
+};
+
+#endif
+
 int main(int argc, char** argv) {
     try {
         if (argc == 2 && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h")) {
@@ -88,6 +129,9 @@ int main(int argc, char** argv) {
             return 0;
         }
         const Options options = parseOptions(argc, argv);
+#ifdef ENABLE_MPI
+        MpiSession mpiSession(argc, argv);
+#endif
         auto reader = std::make_shared<io::hdf5::cgns::LazyHdf5Reader>(options.filename, options.order);
         cgnsviz::terminal::TerminalModel model(
             reader,

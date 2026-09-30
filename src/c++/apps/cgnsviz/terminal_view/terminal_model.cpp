@@ -1427,6 +1427,7 @@ std::string readInteractiveSearchLine(const bool outward, bool& accepted) {
 
 int runTerminal(TerminalModel& model, std::istream& input, std::ostream& output) {
     model.render(output);
+    output.flush();
     while (input.good()) {
         char value = 0;
         if (!input.get(value)) {
@@ -1442,10 +1443,12 @@ int runTerminal(TerminalModel& model, std::istream& input, std::ostream& output)
             }
             model.search(predicate, value == '\\');
             model.render(output);
+            output.flush();
             continue;
         } else if (value == 'm') {
             model.handle(Key::ShowMatches);
             model.render(output);
+            output.flush();
             continue;
         } else if (value == '\x1b') {
             if (input.peek() == '[') {
@@ -1472,6 +1475,7 @@ int runTerminal(TerminalModel& model, std::istream& input, std::ostream& output)
             return 0;
         }
         model.render(output);
+        output.flush();
     }
     return 0;
 }
