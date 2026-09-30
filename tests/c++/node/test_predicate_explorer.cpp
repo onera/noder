@@ -37,6 +37,7 @@ struct PredicateTree {
     std::shared_ptr<Node> left = newNode("left", "DataArray_t");
     std::shared_ptr<Node> right = newNode("right", "DataArray_t");
     std::shared_ptr<Node> blade = newNode("blade", "FamilyName_t");
+    std::shared_ptr<Node> scientific = newNode("scientific", "DataArray_t");
     std::shared_ptr<Node> deep = newNode("deep", "DataArray_t");
 
     PredicateTree() {
@@ -47,6 +48,8 @@ struct PredicateTree {
         right->attachTo(branch);
         blade->setData("BLADE");
         blade->attachTo(branch);
+        scientific->setData(1e-3);
+        scientific->attachTo(branch);
         deep->setData(12);
         deep->attachTo(left);
     }
@@ -64,7 +67,7 @@ void test_predicate_explorer_traversal() {
 
     expectMatches(
         tree.root->pick().allByPredicate("/l:2 & t:DataArray_t"),
-        {tree.left, tree.right},
+        {tree.left, tree.right, tree.scientific},
         "inward traversal and creation order");
 
     if (tree.root->pick().byPredicate("/n:deep").get() != tree.deep.get()) {
@@ -113,6 +116,11 @@ void test_predicate_explorer_data_and_levels() {
         tree.root->pick().allByPredicate("/t:FamilyName_t & d:BLA*"),
         {tree.blade},
         "C1/string data glob");
+
+    expectMatches(
+        tree.root->pick().allByPredicate("/d:1e-3"),
+        {tree.scientific},
+        "scientific notation numeric equality");
 
     std::vector<int32_t> values(10, 1);
     auto largeArray = newNode("large", "DataArray_t");

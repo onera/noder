@@ -26,16 +26,6 @@ namespace {
 
 constexpr size_t kMaximumSize = std::numeric_limits<size_t>::max();
 
-// HDF5 1.10 exposes the v1 object-info structure as H5O_info_t, while
-// HDF5 1.12+ keeps the v1 structure under its explicit H5O_info1_t name and
-// uses a newer structure for H5O_info_t.  H5Oget_info_by_name1 must receive
-// the v1 structure on every supported HDF5 release.
-#if H5_VERSION_GE(1, 12, 0)
-using hdf5_object_info_v1 = H5O_info1_t;
-#else
-using hdf5_object_info_v1 = H5O_info_t;
-#endif
-
 class hdf5_handle {
 public:
     using close_function = herr_t (*)(hid_t);
@@ -472,15 +462,11 @@ public:
                 }
 
                 const std::string childPath = hdf5ChildPath(record.hdf5Path, childName);
-                hdf5_object_info_v1 objectInfo{};
-                check_status(
-                    // Use the v1 entry point with the matching v1 structure;
-                    // HDF5 1.14 otherwise rejects H5O_info_t (which is its
-                    // v2 structure) at compile time.
-                    H5Oget_info_by_name1(
-                        _file.get(), childPath.c_str(), &objectInfo, H5P_DEFAULT),
-                    "inspect child object '" + childPath + "'");
-                if (objectInfo.type != H5O_TYPE_GROUP) {
+                hdf5_handle object(H5Oopen(_file.get(), childPath.c_str(), H5P_DEFAULT), H5Oclose);
+                if (object.get() < 0) {
+                    throw std::runtime_error("failed to inspect child object '" + childPath + "'");
+                }
+                if (H5Iget_type(object.get()) != H5I_GROUP) {
                     continue;
                 }
                 const std::shared_ptr<Node> child = makeNode(childPath);

@@ -3,6 +3,7 @@
 #include "array/array.hpp"
 #include "node/node.hpp"
 
+#include <algorithm>
 #include <cctype>
 #include <cerrno>
 #include <cmath>
@@ -406,7 +407,19 @@ bool globMatch(const std::string& pattern, const std::string& value) {
 
 bool compare(long double left, Comparison comparison, long double right) {
     switch (comparison) {
-        case Comparison::Equal: return left == right;
+        case Comparison::Equal: {
+            // Payload floating-point values may have been rounded to their
+            // storage type while the predicate literal was parsed as a
+            // long double. Treat values equal at that representation
+            // precision as equal, including literals such as 1e-3.
+            const long double scale = std::max({
+                1.0L,
+                std::abs(left),
+                std::abs(right)});
+            const long double tolerance =
+                8.0L * std::numeric_limits<long double>::epsilon() * scale;
+            return std::abs(left - right) <= tolerance;
+        }
         case Comparison::Less: return left < right;
         case Comparison::LessEqual: return left <= right;
         case Comparison::Greater: return left > right;
