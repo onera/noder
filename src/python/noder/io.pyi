@@ -7,7 +7,6 @@ See C++ counterpart: :ref:`cpp-io-module`.
 from __future__ import annotations
 from noder.core import Node
 import numpy
-import typing
 __all__: list[str] = ['ENABLE_HDF5_IO', 'LazyHdf5Reader', 'Node', 'read', 'read_numpy', 'write_numpy']
 class LazyHdf5Reader:
     """
@@ -21,7 +20,7 @@ class LazyHdf5Reader:
         ...
     def close(self) -> None:
         ...
-    def ensure_children_loaded(self, node: Node, minimum_children: typing.SupportsInt | typing.SupportsIndex = 0) -> None:
+    def ensure_children_loaded(self, node: Node, minimum_children: int = 0) -> None:
         ...
     def ensure_data_loaded(self, node: Node) -> None:
         ...
