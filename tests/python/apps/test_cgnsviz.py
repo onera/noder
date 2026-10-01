@@ -149,13 +149,13 @@ def test_cgnsviz_non_interactive_smoke(tmp_path):
     result = subprocess.run(
         [str(executable), str(filename), "--non-interactive", "--max-chars", "20"],
         input=(
-            "\n"
+            "d\n"
             "j\n"
-            "j\x1b[27;2;13~\x1b[6~\n"
+            "j\x1b[6~\n"
             "j\n"
             "\x1b[F\n"
-            "\x1b[27;2;13~\x1b[6~\n"
-            "\x1b[Hq\n"
+            "\x1b[6~\n"
+            "\x1bq\n"
         ),
         text=True,
         capture_output=True,
@@ -171,9 +171,9 @@ def test_cgnsviz_non_interactive_smoke(tmp_path):
     )
     assert "SmokeData" in result.stdout
     assert "DataArray_t" in result.stdout
-    assert "[press Enter to show payload]" in result.stdout
+    assert "[press d to show payload]" in result.stdout
     assert "cgnsviz  payload view" in result.stdout
-    assert "[Enter] back" in result.stdout
+    assert "[Escape] back" in result.stdout
     plain_output = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", result.stdout)
     assert "ZoneType  ZoneType_t  Structured" in plain_output
     assert "SmallNumbers  DataArray_t  Array int32 [ 0 1 2 3 4 5 6 7 8 ]" in plain_output
@@ -238,7 +238,7 @@ def test_cgnsviz_predicate_search_smoke(tmp_path):
     assert "NestedLeaf" in result.stdout
     assert "leaf-two" in result.stdout
     assert "cgnsviz  payload view" in result.stdout
-    assert "[Enter] back to node view" in result.stdout
+    assert "[Escape] back to node view" in result.stdout
     assert "[m] matches" in result.stdout
     assert "[Escape] node view" in result.stdout
     assert "Match 'NestedLeafTwo' has no children." in result.stdout
@@ -274,8 +274,8 @@ def test_cgnsviz_multidimensional_payload_metadata(tmp_path):
             "l\n"
             "l\n"
             "\x1b[F\n"
-            "\x1b[27;2;13~\n"
-            "\n"
+            "d\n"
+            "\x1bq\n"
             "q\n"
         ),
         text=True,

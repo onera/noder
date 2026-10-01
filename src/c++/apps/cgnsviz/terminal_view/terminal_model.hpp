@@ -33,7 +33,9 @@ enum class Key {
     ShowMatches,
     Escape,
     Quit,
-    Unknown
+    Unknown,
+    ShowSummary,
+    ShowDetails
 };
 
 /**

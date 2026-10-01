@@ -545,7 +545,7 @@ std::string TerminalModel::payloadMarker(const std::shared_ptr<Node>& node) cons
 
     const auto iterator = _payloadDisplays.find(node.get());
     if (iterator == _payloadDisplays.end()) {
-        return "  \033[3m[press Enter to show payload]\033[0m";
+        return "  \033[3m[press d to show payload]\033[0m";
     }
 
     if (iterator->second.state == PayloadDisplay::State::TooBig) {
@@ -958,9 +958,6 @@ bool TerminalModel::handle(const Key key) {
                 case Key::End:
                     scrollPayload(std::numeric_limits<long long>::max());
                     break;
-                case Key::Enter:
-                    leavePayloadView();
-                    break;
                 case Key::Left:
                 case Key::Right:
                 case Key::ShiftEnter:
@@ -1047,10 +1044,10 @@ bool TerminalModel::handle(const Key key) {
                 case Key::Right:
                     enterSelectedChildren();
                     break;
-                case Key::Enter:
+                case Key::ShowSummary:
                     enterSelectedPayload();
                     break;
-                case Key::ShiftEnter:
+                case Key::ShowDetails:
                     enterSelectedPayloadView();
                     break;
                 case Key::SearchInward:
@@ -1109,7 +1106,7 @@ void TerminalModel::renderNodes(std::ostream& output) const {
     }
 
     output << "\n[Up/Down] select  [PgUp/PgDn] page  [Home/End] first/last  [Ctrl+Home] root  [Right] open  [Left] parent\n"
-               "[Enter] summary  [Shift+Enter] details  [/] descendant search  [\\] ancestor search\n"
+               "[d] summary  [Shift+d] details  [/] descendant search  [\\] ancestor search\n"
                "[m] matches  [q] quit\n";
     if (!_statusMessage.empty()) {
         output << "\n" << _statusMessage << "\n";
@@ -1181,7 +1178,7 @@ void TerminalModel::renderPayload(std::ostream& output) const {
         }
     }
 
-    output << "\n[Up/Down] scroll  [PgUp/PgDn] page  [Home/End] first/last  [Enter] back to node view  [m] matches  [q] quit\n";
+    output << "\n[Up/Down] scroll  [PgUp/PgDn] page  [Home/End] first/last  [Escape] back to node view  [m] matches  [q] quit\n";
 }
 
 void TerminalModel::render(std::ostream& output) const {
@@ -1384,6 +1381,8 @@ Key readKey() {
         return Key::Enter;
     }
     if (first == 'q' || first == 'Q') return Key::Quit;
+    if (first == 'd') return Key::ShowSummary;
+    if (first == 'D') return Key::ShowDetails;
     if (first == '/') return Key::SearchInward;
     if (first == '\\') return Key::SearchOutward;
     if (first == 'm') return Key::ShowMatches;
@@ -1466,6 +1465,8 @@ int runTerminal(TerminalModel& model, std::istream& input, std::ostream& output)
                 case 'j': key = Key::Down; break;
                 case 'h': key = Key::Left; break;
                 case 'l': key = Key::Right; break;
+                case 'd': key = Key::ShowSummary; break;
+                case 'D': key = Key::ShowDetails; break;
                 case 'q': key = Key::Quit; break;
                 case '\n': case '\r': key = Key::Enter; break;
                 default: break;

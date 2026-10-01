@@ -1,4 +1,5 @@
 from __future__ import annotations
+import collections.abc
 import noder.core
 import typing
 __all__: list[str] = ['Base', 'Tree', 'Zone', 'new_base', 'new_zone_from_arrays']
@@ -39,9 +40,9 @@ class Base(noder.core.Node):
         ...
     def remove_empty_zones(self) -> None:
         ...
-    def set_cell_dimension(self, cell_dimension: int) -> None:
+    def set_cell_dimension(self, cell_dimension: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
-    def set_physical_dimension(self, physical_dimension: int) -> None:
+    def set_physical_dimension(self, physical_dimension: typing.SupportsInt | typing.SupportsIndex) -> None:
         ...
     def update_dimensions_from_zones(self) -> None:
         ...
@@ -158,7 +159,7 @@ class Zone(noder.core.Node):
         ...
     def remove_fields(self, field_names: typing.Any, container: str = 'FlowSolution') -> None:
         ...
-    def resize_vertex_arrays(self, number_of_points: int, preserve_values: bool = True) -> None:
+    def resize_vertex_arrays(self, number_of_points: typing.SupportsInt | typing.SupportsIndex, preserve_values: bool = True) -> None:
         ...
     def shape(self) -> list[int]:
         ...
@@ -186,14 +187,14 @@ class Zone(noder.core.Node):
         ...
     def z_array(self, ravel: bool = False) -> noder.core.Array:
         ...
-def new_base(name: str, zones: list[Zone]) -> Base:
+def new_base(name: str, zones: collections.abc.Sequence[Zone]) -> Base:
     """
     Construct a CGNSBase_t node from a list of zones.
     
     The base dimensions are inferred from the zones and must be coherent across
     all provided zones.
     """
-def new_zone_from_arrays(name: str, array_names: list[str], arrays: typing.Any) -> Zone:
+def new_zone_from_arrays(name: str, array_names: collections.abc.Sequence[str], arrays: typing.Any) -> Zone:
     """
     Construct a structured CGNS Zone from a sequence of array names and arrays.
     
