@@ -9,6 +9,7 @@
 #include <cctype>
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -189,6 +190,24 @@ std::string shortWord(const std::string& word) {
     return word.substr(0, maxWordCharacters - 3) + "...";
 }
 
+std::string payloadFileName(const std::string& nodeName) {
+    std::string safeName;
+    safeName.reserve(nodeName.size());
+    for (const char character : nodeName) {
+        const unsigned char unsignedCharacter = static_cast<unsigned char>(character);
+        if (std::isalnum(unsignedCharacter) != 0 ||
+            character == '-' || character == '_' || character == '.') {
+            safeName.push_back(character);
+        } else {
+            safeName.push_back('_');
+        }
+    }
+    if (safeName.empty()) {
+        safeName = "unnamed";
+    }
+    return "cgnsviz-data-" + safeName + ".txt";
+}
+
 std::string stringMarkerText(const std::string& value, const std::size_t maxCharacters) {
     const std::string compact = compactString(value);
     if (value.size() <= maxCharacters) {
@@ -366,8 +385,17 @@ std::size_t TerminalModel::matchViewportRows() const {
 }
 
 std::size_t TerminalModel::payloadViewportRows() const {
-    constexpr std::size_t reservedRows = 6;
-    return _viewportRows > reservedRows ? _viewportRows - reservedRows : 1;
+    // The regular payload layout uses six rows outside the data area:
+    // title, path, metadata, two separators, and the footer.  On short
+    // terminals renderPayload switches to a compact layout and keeps only
+    // the three metadata rows, omitting the footer and separators.
+    if (_viewportRows >= 7) {
+        return _viewportRows - 6;
+    }
+    if (_viewportRows >= 4) {
+        return _viewportRows - 3;
+    }
+    return 1;
 }
 
 void TerminalModel::ensureVisiblePage() {
@@ -884,6 +912,35 @@ void TerminalModel::enterSelectedMatchPayload() {
     enterSelectedPayloadView();
 }
 
+void TerminalModel::saveSelectedPayload() {
+    const std::shared_ptr<Node> selected = selectedNode();
+    if (!selected) {
+        _statusMessage = "No node is selected.";
+        return;
+    }
+    if (!selected->hasData()) {
+        _statusMessage = "Node '" + selected->name() + "' has no payload.";
+        return;
+    }
+
+    const std::string fileName = payloadFileName(selected->name());
+    std::ofstream file(fileName, std::ios::out | std::ios::trunc);
+    if (!file) {
+        _statusMessage = "Could not save payload to " + fileName + ".";
+        return;
+    }
+
+    const std::vector<std::string> lines = detailedPayloadLines(selected->data());
+    for (const std::string& line : lines) {
+        file << line << '\n';
+    }
+    if (!file) {
+        _statusMessage = "Could not save payload to " + fileName + ".";
+        return;
+    }
+    _statusMessage = "Saved payload to " + fileName + ".";
+}
+
 void TerminalModel::scrollPayload(const long long delta) {
     if (_viewMode != ViewMode::Payload || _payloadLines.empty()) {
         _payloadScrollOffset = 0;
@@ -937,6 +994,11 @@ bool TerminalModel::handle(const Key key) {
         return true;
     }
 
+    if (key == Key::SavePayload) {
+        saveSelectedPayload();
+        return true;
+    }
+
     switch (_viewMode) {
         case ViewMode::Payload:
             switch (key) {
@@ -966,6 +1028,7 @@ bool TerminalModel::handle(const Key key) {
                 case Key::Escape:
                     leavePayloadView();
                     break;
+                case Key::SavePayload:
                 case Key::Unknown:
                 case Key::ShowMatches:
                 case Key::Quit:
@@ -999,11 +1062,15 @@ bool TerminalModel::handle(const Key key) {
                 case Key::Right:
                     enterSelectedMatchChildren();
                     break;
-                case Key::Enter:
+                case Key::ShowSummary:
                     enterSelectedPayload();
                     break;
-                case Key::ShiftEnter:
+                case Key::ShowDetails:
                     enterSelectedMatchPayload();
+                    break;
+                case Key::Enter:
+                case Key::ShiftEnter:
+                case Key::SavePayload:
                     break;
                 case Key::Escape:
                     _viewMode = ViewMode::Node;
@@ -1050,6 +1117,7 @@ bool TerminalModel::handle(const Key key) {
                 case Key::ShowDetails:
                     enterSelectedPayloadView();
                     break;
+                case Key::SavePayload:
                 case Key::SearchInward:
                 case Key::SearchOutward:
                 case Key::Escape:
@@ -1107,7 +1175,7 @@ void TerminalModel::renderNodes(std::ostream& output) const {
 
     output << "\n[Up/Down] select  [PgUp/PgDn] page  [Home/End] first/last  [Ctrl+Home] root  [Right] open  [Left] parent\n"
                "[d] summary  [Shift+d] details  [/] descendant search  [\\] ancestor search\n"
-               "[m] matches  [q] quit\n";
+               "[Ctrl+S] save payload  [m] matches  [q] quit\n";
     if (!_statusMessage.empty()) {
         output << "\n" << _statusMessage << "\n";
     }
@@ -1148,28 +1216,57 @@ void TerminalModel::renderMatches(std::ostream& output) const {
     }
 
     output << "\n[Up/Down] select  [PgUp/PgDn] page  [Home/End] first/last  [Right] children  [Left] parent\n"
-               "[Enter] summary  [Shift+Enter] details  [Escape] node view  [m] matches  [q] quit\n";
+               "[d] summary  [Shift+d] details  [Escape] node view  [Ctrl+S] save payload  [m] matches  [q] quit\n";
     if (!_statusMessage.empty()) {
         output << "\n" << _statusMessage << "\n";
     }
 }
 
 void TerminalModel::renderPayload(std::ostream& output) const {
-    output << "\x1b[2J\x1b[H";
-    output << "cgnsviz  payload view\n";
-    output << "path: " << (_payloadNode ? _payloadNode->path() : "") << "\n";
+    const bool compact = _viewportRows < 7;
+    const std::string path = _payloadNode ? _payloadNode->path() : "";
+    std::string metadata;
     if (_payloadNode) {
         const Data& data = _payloadNode->data();
-        output << "type: " << _payloadNode->type()
-               << "    dtype: " << data.dtype()
-               << "    elements: " << data.size()
-               << "    shape: " << shapeText(data) << "\n\n";
+        std::ostringstream metadataStream;
+        metadataStream << "type: " << _payloadNode->type()
+                       << "    dtype: " << data.dtype()
+                       << "    elements: " << data.size()
+                       << "    shape: " << shapeText(data);
+        metadata = metadataStream.str();
     } else {
-        output << "\n";
+        metadata = "type: unknown";
+    }
+    if (compact && !_statusMessage.empty()) {
+        metadata += "  [" + _statusMessage + "]";
+    }
+
+    output << "\x1b[2J\x1b[H";
+    if (!compact) {
+        output << "cgnsviz  payload view\n";
+        output << "path: " << path << "\n";
+        output << metadata << "\n\n";
+    } else if (_viewportRows >= 4) {
+        output << "cgnsviz  payload view\n";
+        output << "path: " << path << "\n";
+        output << metadata << "\n";
+    } else if (_viewportRows == 3) {
+        output << "cgnsviz  payload view  path: " << path << "\n";
+        output << metadata << "\n";
+    } else if (_viewportRows == 2) {
+        output << metadata << "\n";
     }
 
     const std::size_t first = std::min(_payloadScrollOffset, _payloadLines.size());
     const std::size_t last = std::min(_payloadLines.size(), first + payloadViewportRows());
+    if (_viewportRows == 1) {
+        output << metadata;
+        if (first < _payloadLines.size()) {
+            output << "  " << _payloadLines[first];
+        }
+        output << "\n";
+        return;
+    }
     if (_payloadLines.empty()) {
         output << "(empty payload)\n";
     } else {
@@ -1178,7 +1275,13 @@ void TerminalModel::renderPayload(std::ostream& output) const {
         }
     }
 
-    output << "\n[Up/Down] scroll  [PgUp/PgDn] page  [Home/End] first/last  [Escape] back to node view  [m] matches  [q] quit\n";
+    if (!compact) {
+        output << "\n[Up/Down] scroll  [PgUp/PgDn] page  [Home/End] first/last  [Escape] back to node view  [Ctrl+S] save payload  [m] matches  [q] quit";
+        if (!_statusMessage.empty()) {
+            output << "  " << _statusMessage;
+        }
+        output << "\n";
+    }
 }
 
 void TerminalModel::render(std::ostream& output) const {
@@ -1224,6 +1327,7 @@ public:
         }
         termios raw = _original;
         raw.c_lflag &= static_cast<tcflag_t>(~(ICANON | ECHO));
+        raw.c_iflag &= static_cast<tcflag_t>(~(IXON | IXOFF));
         raw.c_cc[VMIN] = 1;
         raw.c_cc[VTIME] = 0;
         if (tcsetattr(STDIN_FILENO, TCSANOW, &raw) != 0) {
@@ -1381,6 +1485,7 @@ Key readKey() {
         return Key::Enter;
     }
     if (first == 'q' || first == 'Q') return Key::Quit;
+    if (first == 19) return Key::SavePayload;
     if (first == 'd') return Key::ShowSummary;
     if (first == 'D') return Key::ShowDetails;
     if (first == '/') return Key::SearchInward;
@@ -1467,6 +1572,7 @@ int runTerminal(TerminalModel& model, std::istream& input, std::ostream& output)
                 case 'l': key = Key::Right; break;
                 case 'd': key = Key::ShowSummary; break;
                 case 'D': key = Key::ShowDetails; break;
+                case '\x13': key = Key::SavePayload; break;
                 case 'q': key = Key::Quit; break;
                 case '\n': case '\r': key = Key::Enter; break;
                 default: break;
