@@ -142,22 +142,23 @@ set(VERSIONED_OUTPUT_DIR "${CMAKE_BINARY_DIR}/${PYTHON_TAG}/${SKBUILD_PROJECT_NA
 file(MAKE_DIRECTORY ${VERSIONED_OUTPUT_DIR})
 message(STATUS "VERSIONED_OUTPUT_DIR: ${VERSIONED_OUTPUT_DIR}")
 
-# MPI LIBRARY
-find_package(MPI QUIET COMPONENTS C CXX)
-if(MPI_FOUND)
-    set(ENABLE_MPI ON)
+# MPI is deliberately opt-in.  Merely finding MPI on a build machine must not
+# make the regular noder/cgnsviz build depend on it: cgnsviz does not create an
+# MPI session, and parallel HDF5 may require one before it can be used.
+option(ENABLE_MPI "Enable MPI support for the noder core" OFF)
+if(ENABLE_MPI)
+    find_package(MPI REQUIRED COMPONENTS C CXX)
     include_directories(${MPI_CXX_INCLUDE_DIRS})
-    set(CMAKE_C_COMPILER ${MPI_C_COMPILER})
-    set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
-    message(STATUS "MPI found. Using MPI include dirs at: ${MPI_CXX_INCLUDE_DIRS}")
+    message(STATUS "MPI explicitly enabled. Using MPI include dirs at: ${MPI_CXX_INCLUDE_DIRS}")
 else()
-    set(ENABLE_MPI OFF)
-    message(STATUS "MPI not found. Disabling MPI support.")
+    message(STATUS "MPI disabled (set ENABLE_MPI=ON to opt in)")
 endif()
 
 
-# --- Force HDF5 detection paths (especially with MPI build) ---
-set(HDF5_PREFER_PARALLEL TRUE)
+# Use serial HDF5 for the normal build.  In particular, do not silently pick
+# the parallel HDF5 installation just because MPI happens to be installed.
+# A future MPI-enabled noder build can opt in together with ENABLE_MPI.
+set(HDF5_PREFER_PARALLEL ${ENABLE_MPI})
 
 if(MSVC)
     option(NODER_STATIC_HDF5 "Link HDF5 statically to avoid Windows DLL conflicts" ON)

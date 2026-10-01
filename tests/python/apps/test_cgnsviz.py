@@ -151,10 +151,15 @@ def test_cgnsviz_non_interactive_smoke(tmp_path):
         input=(
             "d\n"
             "j\n"
-            "j\x1b[6~\n"
+            "d\n"
             "j\n"
+            "D\n"
+            "j\x1b[6~\n"
+            "\x1b"
+            "j\n"
+            "d\n"
             "\x1b[F\n"
-            "\x1b[6~\n"
+            "d\n"
             "\x1bq\n"
         ),
         text=True,
@@ -275,6 +280,7 @@ def test_cgnsviz_multidimensional_payload_metadata(tmp_path):
             "l\n"
             "\x1b[F\n"
             "d\n"
+            "D\n"
             "\x1bq\n"
             "q\n"
         ),
