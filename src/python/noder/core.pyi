@@ -68,6 +68,10 @@ class Data:
     
     See C++ counterpart: :ref:`cpp-data-class`.
     """
+    def dimensions(self) -> int:
+        ...
+    def dtype(self) -> str:
+        ...
     def extractString(self) -> str:
         """
         Extract the payload as a Python string.
@@ -107,6 +111,8 @@ class Data:
            :language: python
            :pyobject: test_dataInt
         """
+    def info(self) -> str:
+        ...
     def isNone(self) -> bool:
         """
         Check whether this payload is empty (None-like).
@@ -137,12 +143,12 @@ class Data:
            :language: python
            :pyobject: test_isScalar
         """
-    def dimensions(self) -> int: ...
-    def size(self) -> int: ...
-    def shape(self) -> list[int]: ...
-    def dtype(self) -> str: ...
-    def info(self) -> str: ...
-    def short_info(self) -> str: ...
+    def shape(self) -> list[int]:
+        ...
+    def short_info(self) -> str:
+        ...
+    def size(self) -> int:
+        ...
 class Navigation:
     """
     
@@ -581,14 +587,17 @@ class Node:
         
         See C++ counterpart: :ref:`cpp-node-data`.
         """
+    def data_is_loaded(self) -> bool:
+        """
+        Return whether the payload has already been materialized.
+        
+        Lazy readers can report ``False`` without reading the payload. Calling
+        :meth:`Node.data` or :meth:`Node.ensure_data_loaded` materializes it.
+        """
     def data_is_scalar(self) -> bool:
         """
         Return whether the payload is scalar. Lazy backends may answer this from
         metadata without loading payload values.
-        """
-    def data_is_loaded(self) -> bool:
-        """
-        Return whether a lazy payload has already been materialized.
         """
     def descendants(self) -> list[Node]:
         """

@@ -33,7 +33,10 @@ enum class Key {
     ShowMatches,
     Escape,
     Quit,
-    Unknown
+    Unknown,
+    ShowSummary,
+    ShowDetails,
+    SavePayload
 };
 
 /**
@@ -107,6 +110,7 @@ private:
     void enterSelectedPayload();
     void enterSelectedPayloadView();
     void enterSelectedMatchPayload();
+    void saveSelectedPayload();
     void scrollPayload(long long delta);
     void leavePayloadView();
     void enterSelectedChildren();

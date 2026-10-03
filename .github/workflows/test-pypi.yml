@@ -69,22 +69,17 @@ jobs:
         env:
           CIBW_BUILD: ${{ matrix.cibw_build }}
           CIBW_SKIP: "*-manylinux_i686 *-musllinux* *-win32 *-pp*"
-          CIBW_CONFIG_SETTINGS: cmake.define.ENABLE_CGNSVIZ=ON
+          CIBW_CONFIG_SETTINGS: >-
+            cmake.define.ENABLE_CGNSVIZ=ON
+            cmake.define.ENABLE_MPI=OFF
           CIBW_BEFORE_ALL_LINUX: >
             yum install -y epel-release &&
-            yum install -y openmpi-devel hdf5-devel pkgconfig &&
-            export PATH=/usr/lib64/openmpi/bin:$PATH &&
-            ln -sf /usr/lib64/openmpi/bin/mpicc /usr/local/bin/mpicc &&
-            ln -sf /usr/lib64/openmpi/bin/mpicxx /usr/local/bin/mpicxx &&
-            find /usr -name mpicc &&
+            yum install -y hdf5-devel pkgconfig &&
             find /usr -name hdf5.h &&
             find /usr -name libhdf5.so
           CIBW_ENVIRONMENT_LINUX: >
             NODER_EXPECT_CGNSVIZ=1
-            CC=/usr/lib64/openmpi/bin/mpicc
-            CXX=/usr/lib64/openmpi/bin/mpicxx
-            PATH=/usr/lib64/openmpi/bin:$PATH
-            CMAKE_PREFIX_PATH="/usr/lib64/openmpi:/usr"
+            CMAKE_PREFIX_PATH="/usr"
             CMAKE_INCLUDE_PATH="/usr/include"
             CMAKE_LIBRARY_PATH="/usr/lib64"
           CIBW_ENVIRONMENT_MACOS: >

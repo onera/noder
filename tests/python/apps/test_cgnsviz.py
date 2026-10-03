@@ -149,13 +149,18 @@ def test_cgnsviz_non_interactive_smoke(tmp_path):
     result = subprocess.run(
         [str(executable), str(filename), "--non-interactive", "--max-chars", "20"],
         input=(
-            "\n"
+            "d\n"
             "j\n"
-            "j\x1b[27;2;13~\x1b[6~\n"
+            "d\n"
             "j\n"
+            "D\n"
+            "j\x1b[6~\n"
+            "\x1b"
+            "j\n"
+            "d\n"
             "\x1b[F\n"
-            "\x1b[27;2;13~\x1b[6~\n"
-            "\x1b[Hq\n"
+            "d\n"
+            "\x1bq\n"
         ),
         text=True,
         capture_output=True,
@@ -171,9 +176,9 @@ def test_cgnsviz_non_interactive_smoke(tmp_path):
     )
     assert "SmokeData" in result.stdout
     assert "DataArray_t" in result.stdout
-    assert "[press Enter to show payload]" in result.stdout
+    assert "[press d to show payload]" in result.stdout
     assert "cgnsviz  payload view" in result.stdout
-    assert "[Enter] back" in result.stdout
+    assert "[Escape] back" in result.stdout
     plain_output = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", result.stdout)
     assert "ZoneType  ZoneType_t  Structured" in plain_output
     assert "SmallNumbers  DataArray_t  Array int32 [ 0 1 2 3 4 5 6 7 8 ]" in plain_output
@@ -211,8 +216,8 @@ def test_cgnsviz_predicate_search_smoke(tmp_path):
             "l\n"
             "/n:NestedLeaf*\n"
             "j\n"
-            "\n"
-            "\x1b[27;2;13~\n"
+            "d\n"
+            "D\n"
             "m\n"
             "l\n"
             "h\n"
@@ -238,7 +243,7 @@ def test_cgnsviz_predicate_search_smoke(tmp_path):
     assert "NestedLeaf" in result.stdout
     assert "leaf-two" in result.stdout
     assert "cgnsviz  payload view" in result.stdout
-    assert "[Enter] back to node view" in result.stdout
+    assert "[Escape] back to node view" in result.stdout
     assert "[m] matches" in result.stdout
     assert "[Escape] node view" in result.stdout
     assert "Match 'NestedLeafTwo' has no children." in result.stdout
@@ -254,6 +259,40 @@ def test_cgnsviz_predicate_search_smoke(tmp_path):
     last_screen = result.stdout.rsplit("\x1b[2J\x1b[H", maxsplit=1)[-1]
     assert "cgnsviz  matches view" not in last_screen
     assert "path:" in last_screen
+
+
+def test_cgnsviz_saves_payload_from_all_views(tmp_path):
+    executable = _cgnsviz_executable()
+    if executable is None:
+        pytest.skip("cgnsviz executable is not available; configure with ENABLE_CGNSVIZ=ON")
+
+    filename = tmp_path / "cgnsviz-save.cgns"
+    _write_smoke_file(filename)
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join(
+        [str(executable.parent), environment.get("PATH", "")]
+    )
+
+    def run(keys: str) -> None:
+        result = subprocess.run(
+            [str(executable), str(filename), "--non-interactive"],
+            input=keys,
+            text=True,
+            capture_output=True,
+            check=False,
+            cwd=tmp_path,
+            env=environment,
+        )
+        assert result.returncode == 0, result.stderr
+
+    run("\x13q\n")
+    assert (tmp_path / "cgnsviz-data-ZoneType.txt").read_text() == "Structured\n"
+
+    run("l\n/n:NestedLeaf*\nm\x13q\n")
+    assert (tmp_path / "cgnsviz-data-NestedLeaf.txt").read_text() == "leaf-one\n"
+
+    run("l\nl\n\x1b[F\nD\n\x13q\n")
+    assert (tmp_path / "cgnsviz-data-MatrixData.txt").read_text() == "0 1 2 3 4 5\n"
 
 
 def test_cgnsviz_multidimensional_payload_metadata(tmp_path):
@@ -274,8 +313,9 @@ def test_cgnsviz_multidimensional_payload_metadata(tmp_path):
             "l\n"
             "l\n"
             "\x1b[F\n"
-            "\x1b[27;2;13~\n"
-            "\n"
+            "d\n"
+            "D\n"
+            "\x1bq\n"
             "q\n"
         ),
         text=True,
