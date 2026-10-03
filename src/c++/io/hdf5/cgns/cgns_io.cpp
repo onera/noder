@@ -394,6 +394,61 @@ bool is_link_group(hid_t group) {
     return read_string_attr(group, "type") == "LK";
 }
 
+void delete_link_if_exists(hid_t location, const std::string& path) {
+    const htri_t exists = H5Lexists(location, path.c_str(), H5P_DEFAULT);
+    if (exists < 0) {
+        throw std::runtime_error("cannot inspect HDF5 link '" + path + "'");
+    }
+    if (exists > 0) {
+        check_status(H5Ldelete(location, path.c_str(), H5P_DEFAULT), "delete HDF5 link '" + path + "'");
+    }
+}
+
+void replace_string_attribute(hid_t location, const std::string& key, const std::string& value, const size_t length) {
+    const htri_t exists = H5Aexists(location, key.c_str());
+    if (exists < 0) {
+        throw std::runtime_error("cannot inspect HDF5 attribute '" + key + "'");
+    }
+    if (exists > 0) {
+        check_status(H5Adelete(location, key.c_str()), "delete HDF5 attribute '" + key + "'");
+    }
+    add_string_attr_fixed_utf8(location, key, value, length);
+}
+
+void replace_cgns_name_attr(hid_t location, const std::string& value) {
+    replace_string_attribute(location, "name", value, kCGNSLongStringAttrLen);
+}
+
+void replace_cgns_label_attr(hid_t location, const std::string& value) {
+    replace_string_attribute(location, "label", value, kCGNSLongStringAttrLen);
+}
+
+void replace_cgns_type_attr(hid_t location, const std::string& value) {
+    replace_string_attribute(location, "type", value, kCGNSTypeAttrLen);
+}
+
+std::string absolute_hdf5_path(const std::string& persistedPath) {
+    if (persistedPath.empty()) {
+        return "/";
+    }
+    return persistedPath.front() == '/' ? persistedPath : "/" + persistedPath;
+}
+
+std::string parent_hdf5_path(const std::string& absolutePath) {
+    const size_t separator = absolutePath.find_last_of('/');
+    if (separator == std::string::npos || separator == 0) {
+        return "/";
+    }
+    return absolutePath.substr(0, separator);
+}
+
+void remove_existing_node_payload_and_link_metadata(hid_t file, const std::string& groupPath) {
+    delete_link_if_exists(file, groupPath + "/ data");
+    delete_link_if_exists(file, groupPath + "/ file");
+    delete_link_if_exists(file, groupPath + "/ path");
+    delete_link_if_exists(file, groupPath + "/ link");
+}
+
 char normalize_order(const char order, const char* context) {
     const char normalized = static_cast<char>(std::toupper(static_cast<unsigned char>(order)));
     if (normalized != 'C' && normalized != 'F') {
@@ -812,6 +867,112 @@ void write_node(const std::string& filename, std::shared_ptr<Node> root, const f
     }
     H5Pclose(gcpl);
     H5Fclose(file);
+}
+
+void write_node_only(
+    const std::string& filename,
+    std::shared_ptr<Node> node,
+    const std::string& persistedPath,
+    const std::string& persistedLinkTargetPath) {
+
+    if (!node) {
+        throw std::invalid_argument("write_node_only: node cannot be null");
+    }
+    if (persistedPath.empty()) {
+        throw std::invalid_argument("write_node_only: persistedPath cannot be empty");
+    }
+
+    hdf5_handle file(H5Fopen(filename.c_str(), H5F_ACC_RDWR, H5P_DEFAULT), H5Fclose);
+    if (file.get() < 0) {
+        throw std::runtime_error(
+            "write_node_only: failed to open HDF5 file for update '" + filename + "'");
+    }
+
+    const std::string groupPath = absolute_hdf5_path(persistedPath);
+    const htri_t nodeExists = H5Lexists(file.get(), groupPath.c_str(), H5P_DEFAULT);
+    if (nodeExists < 0) {
+        throw std::runtime_error("write_node_only: cannot inspect node path '" + groupPath + "'");
+    }
+
+    if (nodeExists == 0) {
+        const std::string parentPath = parent_hdf5_path(groupPath);
+        hdf5_handle parent(H5Gopen2(file.get(), parentPath.c_str(), H5P_DEFAULT), H5Gclose);
+        if (parent.get() < 0) {
+            throw std::runtime_error(
+                "write_node_only: parent path does not exist '" + parentPath + "'");
+        }
+
+        hdf5_handle gcpl(make_cgns_group_creation_plist(), H5Pclose);
+        write_node_rec(file.get(), gcpl.get(), node, parentPath);
+        check_status(H5Fflush(file.get(), H5F_SCOPE_GLOBAL), "flush HDF5 node-only update");
+        return;
+    }
+
+    hdf5_handle group(H5Gopen2(file.get(), groupPath.c_str(), H5P_DEFAULT), H5Gclose);
+    if (group.get() < 0) {
+        throw std::runtime_error("write_node_only: node path is not an HDF5 group '" + groupPath + "'");
+    }
+
+    replace_cgns_name_attr(group.get(), node->name());
+    replace_cgns_label_attr(group.get(), node->type());
+
+    if (node->hasLinkTarget()) {
+        if (!node->children().empty()) {
+            throw std::runtime_error(
+                "write_node_only: a link node cannot have children: " + node->path());
+        }
+
+        remove_existing_node_payload_and_link_metadata(file.get(), groupPath);
+        replace_cgns_type_attr(group.get(), "LK");
+
+        write_int8_string_dataset(file.get(), groupPath + "/ file", node->linkTargetFile());
+        write_int8_string_dataset(
+            file.get(),
+            groupPath + "/ path",
+            persistedLinkTargetPath.empty() ? node->linkTargetPath() : persistedLinkTargetPath);
+
+        const std::string linkPath = groupPath + "/ link";
+        const std::string targetPath =
+            persistedLinkTargetPath.empty() ? node->linkTargetPath() : persistedLinkTargetPath;
+        if (node->linkTargetFile().empty() || node->linkTargetFile() == ".") {
+            check_status(
+                H5Lcreate_soft(targetPath.c_str(), file.get(), linkPath.c_str(), H5P_DEFAULT, H5P_DEFAULT),
+                "create soft link at " + linkPath);
+        } else {
+            check_status(
+                H5Lcreate_external(
+                    node->linkTargetFile().c_str(),
+                    targetPath.c_str(),
+                    file.get(),
+                    linkPath.c_str(),
+                    H5P_DEFAULT,
+                    H5P_DEFAULT),
+                "create external link at " + linkPath);
+        }
+    } else {
+        remove_existing_node_payload_and_link_metadata(file.get(), groupPath);
+
+        if (node->noData()) {
+            replace_cgns_type_attr(group.get(), "MT");
+        } else {
+            const auto array = std::dynamic_pointer_cast<Array>(node->dataPtr());
+            if (!array) {
+                throw std::runtime_error("write_node_only: expected an Array payload");
+            }
+            const std::string cgnsType = cgnsTypeFromArray(*array);
+            write_array(file.get(), groupPath + "/ data", *array, cgnsType);
+            replace_cgns_type_attr(group.get(), cgnsType);
+        }
+        const htri_t flagsExists = H5Aexists(group.get(), "flags");
+        if (flagsExists < 0) {
+            throw std::runtime_error("write_node_only: cannot inspect flags attribute");
+        }
+        if (flagsExists == 0) {
+            add_flags_attr(group.get());
+        }
+    }
+
+    check_status(H5Fflush(file.get(), H5F_SCOPE_GLOBAL), "flush HDF5 node-only update");
 }
 
 std::shared_ptr<Node> read(const std::string& filename, const char order) {

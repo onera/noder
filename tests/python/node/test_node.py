@@ -685,6 +685,64 @@ def test_save_this_node_only_under_cgns_tree(tmp_path):
     assert int(persisted_stable.data().getPyArray()[0]) == 2
 
 
+@pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
+def test_save_this_node_only_does_not_read_unrelated_nodes(tmp_path):
+    """A targeted HDF5 update must not parse unrelated payloads."""
+    h5py = pytest.importorskip("h5py")
+    filename = str(tmp_path / "save_this_node_only_targeted.cgns")
+
+    with h5py.File(filename, "w", track_order=True) as h5file:
+        h5file.attrs["name"] = np.bytes_("HDF5 MotherNode")
+        h5file.attrs["label"] = np.bytes_("Root Node of HDF5 File")
+        h5file.attrs["type"] = np.bytes_("MT")
+
+        target = h5file.create_group("target", track_order=True)
+        target.attrs["name"] = np.bytes_("target")
+        target.attrs["label"] = np.bytes_("DataArray_t")
+        target.attrs["type"] = np.bytes_("I4")
+        target.attrs["flags"] = np.array([1], dtype=np.int32)
+        target.create_dataset(" data", data=np.array([1], dtype=np.int32))
+
+        unrelated = h5file.create_group("unrelated", track_order=True)
+        unrelated.attrs["name"] = np.bytes_("unrelated")
+        unrelated.attrs["label"] = np.bytes_("DataArray_t")
+        unrelated.attrs["type"] = np.bytes_("INVALID")
+        unrelated.create_dataset(" data", data=np.array([2], dtype=np.int32))
+
+    target_node = Node("target")
+    target_node.set_data(np.array([99], dtype=np.int32))
+    target_node.save_this_node_only(filename)
+
+    with h5py.File(filename, "r") as h5file:
+        np.testing.assert_array_equal(h5file["target/ data"][()], np.array([99], dtype=np.int32))
+        assert h5file["unrelated"].attrs["type"] == np.bytes_("INVALID")
+
+
+@pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
+def test_save_this_node_only_reopens_a_lazy_reader(tmp_path):
+    """Targeted writes must work while the node comes from a lazy reader."""
+    filename = str(tmp_path / "save_this_node_only_lazy.cgns")
+    root, base = _new_cgns_tree_with_base()
+    zone = Node("Zone", "Zone_t")
+    zone.set_data(np.array([[2, 2, 2]], dtype=np.int32))
+    zone.attach_to(base)
+    root.write(filename)
+
+    reader = gio.LazyHdf5Reader(filename)
+    lazy_root = reader.root()
+    reader.ensure_children_loaded(lazy_root)
+    lazy_base = lazy_root.pick().by_name("Base")
+    reader.ensure_children_loaded(lazy_base)
+    lazy_zone = lazy_base.pick().by_name("Zone")
+    lazy_zone.set_data(np.array([[3, 3, 3]], dtype=np.int32))
+    lazy_zone.save_this_node_only(filename)
+
+    assert reader.is_open()
+    saved = gio.read(filename)
+    np.testing.assert_array_equal(saved.pick().by_name("Zone").data().getPyArray(), np.array([[3, 3, 3]], dtype=np.int32))
+    reader.close()
+
+
 def test_init_example():
     # docs:start init_example
     from noder.core import Node

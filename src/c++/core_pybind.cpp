@@ -14,6 +14,9 @@
 
 PYBIND11_MODULE(core, m) {
 
+    // Keep the core extension rebuildable when Node's public Python surface changes.
+    // The Node binding also exposes lazy lifecycle helpers.
+
     m.def(
         "registerDefaultFactory",
         &registerDefaultFactory,

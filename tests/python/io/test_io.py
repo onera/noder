@@ -56,6 +56,7 @@ def test_lazy_hdf5_reader_is_metadata_first_and_navigation_aware(tmp_path):
     assert reader.is_open()
     assert root.children_load_state() == "unloaded"
     assert root.loaded_children() == []
+    assert root.child_count() == 4
 
     reader.ensure_children_loaded(root, 2)
     assert root.children_load_state() == "partial"
@@ -64,7 +65,9 @@ def test_lazy_hdf5_reader_is_metadata_first_and_navigation_aware(tmp_path):
     assert root.loaded_children()[0].children_load_state() == "unloaded"
 
     first = root.loaded_children()[0]
+    assert not first.data_is_loaded()
     np.testing.assert_array_equal(first.numpy(), np.array([7], dtype=np.int32))
+    assert first.data_is_loaded()
 
     second = root.loaded_children()[1]
     assert second.data().extractString() == "BLADE"
@@ -78,6 +81,7 @@ def test_lazy_hdf5_reader_is_metadata_first_and_navigation_aware(tmp_path):
     ]
 
     nested = root.pick().by_name("Nested")
+    assert nested.child_count() == 1
     assert nested is not None
     assert nested.children_load_state() == "unloaded"
     leaf = root.pick().by_name("Leaf")

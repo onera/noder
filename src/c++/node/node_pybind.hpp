@@ -594,6 +594,9 @@ paged inspection of lazy trees.
             }
             return std::string("unknown");
         }, R"doc(Return direct-child loading state.)doc")
+        .def("child_count", &Node::childCount, R"doc(
+Return the number of direct child nodes without materializing lazy children.
+)doc")
         .def("has_data", &Node::hasData, R"doc(
 Return whether a payload exists without forcing lazy payload loading.
 )doc")
@@ -602,6 +605,12 @@ Return whether a payload exists without forcing lazy payload loading.
         }, R"doc(
 Return whether the payload is scalar. Lazy backends may answer this from
 metadata without loading payload values.
+)doc")
+        .def("data_is_loaded", &Node::dataIsLoaded, R"doc(
+Return whether the payload has already been materialized.
+
+Lazy readers can report ``False`` without reading the payload. Calling
+:meth:`Node.data` or :meth:`Node.ensure_data_loaded` materializes it.
 )doc")
         .def("type", &Node::type, R"doc(
 Return node type.
@@ -653,6 +662,10 @@ See C++ counterpart: :ref:`cpp-node-setlinktarget`.
 Clear link target metadata.
 
 See C++ counterpart: :ref:`cpp-node-clearlinktarget`.
+)doc")
+        .def("clear_expansion", &Node::clearExpansion, R"doc(
+Detach the lazy expansion backend after the node and its loaded descendants
+have been materialized.
 )doc")
         .def("reload_node_data", [](Node& node, const std::string& filename) {
             node.reloadNodeData(filename);

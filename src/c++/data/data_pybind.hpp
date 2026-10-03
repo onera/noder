@@ -61,6 +61,12 @@ Example
    :language: python
    :pyobject: test_isScalar
 )doc")
+    .def("dimensions", &Data::dimensions)
+    .def("size", &Data::size)
+    .def("shape", &Data::shape)
+    .def("dtype", &Data::dtype)
+    .def("info", &Data::info)
+    .def("short_info", &Data::shortInfo)
     .def("getPyArray", [](const Data& self) -> py::array {
         const auto* array = dynamic_cast<const Array*>(&self);
         if (!array) {

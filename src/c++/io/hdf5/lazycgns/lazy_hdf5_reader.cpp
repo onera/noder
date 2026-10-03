@@ -342,6 +342,8 @@ private:
         hsize_t nextObjectIndex = 0;
         hsize_t objectCount = 0;
         bool objectCountKnown = false;
+        mutable size_t childCount = 0;
+        mutable bool childCountKnown = false;
         H5_index_t linkIndexType = H5_INDEX_CRT_ORDER;
         bool linkIndexTypeKnown = false;
         ChildrenLoadState childrenState = ChildrenLoadState::Unloaded;
@@ -382,13 +384,52 @@ public:
         return recordFor(node).childrenState;
     }
 
-    void ensureChildrenLoaded(Node& node, const size_t minimumChildren) override {
-        if (!isOpen()) {
-            throw std::runtime_error("LazyHdf5Reader: file is closed");
+    size_t childCount(const Node& node) const override {
+        const Record& record = recordFor(node);
+        if (record.childCountKnown) {
+            return record.childCount;
         }
+        if (!isOpen()) {
+            return node.loadedChildren().size();
+        }
+
+        hdf5_handle group(H5Gopen2(_file.get(), record.hdf5Path.c_str(), H5P_DEFAULT), H5Gclose);
+        if (group.get() < 0) {
+            throw std::runtime_error("LazyHdf5Reader: failed to open group while counting children");
+        }
+        hsize_t objectCount = 0;
+        check_status(H5Gget_num_objs(group.get(), &objectCount), "enumerate children");
+        size_t count = 0;
+        for (hsize_t index = 0; index < objectCount; ++index) {
+            const int objectType = H5Gget_objtype_by_idx(group.get(), index);
+            if (objectType < 0) {
+                throw std::runtime_error("cannot inspect child while counting children");
+            }
+            const ssize_t nameLength = H5Gget_objname_by_idx(group.get(), index, nullptr, 0);
+            if (nameLength < 0) {
+                throw std::runtime_error("cannot read child name while counting children");
+            }
+            std::string name(static_cast<size_t>(nameLength) + 1, '\0');
+            check_status(
+                H5Gget_objname_by_idx(group.get(), index, name.data(), name.size()),
+                "read child name while counting children");
+            name.resize(static_cast<size_t>(nameLength));
+            if (objectType == H5G_GROUP && !isReservedDatasetName(name)) {
+                ++count;
+            }
+        }
+        record.childCount = count;
+        record.childCountKnown = true;
+        return count;
+    }
+
+    void ensureChildrenLoaded(Node& node, const size_t minimumChildren) override {
         Record& record = recordFor(node);
         if (record.childrenState == ChildrenLoadState::Complete) {
             return;
+        }
+        if (!isOpen()) {
+            throw std::runtime_error("LazyHdf5Reader: file is closed");
         }
 
         const size_t requestedChildren =
@@ -482,13 +523,13 @@ public:
     }
 
     void ensureDataLoaded(Node& node) override {
-        if (!isOpen()) {
-            throw std::runtime_error("LazyHdf5Reader: file is closed");
-        }
         Record& record = recordFor(node);
         if (record.dataLoaded || !record.hasData || record.isLink) {
             record.dataLoaded = true;
             return;
+        }
+        if (!isOpen()) {
+            throw std::runtime_error("LazyHdf5Reader: file is closed");
         }
 
         const std::string dataPath = hdf5ChildPath(record.hdf5Path, " data");
@@ -574,10 +615,30 @@ public:
         }
     }
 
+    bool dataIsLoaded(const Node& node) const override {
+        const Record& record = recordFor(node);
+        return record.dataLoaded || !record.hasData || record.isLink;
+    }
+
     void dataAssigned(Node& node) override {
         auto iterator = _records.find(&node);
         if (iterator != _records.end()) {
             iterator->second.dataLoaded = true;
+        }
+    }
+
+    void beginExternalWrite() override {
+        _file.reset();
+    }
+
+    void endExternalWrite() override {
+        if (isOpen()) {
+            return;
+        }
+        _file = hdf5_handle(H5Fopen(_filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
+        if (_file.get() < 0) {
+            throw std::runtime_error(
+                "LazyHdf5Reader: failed to reopen HDF5 file '" + _filename + "' after external write");
         }
     }
 

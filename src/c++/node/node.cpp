@@ -73,10 +73,16 @@ bool isCgnsTreeRoot(const std::shared_ptr<const Node>& node) {
     return node && node->type() == "CGNSTree_t";
 }
 
+bool isHdf5MotherNode(const std::shared_ptr<const Node>& node) {
+    return node && node->name() == "HDF5 MotherNode" &&
+        (node->type() == "MT" || node->type() == "Root Node of HDF5 File");
+}
+
 std::vector<std::string> persistedPathElementsForNode(const Node& node, const bool flattenCgnsTreeRoot) {
     auto elements = splitPathElements(node.path());
     auto rootNode = node.root();
-    if (flattenCgnsTreeRoot && isCgnsTreeRoot(rootNode) && !elements.empty() && elements.front() == rootNode->name()) {
+    if (flattenCgnsTreeRoot && (isCgnsTreeRoot(rootNode) || isHdf5MotherNode(rootNode)) &&
+        !elements.empty() && elements.front() == rootNode->name()) {
         elements.erase(elements.begin());
     }
     return elements;
@@ -92,7 +98,7 @@ std::string persistedLinkTargetPathForNode(
     const bool flattenCgnsTreeRoot) {
 
     auto rootNode = node.root();
-    if (!flattenCgnsTreeRoot || !isCgnsTreeRoot(rootNode)) {
+    if (!flattenCgnsTreeRoot || (!isCgnsTreeRoot(rootNode) && !isHdf5MotherNode(rootNode))) {
         return path;
     }
 
@@ -588,6 +594,13 @@ std::optional<bool> Node::dataIsScalar() const {
     return false;
 }
 
+bool Node::dataIsLoaded() const {
+    if (_expansion) {
+        return _expansion->dataIsLoaded(*this);
+    }
+    return true;
+}
+
 void Node::ensureDataLoaded() const {
     if (_expansion) {
         _expansion->ensureDataLoaded(*const_cast<Node*>(this));
@@ -683,6 +696,13 @@ ChildrenLoadState Node::childrenLoadState() const {
     return ChildrenLoadState::Complete;
 }
 
+size_t Node::childCount() const {
+    if (_expansion) {
+        return _expansion->childCount(*this);
+    }
+    return _children.size();
+}
+
 void Node::ensureChildrenLoaded(const size_t minimumChildren) const {
     if (_expansion) {
         _expansion->ensureChildrenLoaded(*const_cast<Node*>(this), minimumChildren);
@@ -690,7 +710,7 @@ void Node::ensureChildrenLoaded(const size_t minimumChildren) const {
 }
 
 bool Node::hasChildren() const {
-    return !children().empty();
+    return childCount() != 0;
 }
 
 std::vector<std::shared_ptr<Node>> Node::siblings(bool includeMyself) const {
@@ -1064,6 +1084,33 @@ void Node::saveThisNodeOnly(const std::string& filename, const std::string& back
         io::write_node(filename, shared_from_this());
         return;
     }
+
+#ifdef ENABLE_HDF5_IO
+    if (io::detect_format(filename) == io::FileFormat::Hdf5Cgns) {
+        const std::string persistedLinkTargetPath = hasLinkTarget()
+            ? persistedLinkTargetPathForNode(*this, linkTargetPath(), flattenCgnsTreeRoot)
+            : std::string();
+        if (_expansion) {
+            _expansion->beginExternalWrite();
+        }
+        try {
+            io::hdf5::cgns::write_node_only(
+                filename,
+                shared_from_this(),
+                persistedPath,
+                persistedLinkTargetPath);
+        } catch (...) {
+            if (_expansion) {
+                _expansion->endExternalWrite();
+            }
+            throw;
+        }
+        if (_expansion) {
+            _expansion->endExternalWrite();
+        }
+        return;
+    }
+#endif
 
     const auto pathElements = splitPathElements(persistedPath);
     if (pathElements.empty()) {

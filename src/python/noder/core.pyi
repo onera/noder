@@ -137,6 +137,12 @@ class Data:
            :language: python
            :pyobject: test_isScalar
         """
+    def dimensions(self) -> int: ...
+    def size(self) -> int: ...
+    def shape(self) -> list[int]: ...
+    def dtype(self) -> str: ...
+    def info(self) -> str: ...
+    def short_info(self) -> str: ...
 class Navigation:
     """
     
@@ -535,6 +541,10 @@ class Node:
         
         See C++ counterpart: :ref:`cpp-node-attachto`.
         """
+    def child_count(self) -> int:
+        """
+        Return the number of direct child nodes without materializing lazy children.
+        """
     def children(self) -> list[Node]:
         """
         Return all direct children preserving insertion order.
@@ -547,6 +557,11 @@ class Node:
     def children_load_state(self) -> str:
         """
         Return direct-child loading state.
+        """
+    def clear_expansion(self) -> None:
+        """
+        Detach the lazy expansion backend after the node and its loaded descendants
+        have been materialized.
         """
     def clear_link_target(self) -> None:
         """
@@ -570,6 +585,10 @@ class Node:
         """
         Return whether the payload is scalar. Lazy backends may answer this from
         metadata without loading payload values.
+        """
+    def data_is_loaded(self) -> bool:
+        """
+        Return whether a lazy payload has already been materialized.
         """
     def descendants(self) -> list[Node]:
         """

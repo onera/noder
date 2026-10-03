@@ -211,6 +211,9 @@ public:
      */
     std::optional<bool> dataIsScalar() const;
 
+    /** @brief Inspect whether the payload has been materialized. */
+    bool dataIsLoaded() const;
+
     /** @brief Ensure the payload is fully loaded when a lazy backend is attached. */
     void ensureDataLoaded() const;
 
@@ -256,6 +259,8 @@ public:
     const std::vector<std::shared_ptr<Node>>& loadedChildren() const;
     /** @brief Current direct-child loading state. */
     ChildrenLoadState childrenLoadState() const;
+    /** @brief Number of direct child nodes without materializing them. */
+    size_t childCount() const;
     /** @brief Ensure at least minimumChildren direct children are materialized. */
     void ensureChildrenLoaded(
         size_t minimumChildren = std::numeric_limits<size_t>::max()) const;

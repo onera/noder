@@ -31,6 +31,9 @@ public:
     /** @brief Return the current direct-child loading state. */
     virtual ChildrenLoadState childrenLoadState(const Node& node) const = 0;
 
+    /** @brief Return the number of materializable direct child nodes. */
+    virtual std::size_t childCount(const Node& /*node*/) const { return 0; }
+
     /**
      * @brief Ensure at least the requested number of children are materialized.
      *
@@ -56,6 +59,9 @@ public:
         return std::nullopt;
     }
 
+    /** @brief Inspect whether the payload has already been materialized. */
+    virtual bool dataIsLoaded(const Node& /*node*/) const { return true; }
+
     /**
      * @brief Notify the backend that a payload was assigned through Node's
      * regular mutation API.
@@ -64,6 +70,18 @@ public:
      * default implementation is sufficient for read-only/eager adapters.
      */
     virtual void dataAssigned(Node& /*node*/) {}
+
+    /**
+     * @brief Temporarily release resources that prevent an external writer
+     * from opening the source file for update.
+     *
+     * Lazy readers may keep a read-only HDF5 handle alive.  Targeted writers
+     * call this hook around their update and then restore the reader state.
+     */
+    virtual void beginExternalWrite() {}
+
+    /** @brief Reopen resources released by beginExternalWrite(). */
+    virtual void endExternalWrite() {}
 };
 
 #endif // NODE_EXPANSION_HPP
