@@ -85,24 +85,35 @@ inline void write_node(
  * @brief Read a Node hierarchy from disk using the format inferred from @p filename.
  * @param filename Input file path.
  * @param order Memory order for arrays (``'C'`` or ``'F'``). Only used for HDF5/CGNS format.
+ * @param safeMode Replace malformed HDF5/CGNS nodes by ``Corrupted_t`` markers instead of raising.
  * @return Root node of the loaded hierarchy.
  */
-inline std::shared_ptr<Node> read(const std::string& filename, const char order = 'F') {
+inline std::shared_ptr<Node> read(
+    const std::string& filename,
+    const char order = 'F',
+    const bool safeMode = false) {
     switch (detect_format(filename)) {
         case FileFormat::Yaml:
             (void)order; // YAML doesn't use order parameter
+            (void)safeMode; // YAML does not have HDF5 corruption handling
             return io::yaml::read(filename);
         case FileFormat::Hdf5Cgns:
 #ifdef ENABLE_HDF5_IO
-            return io::hdf5::cgns::read(filename, order);
+            return io::hdf5::cgns::read(filename, order, safeMode);
 #else
             (void)order;
+            (void)safeMode;
             throw std::runtime_error(
                 "io::read: HDF5/CGNS support is disabled. Use a '.yaml' file or enable HDF5.");
 #endif
     }
 
     throw std::runtime_error("io::read: unsupported file format");
+}
+
+/** @brief Read using the default memory order with optional HDF5 safe mode. */
+inline std::shared_ptr<Node> read(const std::string& filename, const bool safeMode) {
+    return read(filename, 'F', safeMode);
 }
 
 } // namespace io

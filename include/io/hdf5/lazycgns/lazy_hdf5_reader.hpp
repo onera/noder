@@ -20,7 +20,11 @@ namespace io::hdf5::cgns {
  */
 class NODE_EXPORT LazyHdf5Reader {
 public:
-    explicit LazyHdf5Reader(const std::string& filename, char order = 'F');
+    explicit LazyHdf5Reader(
+        const std::string& filename,
+        char order = 'F',
+        bool safeMode = false);
+    explicit LazyHdf5Reader(const std::string& filename, bool safeMode);
     ~LazyHdf5Reader();
 
     LazyHdf5Reader(const LazyHdf5Reader&) = delete;
@@ -42,6 +46,12 @@ public:
 
     /** @brief Whether the underlying HDF5 file is still open. */
     bool isOpen() const;
+
+    /** @brief Whether malformed nodes have been replaced by safe-mode markers. */
+    bool hasWarnings() const;
+
+    /** @brief Whether this reader was configured to tolerate malformed nodes. */
+    bool safeMode() const;
 
     /** @brief Explicitly request a direct-child page for a node. */
     void ensureChildrenLoaded(

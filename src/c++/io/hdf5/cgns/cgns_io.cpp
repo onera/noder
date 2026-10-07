@@ -17,6 +17,7 @@
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <unordered_set>
 
 namespace io::hdf5::cgns {
 
@@ -726,9 +727,42 @@ Array readArrayFromDataset(hid_t dset, const std::vector<size_t>& shape, const s
     throw std::runtime_error("Unsupported type in read: " + cgnsType);
 }
 
-std::shared_ptr<Node> read_node_rec(hid_t file, const std::string& path, const char order);
+std::shared_ptr<Node> make_corrupted_node(
+    const std::shared_ptr<Node>& parent,
+    const std::string& filename,
+    const std::string& hdf5Path,
+    const std::string& detail,
+    std::unordered_set<std::string>& corruptedPaths) {
 
-std::shared_ptr<Node> read_node_rec_impl(hid_t file, const std::string& path, const char order) {
+    if (!corruptedPaths.insert(hdf5Path).second) {
+        return nullptr;
+    }
+    const std::string message =
+        "file='" + filename + "' hdf5_path='" + hdf5Path + "': " + detail;
+    std::cerr << "Warning: malformed HDF5/CGNS node " << message << "\n";
+    auto marker = std::make_shared<Node>("Corrupted", "Corrupted_t");
+    marker->setData(message);
+    if (parent) {
+        marker->attachTo(parent, -1, false);
+    }
+    return marker;
+}
+
+std::shared_ptr<Node> read_node_rec(
+    hid_t file,
+    const std::string& path,
+    const char order,
+    const bool safeMode,
+    const std::string& filename,
+    std::unordered_set<std::string>& corruptedPaths);
+
+std::shared_ptr<Node> read_node_rec_impl(
+    hid_t file,
+    const std::string& path,
+    const char order,
+    const bool safeMode,
+    const std::string& filename,
+    std::unordered_set<std::string>& corruptedPaths) {
     hdf5_handle group(H5Gopen2(file, path.c_str(), H5P_DEFAULT), H5Gclose);
     if (group.get() < 0) {
         throw std::runtime_error("Failed to open group: " + path);
@@ -736,6 +770,18 @@ std::shared_ptr<Node> read_node_rec_impl(hid_t file, const std::string& path, co
 
     std::string name = read_string_attr(group.get(), "name");
     std::string label = read_string_attr(group.get(), "label");
+    const std::string dataType = read_string_attr(group.get(), "type");
+    if (safeMode) {
+        if (name.empty()) {
+            throw std::runtime_error("missing required CGNS 'name' attribute");
+        }
+        if (label.empty()) {
+            throw std::runtime_error("missing required CGNS 'label' attribute");
+        }
+        if (dataType.empty()) {
+            throw std::runtime_error("missing required CGNS 'type' attribute");
+        }
+    }
     if (label.empty()) {
         label = "DataArray_t";
     }
@@ -781,6 +827,12 @@ std::shared_ptr<Node> read_node_rec_impl(hid_t file, const std::string& path, co
                              "get dataset dimensions: " + dataPath);
             }
             shape.assign(dims.begin(), dims.end());
+            if (safeMode && std::any_of(
+                    shape.begin(), shape.end(), [](const size_t dimension) {
+                        return dimension == 0;
+                    })) {
+                throw std::runtime_error("malformed zero-size HDF5 dataset");
+            }
 
             cgnsType = read_string_attr(group.get(), "type");
             if (cgnsType.empty()) {
@@ -829,16 +881,31 @@ std::shared_ptr<Node> read_node_rec_impl(hid_t file, const std::string& path, co
             continue;
         }
         const std::string childPath = hdf5_child_path(path, childName);
-        auto child = read_node_rec(file, childPath, order);
-        child->attachTo(node);
+        try {
+            auto child = read_node_rec(
+                file, childPath, order, safeMode, filename, corruptedPaths);
+            child->attachTo(node, -1, false);
+        } catch (const std::exception& error) {
+            if (!safeMode) {
+                throw;
+            }
+            make_corrupted_node(node, filename, childPath, error.what(), corruptedPaths);
+        }
     }
 
     return node;
 }
 
-std::shared_ptr<Node> read_node_rec(hid_t file, const std::string& path, const char order) {
+std::shared_ptr<Node> read_node_rec(
+    hid_t file,
+    const std::string& path,
+    const char order,
+    const bool safeMode,
+    const std::string& filename,
+    std::unordered_set<std::string>& corruptedPaths) {
     try {
-        return read_node_rec_impl(file, path, order);
+        return read_node_rec_impl(
+            file, path, order, safeMode, filename, corruptedPaths);
     } catch (const cgns_read_error&) {
         throw;
     } catch (const std::exception& error) {
@@ -975,17 +1042,32 @@ void write_node_only(
     check_status(H5Fflush(file.get(), H5F_SCOPE_GLOBAL), "flush HDF5 node-only update");
 }
 
-std::shared_ptr<Node> read(const std::string& filename, const char order) {
+std::shared_ptr<Node> read(
+    const std::string& filename,
+    const char order,
+    const bool safeMode) {
     hdf5_handle file(H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
     if (file.get() < 0) {
         throw std::runtime_error("Failed to open HDF5 file: " + filename);
     }
 
+    std::unordered_set<std::string> corruptedPaths;
     try {
-        return read_node_rec(file.get(), "/", order);
+        return read_node_rec(
+            file.get(), "/", order, safeMode, filename, corruptedPaths);
     } catch (const std::exception& error) {
+        if (safeMode) {
+            auto root = make_node_for_cgns_label(
+                "HDF5 MotherNode", "Root Node of HDF5 File");
+            make_corrupted_node(root, filename, "/", error.what(), corruptedPaths);
+            return root;
+        }
         throw std::runtime_error("Failed to read HDF5 file '" + filename + "': " + error.what());
     }
+}
+
+std::shared_ptr<Node> read(const std::string& filename, const bool safeMode) {
+    return read(filename, 'F', safeMode);
 }
 
 } // namespace io::hdf5::cgns

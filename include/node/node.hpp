@@ -217,6 +217,9 @@ public:
     /** @brief Ensure the payload is fully loaded when a lazy backend is attached. */
     void ensureDataLoaded() const;
 
+    /** @brief Release a materialized payload when the backend can reload it. */
+    void unloadData();
+
     /** @brief Revision of this subtree's structural and payload replacements. */
     std::uint64_t revision() const;
 

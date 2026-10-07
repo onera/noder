@@ -19,16 +19,21 @@ Lazy metadata-first reader for CGNS/HDF5 files.
 
 The returned root is a regular Node. Direct children and payloads are loaded
 on demand, so ``loaded_children()`` can be used for paged terminal views.
+When ``safe_mode`` is true, malformed HDF5/CGNS nodes are replaced by
+``Corrupted_t`` marker nodes and reported through ``has_warnings()``.
 )doc")
         .def(
-            py::init<const std::string&, char>(),
+            py::init<const std::string&, char, bool>(),
             py::arg("filename"),
-            py::arg("order") = 'F')
+            py::arg("order") = 'F',
+            py::arg("safe_mode") = false)
         .def("root", &io::hdf5::cgns::LazyHdf5Reader::root)
         .def("filename", &io::hdf5::cgns::LazyHdf5Reader::filename)
         .def("order", &io::hdf5::cgns::LazyHdf5Reader::order)
         .def("close", &io::hdf5::cgns::LazyHdf5Reader::close)
         .def("is_open", &io::hdf5::cgns::LazyHdf5Reader::isOpen)
+        .def("has_warnings", &io::hdf5::cgns::LazyHdf5Reader::hasWarnings)
+        .def("safe_mode", &io::hdf5::cgns::LazyHdf5Reader::safeMode)
         .def(
             "ensure_children_loaded",
             &io::hdf5::cgns::LazyHdf5Reader::ensureChildrenLoaded,

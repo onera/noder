@@ -13,10 +13,12 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+#include <iostream>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -350,9 +352,10 @@ private:
     };
 
 public:
-    State(std::string filename, char order)
+    State(std::string filename, char order, const bool safeMode)
         : _filename(std::move(filename)),
           _order(normalizeOrder(order)),
+          _safeMode(safeMode),
           _file(H5Fopen(_filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose) {
 
         if (_file.get() < 0) {
@@ -361,7 +364,22 @@ public:
     }
 
     std::shared_ptr<Node> makeRoot() {
-        return makeNode("/");
+        try {
+            return makeNode("/");
+        } catch (const std::exception& error) {
+            if (!_safeMode) {
+                throw;
+            }
+            const std::shared_ptr<Node> root = makeNodeForLabel(
+                "HDF5 MotherNode", "Root Node of HDF5 File");
+            root->setExpansion(shared_from_this());
+            Record record;
+            record.hdf5Path = "/";
+            record.childrenState = ChildrenLoadState::Unloaded;
+            _records.emplace(root.get(), std::move(record));
+            addCorrupted(*root, "/", error.what());
+            return root;
+        }
     }
 
     const std::string& filename() const {
@@ -380,6 +398,14 @@ public:
         return _file.get() >= 0;
     }
 
+    bool hasWarnings() const {
+        return !_warnings.empty();
+    }
+
+    bool safeMode() const {
+        return _safeMode;
+    }
+
     ChildrenLoadState childrenLoadState(const Node& node) const override {
         return recordFor(node).childrenState;
     }
@@ -393,34 +419,44 @@ public:
             return node.loadedChildren().size();
         }
 
-        hdf5_handle group(H5Gopen2(_file.get(), record.hdf5Path.c_str(), H5P_DEFAULT), H5Gclose);
-        if (group.get() < 0) {
-            throw std::runtime_error("LazyHdf5Reader: failed to open group while counting children");
+        try {
+            hdf5_handle group(H5Gopen2(_file.get(), record.hdf5Path.c_str(), H5P_DEFAULT), H5Gclose);
+            if (group.get() < 0) {
+                throw std::runtime_error("LazyHdf5Reader: failed to open group while counting children");
+            }
+            hsize_t objectCount = 0;
+            check_status(H5Gget_num_objs(group.get(), &objectCount), "enumerate children");
+            size_t count = 0;
+            for (hsize_t index = 0; index < objectCount; ++index) {
+                const int objectType = H5Gget_objtype_by_idx(group.get(), index);
+                if (objectType < 0) {
+                    throw std::runtime_error("cannot inspect child while counting children");
+                }
+                const ssize_t nameLength = H5Gget_objname_by_idx(group.get(), index, nullptr, 0);
+                if (nameLength < 0) {
+                    throw std::runtime_error("cannot read child name while counting children");
+                }
+                std::string name(static_cast<size_t>(nameLength) + 1, '\0');
+                check_status(
+                    H5Gget_objname_by_idx(group.get(), index, name.data(), name.size()),
+                    "read child name while counting children");
+                name.resize(static_cast<size_t>(nameLength));
+                if (objectType == H5G_GROUP && !isReservedDatasetName(name)) {
+                    ++count;
+                }
+            }
+            record.childCount = count;
+            record.childCountKnown = true;
+            return count;
+        } catch (const std::exception& error) {
+            if (!_safeMode) {
+                throw;
+            }
+            addCorrupted(const_cast<Node&>(node), record.hdf5Path, error.what());
+            record.childCount = node.loadedChildren().size();
+            record.childCountKnown = true;
+            return record.childCount;
         }
-        hsize_t objectCount = 0;
-        check_status(H5Gget_num_objs(group.get(), &objectCount), "enumerate children");
-        size_t count = 0;
-        for (hsize_t index = 0; index < objectCount; ++index) {
-            const int objectType = H5Gget_objtype_by_idx(group.get(), index);
-            if (objectType < 0) {
-                throw std::runtime_error("cannot inspect child while counting children");
-            }
-            const ssize_t nameLength = H5Gget_objname_by_idx(group.get(), index, nullptr, 0);
-            if (nameLength < 0) {
-                throw std::runtime_error("cannot read child name while counting children");
-            }
-            std::string name(static_cast<size_t>(nameLength) + 1, '\0');
-            check_status(
-                H5Gget_objname_by_idx(group.get(), index, name.data(), name.size()),
-                "read child name while counting children");
-            name.resize(static_cast<size_t>(nameLength));
-            if (objectType == H5G_GROUP && !isReservedDatasetName(name)) {
-                ++count;
-            }
-        }
-        record.childCount = count;
-        record.childCountKnown = true;
-        return count;
     }
 
     void ensureChildrenLoaded(Node& node, const size_t minimumChildren) override {
@@ -457,20 +493,10 @@ public:
                    record.nextObjectIndex < record.objectCount) {
 
                 const hsize_t index = record.nextObjectIndex++;
-                ssize_t nameLength = H5Lget_name_by_idx(
-                    _file.get(),
-                    record.hdf5Path.c_str(),
-                    record.linkIndexType,
-                    H5_ITER_INC,
-                    index,
-                    nullptr,
-                    0,
-                    H5P_DEFAULT);
-                if (nameLength < 0 && !record.linkIndexTypeKnown &&
-                    record.linkIndexType == H5_INDEX_CRT_ORDER) {
-                    H5Eclear2(H5E_DEFAULT);
-                    record.linkIndexType = H5_INDEX_NAME;
-                    nameLength = H5Lget_name_by_idx(
+                std::string childPath = hdf5ChildPath(
+                    record.hdf5Path, "#" + std::to_string(index));
+                try {
+                    ssize_t nameLength = H5Lget_name_by_idx(
                         _file.get(),
                         record.hdf5Path.c_str(),
                         record.linkIndexType,
@@ -479,46 +505,70 @@ public:
                         nullptr,
                         0,
                         H5P_DEFAULT);
-                }
-                record.linkIndexTypeKnown = true;
-                if (nameLength < 0) {
-                    throw std::runtime_error(
-                        "cannot determine child name at index " + std::to_string(index));
-                }
-                std::string childName(static_cast<size_t>(nameLength) + 1, '\0');
-                check_status(
-                    H5Lget_name_by_idx(
-                        _file.get(),
-                        record.hdf5Path.c_str(),
-                        record.linkIndexType,
-                        H5_ITER_INC,
-                        index,
-                        childName.data(),
-                        childName.size(),
-                        H5P_DEFAULT),
-                    "read child name at index " + std::to_string(index));
-                childName.resize(static_cast<size_t>(nameLength));
-                if (isReservedDatasetName(childName)) {
-                    continue;
-                }
 
-                const std::string childPath = hdf5ChildPath(record.hdf5Path, childName);
-                hdf5_handle object(H5Oopen(_file.get(), childPath.c_str(), H5P_DEFAULT), H5Oclose);
-                if (object.get() < 0) {
-                    throw std::runtime_error("failed to inspect child object '" + childPath + "'");
+                    if (nameLength < 0 && !record.linkIndexTypeKnown &&
+                        record.linkIndexType == H5_INDEX_CRT_ORDER) {
+                        H5Eclear2(H5E_DEFAULT);
+                        record.linkIndexType = H5_INDEX_NAME;
+                        nameLength = H5Lget_name_by_idx(
+                            _file.get(),
+                            record.hdf5Path.c_str(),
+                            record.linkIndexType,
+                            H5_ITER_INC,
+                            index,
+                            nullptr,
+                            0,
+                            H5P_DEFAULT);
+                    }
+                    record.linkIndexTypeKnown = true;
+                    if (nameLength < 0) {
+                        throw std::runtime_error(
+                            "cannot determine child name at index " + std::to_string(index));
+                    }
+                    std::string childName(static_cast<size_t>(nameLength) + 1, '\0');
+                    check_status(
+                        H5Lget_name_by_idx(
+                            _file.get(),
+                            record.hdf5Path.c_str(),
+                            record.linkIndexType,
+                            H5_ITER_INC,
+                            index,
+                            childName.data(),
+                            childName.size(),
+                            H5P_DEFAULT),
+                        "read child name at index " + std::to_string(index));
+                    childName.resize(static_cast<size_t>(nameLength));
+                    if (isReservedDatasetName(childName)) {
+                        continue;
+                    }
+
+                    childPath = hdf5ChildPath(record.hdf5Path, childName);
+                    hdf5_handle object(H5Oopen(_file.get(), childPath.c_str(), H5P_DEFAULT), H5Oclose);
+                    if (object.get() < 0) {
+                        throw std::runtime_error("failed to inspect child object '" + childPath + "'");
+                    }
+                    if (H5Iget_type(object.get()) != H5I_GROUP) {
+                        continue;
+                    }
+                    const std::shared_ptr<Node> child = makeNode(childPath);
+                    child->attachTo(parent, -1, false);
+                } catch (const std::exception& error) {
+                    if (!_safeMode) {
+                        throw;
+                    }
+                    addCorrupted(*parent, childPath, error.what());
                 }
-                if (H5Iget_type(object.get()) != H5I_GROUP) {
-                    continue;
-                }
-                const std::shared_ptr<Node> child = makeNode(childPath);
-                child->attachTo(parent);
             }
 
             record.childrenState = record.nextObjectIndex >= record.objectCount
                 ? ChildrenLoadState::Complete
                 : ChildrenLoadState::Partial;
         } catch (const std::exception& error) {
-            throw contextualError(node, record, "load children", error.what());
+            if (!_safeMode) {
+                throw contextualError(node, record, "load children", error.what());
+            }
+            addCorrupted(node, record.hdf5Path, error.what());
+            record.childrenState = ChildrenLoadState::Complete;
         }
     }
 
@@ -557,15 +607,27 @@ public:
             if (record.dataType != "C1") {
                 std::reverse(shape.begin(), shape.end());
             }
+            if (_safeMode && std::any_of(
+                    shape.begin(), shape.end(), [](const size_t dimension) {
+                        return dimension == 0;
+                    })) {
+                throw std::runtime_error("malformed zero-size HDF5 dataset");
+            }
 
             node.setData(readArrayFromDataset(dataset.get(), shape, record.dataType, _order));
             record.dataLoaded = true;
         } catch (const std::exception& error) {
-            throw contextualError(
+            const std::runtime_error contextual = contextualError(
                 node,
                 record,
                 "load data dataset '" + dataPath + "'",
                 error.what());
+            if (!_safeMode) {
+                throw contextual;
+            }
+            record.dataLoaded = true;
+            const auto parent = node.parent().lock();
+            addCorrupted(parent ? *parent : node, record.hdf5Path, contextual.what());
         }
     }
 
@@ -605,13 +667,23 @@ public:
             for (const hsize_t dimension : dimensions) {
                 elementCount *= dimension;
             }
+            if (_safeMode && elementCount == 0) {
+                throw std::runtime_error("malformed zero-size HDF5 dataset");
+            }
             return elementCount == 1;
         } catch (const std::exception& error) {
-            throw contextualError(
+            const std::runtime_error contextual = contextualError(
                 node,
                 record,
                 "inspect scalar payload at dataset '" + dataPath + "'",
                 error.what());
+            if (!_safeMode) {
+                throw contextual;
+            }
+            Node& mutableNode = const_cast<Node&>(node);
+            const auto parent = mutableNode.parent().lock();
+            addCorrupted(parent ? *parent : mutableNode, record.hdf5Path, contextual.what());
+            return false;
         }
     }
 
@@ -624,6 +696,13 @@ public:
         auto iterator = _records.find(&node);
         if (iterator != _records.end()) {
             iterator->second.dataLoaded = true;
+        }
+    }
+
+    void dataUnloaded(Node& node) override {
+        auto iterator = _records.find(&node);
+        if (iterator != _records.end() && iterator->second.hasData) {
+            iterator->second.dataLoaded = false;
         }
     }
 
@@ -643,6 +722,25 @@ public:
     }
 
 private:
+    void addCorrupted(Node& parent, const std::string& hdf5Path, const std::string& detail) const {
+        if (!_safeMode || !_corruptedPaths.insert(hdf5Path).second) {
+            return;
+        }
+
+        const std::string message =
+            "file='" + _filename + "' hdf5_path='" + hdf5Path + "': " + detail;
+        _warnings.push_back(message);
+        std::cerr << "Warning: malformed HDF5/CGNS node " << message << "\n";
+
+        auto marker = std::make_shared<Node>("Corrupted", "Corrupted_t");
+        marker->setData(message);
+        const auto parentPointer = parent.selfPtr();
+        if (!parentPointer) {
+            return;
+        }
+        marker->attachTo(parentPointer, -1, false);
+    }
+
     Record& recordFor(Node& node) {
         const auto iterator = _records.find(&node);
         if (iterator == _records.end()) {
@@ -684,6 +782,18 @@ private:
         const std::string label = readStringAttribute(group.get(), "label");
         const std::string dataType = readStringAttribute(group.get(), "type");
 
+        if (_safeMode) {
+            if (name.empty()) {
+                throw std::runtime_error("missing required CGNS 'name' attribute");
+            }
+            if (label.empty()) {
+                throw std::runtime_error("missing required CGNS 'label' attribute");
+            }
+            if (dataType.empty()) {
+                throw std::runtime_error("missing required CGNS 'type' attribute");
+            }
+        }
+
         if (name.empty()) {
             if (path == "/") {
                 name = "HDF5 MotherNode";
@@ -723,13 +833,24 @@ private:
 
     std::string _filename;
     char _order;
+    bool _safeMode;
     hdf5_handle _file;
     std::unordered_map<const Node*, Record> _records;
+    mutable std::unordered_set<std::string> _corruptedPaths;
+    mutable std::vector<std::string> _warnings;
 };
 
-LazyHdf5Reader::LazyHdf5Reader(const std::string& filename, const char order)
-    : _state(std::make_shared<State>(filename, order)),
+LazyHdf5Reader::LazyHdf5Reader(
+    const std::string& filename,
+    const char order,
+    const bool safeMode)
+    : _state(std::make_shared<State>(filename, order, safeMode)),
       _root(_state->makeRoot()) {}
+
+LazyHdf5Reader::LazyHdf5Reader(
+    const std::string& filename,
+    const bool safeMode)
+    : LazyHdf5Reader(filename, 'F', safeMode) {}
 
 LazyHdf5Reader::~LazyHdf5Reader() = default;
 
@@ -763,6 +884,14 @@ void LazyHdf5Reader::close() const {
 
 bool LazyHdf5Reader::isOpen() const {
     return _state->isOpen();
+}
+
+bool LazyHdf5Reader::hasWarnings() const {
+    return _state->hasWarnings();
+}
+
+bool LazyHdf5Reader::safeMode() const {
+    return _state->safeMode();
 }
 
 void LazyHdf5Reader::ensureChildrenLoaded(

@@ -100,7 +100,7 @@ std::string numericalSummaryForType(const Array& array) {
     }
 
     if (containsNaN) {
-        return "min=nan, max=nan, mean=nan, median=nan";
+        return "mn=nan MX=nan avg=nan med=nan";
     }
 
     std::sort(values.begin(), values.end());
@@ -115,11 +115,11 @@ std::string numericalSummaryForType(const Array& array) {
     }
 
     std::ostringstream stream;
-    stream << std::setprecision(15);
-    stream << "min=" << *minIterator
-           << ", max=" << *maxIterator
-           << ", mean=" << mean
-           << ", median=" << median;
+    stream << std::defaultfloat << std::setprecision(6);
+    stream << "mn=" << *minIterator
+           << " MX=" << *maxIterator
+           << " avg=" << mean
+           << " med=" << median;
     return stream.str();
 }
 
@@ -347,7 +347,8 @@ TerminalModel::TerminalModel(
       _searchResults(),
       _searchResultIndex(0),
       _firstVisibleMatchIndex(0),
-      _searchExpression() {
+      _searchExpression(),
+      _malformedNodesFound(_reader && _reader->hasWarnings()) {
 
     if (!_reader) {
         throw std::invalid_argument("TerminalModel: reader cannot be null");
@@ -357,6 +358,19 @@ TerminalModel::TerminalModel(
         throw std::runtime_error("TerminalModel: lazy reader returned a null root");
     }
     ensureVisiblePage();
+}
+
+void TerminalModel::refreshMalformedWarning() const {
+    if (_reader && _reader->hasWarnings()) {
+        _malformedNodesFound = true;
+    }
+}
+
+void TerminalModel::renderMalformedWarning(std::ostream& output) const {
+    refreshMalformedWarning();
+    if (_malformedNodesFound) {
+        output << "\n\033[31mMalformed nodes where found during reading, search using / t:Corrupted_t\033[0m\n";
+    }
 }
 
 void TerminalModel::setViewportRows(const std::size_t rows) {
@@ -1179,6 +1193,7 @@ void TerminalModel::renderNodes(std::ostream& output) const {
     if (!_statusMessage.empty()) {
         output << "\n" << _statusMessage << "\n";
     }
+    renderMalformedWarning(output);
 }
 
 void TerminalModel::renderMatches(std::ostream& output) const {
@@ -1220,6 +1235,7 @@ void TerminalModel::renderMatches(std::ostream& output) const {
     if (!_statusMessage.empty()) {
         output << "\n" << _statusMessage << "\n";
     }
+    renderMalformedWarning(output);
 }
 
 void TerminalModel::renderPayload(std::ostream& output) const {
@@ -1265,6 +1281,7 @@ void TerminalModel::renderPayload(std::ostream& output) const {
             output << "  " << _payloadLines[first];
         }
         output << "\n";
+        renderMalformedWarning(output);
         return;
     }
     if (_payloadLines.empty()) {
@@ -1282,6 +1299,7 @@ void TerminalModel::renderPayload(std::ostream& output) const {
         }
         output << "\n";
     }
+    renderMalformedWarning(output);
 }
 
 void TerminalModel::render(std::ostream& output) const {

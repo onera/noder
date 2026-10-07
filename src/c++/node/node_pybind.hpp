@@ -612,6 +612,11 @@ Return whether the payload has already been materialized.
 Lazy readers can report ``False`` without reading the payload. Calling
 :meth:`Node.data` or :meth:`Node.ensure_data_loaded` materializes it.
 )doc")
+        .def("unload_data", &Node::unloadData, R"doc(
+Release a materialized payload when the attached backend supports reloading it.
+
+Lazy HDF5 nodes keep their metadata and become loadable again on demand.
+)doc")
         .def("type", &Node::type, R"doc(
 Return node type.
 

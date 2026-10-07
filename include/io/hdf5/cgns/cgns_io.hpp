@@ -26,7 +26,12 @@ void write_node_only(
     const std::string& persistedPath,
     const std::string& persistedLinkTargetPath = std::string());
 
-std::shared_ptr<Node> read(const std::string& filename, const char order = 'F');
+std::shared_ptr<Node> read(
+    const std::string& filename,
+    const char order = 'F',
+    bool safeMode = false);
+
+std::shared_ptr<Node> read(const std::string& filename, bool safeMode);
 
 } // namespace io::hdf5::cgns
 

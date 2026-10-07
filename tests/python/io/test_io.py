@@ -92,6 +92,57 @@ def test_lazy_hdf5_reader_is_metadata_first_and_navigation_aware(tmp_path):
     assert not reader.is_open()
 
 
+def test_hdf5_safe_mode_keeps_valid_nodes_and_marks_corruption(tmp_path):
+    h5py = pytest.importorskip("h5py")
+    filename = tmp_path / "safe-mode.cgns"
+    with h5py.File(filename, "w", track_order=True) as h5file:
+        h5file.attrs["name"] = np.bytes_("HDF5 MotherNode")
+        h5file.attrs["label"] = np.bytes_("Root Node of HDF5 File")
+        h5file.attrs["type"] = np.bytes_("MT")
+
+        malformed = h5file.create_group("MissingLabel", track_order=True)
+        malformed.attrs["name"] = np.bytes_("MissingLabel")
+        malformed.attrs["type"] = np.bytes_("MT")
+
+        zero = h5file.create_group("Zero", track_order=True)
+        zero.attrs["name"] = np.bytes_("Zero")
+        zero.attrs["label"] = np.bytes_("DataArray_t")
+        zero.attrs["type"] = np.bytes_("I4")
+        zero.create_dataset(" data", shape=(0,), dtype=np.int32)
+
+        valid = h5file.create_group("Valid", track_order=True)
+        valid.attrs["name"] = np.bytes_("Valid")
+        valid.attrs["label"] = np.bytes_("UserDefinedData_t")
+        valid.attrs["type"] = np.bytes_("MT")
+
+    reader = gio.LazyHdf5Reader(str(filename), safe_mode=True)
+    root = reader.root()
+    root.ensure_children_loaded()
+    assert reader.safe_mode()
+    assert reader.has_warnings()
+    assert [child.name() for child in root.loaded_children()] == [
+        "Corrupted", "Zero", "Valid"
+    ]
+    marker = root.loaded_children()[0]
+    assert marker.type() == "Corrupted_t"
+    assert str(filename) in marker.data().extractString()
+    assert "/MissingLabel" in marker.data().extractString()
+
+    root.loaded_children()[1].numpy()
+    assert [child.name() for child in root.loaded_children()] == [
+        "Corrupted", "Zero", "Valid", "Corrupted.0"
+    ]
+    reader.close()
+
+    eager = gio.read(str(filename), safe_mode=True)
+    assert [child.name() for child in eager.children()] == [
+        "Corrupted", "Valid", "Corrupted.0"
+    ]
+    assert [child.type() for child in eager.children()] == [
+        "Corrupted_t", "UserDefinedData_t", "Corrupted_t"
+    ]
+
+
 def _new_cgns_tree():
     from noder.core import Node
 

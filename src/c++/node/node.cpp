@@ -607,6 +607,19 @@ void Node::ensureDataLoaded() const {
     }
 }
 
+void Node::unloadData() {
+    // Eager nodes have no backend capable of reloading their payload.  Treat
+    // unload as a no-op for them; clearing _data here would silently destroy
+    // newly-created or already-materialised in-memory data.
+    if (!_expansion) {
+        return;
+    }
+    _data = datafactory::makeDefaultData();
+    if (_expansion) {
+        _expansion->dataUnloaded(*this);
+    }
+}
+
 std::uint64_t Node::revision() const {
     return this->_revision;
 }

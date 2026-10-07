@@ -14,6 +14,7 @@ namespace {
 struct Options {
     std::string filename;
     char order = 'F';
+    bool safeMode = false;
     std::size_t pageSize = 5;
     std::size_t payloadLimit = 64;
     std::size_t maxChars = 80;
@@ -36,14 +37,15 @@ std::size_t parseSize(const std::string& value, const char* option) {
 Options parseOptions(int argc, char** argv) {
     if (argc < 2) {
         throw std::invalid_argument(
-            "usage: cgnsviz FILE [--order C|F] [--page-size N] [--payload-limit N] [--max-chars N] [--non-interactive]");
+            "usage: cgnsviz [--safe-mode] FILE [--order C|F] [--page-size N] [--payload-limit N] [--max-chars N] [--non-interactive]");
     }
 
     Options options;
-    options.filename = argv[1];
-    for (int index = 2; index < argc; ++index) {
+    for (int index = 1; index < argc; ++index) {
         const std::string option = argv[index];
-        if (option == "--order") {
+        if (option == "--safe-mode" || option == "-s") {
+            options.safeMode = true;
+        } else if (option == "--order") {
             if (index + 1 >= argc) {
                 throw std::invalid_argument("--order requires C or F");
             }
@@ -71,10 +73,15 @@ Options parseOptions(int argc, char** argv) {
             options.interactive = false;
         } else if (option == "--help" || option == "-h") {
             throw std::invalid_argument(
-                "usage: cgnsviz FILE [--order C|F] [--page-size N] [--payload-limit N] [--max-chars N] [--non-interactive]");
+                "usage: cgnsviz [--safe-mode] FILE [--order C|F] [--page-size N] [--payload-limit N] [--max-chars N] [--non-interactive]");
+        } else if (options.filename.empty()) {
+            options.filename = option;
         } else {
             throw std::invalid_argument("unknown option: " + option);
         }
+    }
+    if (options.filename.empty()) {
+        throw std::invalid_argument("a CGNS/HDF5 FILE is required");
     }
     return options;
 }
@@ -84,11 +91,12 @@ Options parseOptions(int argc, char** argv) {
 int main(int argc, char** argv) {
     try {
         if (argc == 2 && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h")) {
-            std::cout << "usage: cgnsviz FILE [--order C|F] [--page-size N] [--payload-limit N] [--max-chars N] [--non-interactive]\n";
+            std::cout << "usage: cgnsviz [--safe-mode] FILE [--order C|F] [--page-size N] [--payload-limit N] [--max-chars N] [--non-interactive]\n";
             return 0;
         }
         const Options options = parseOptions(argc, argv);
-        auto reader = std::make_shared<io::hdf5::cgns::LazyHdf5Reader>(options.filename, options.order);
+        auto reader = std::make_shared<io::hdf5::cgns::LazyHdf5Reader>(
+            options.filename, options.order, options.safeMode);
         cgnsviz::terminal::TerminalModel model(
             reader,
             options.pageSize,

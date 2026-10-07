@@ -594,6 +594,10 @@ class Node:
         Lazy readers can report ``False`` without reading the payload. Calling
         :meth:`Node.data` or :meth:`Node.ensure_data_loaded` materializes it.
         """
+    def unload_data(self) -> None:
+        """
+        Release a materialized payload when the attached backend supports reloading it.
+        """
     def data_is_scalar(self) -> bool:
         """
         Return whether the payload is scalar. Lazy backends may answer this from

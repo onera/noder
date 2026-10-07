@@ -71,6 +71,9 @@ public:
      */
     virtual void dataAssigned(Node& /*node*/) {}
 
+    /** @brief Discard a materialized payload while retaining lazy metadata. */
+    virtual void dataUnloaded(Node& /*node*/) {}
+
     /**
      * @brief Temporarily release resources that prevent an external writer
      * from opening the source file for update.

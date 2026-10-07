@@ -16,6 +16,7 @@ PYBIND11_MODULE(core, m) {
 
     // Keep the core extension rebuildable when Node's public Python surface changes.
     // The Node binding also exposes lazy lifecycle helpers.
+    // The binding surface includes payload unloading for the Qt editor.
 
     m.def(
         "registerDefaultFactory",
@@ -54,6 +55,9 @@ filename : str
     Input file path.
 order : str, optional
     Memory order of arrays when read (``"C"`` or ``"F"``). Defaults to ``"F"`` (CGNS/Fortran convention).
+safe_mode : bool, optional
+    Replace malformed HDF5/CGNS nodes by ``Corrupted_t`` marker nodes instead
+    of raising. Defaults to ``False``.
 
 Returns
 -------
@@ -67,7 +71,8 @@ Example
    :pyobject: test_read
 )doc",
         py::arg("filename"),
-        py::arg("order")='F');
+        py::arg("order")='F',
+        py::arg("safe_mode")=false);
     #ifdef ENABLE_HDF5_IO
     bindLazyHdf5Reader(io_m);
     // The lazy reader owns its HDF5 lifetime and exposes explicit close/open

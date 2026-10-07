@@ -124,6 +124,54 @@ def _write_root_search_file(filename: Path) -> None:
             zone.attrs["type"] = np.bytes_("MT")
 
 
+def _write_safe_mode_file(filename: Path) -> None:
+    h5py = pytest.importorskip("h5py")
+    with h5py.File(filename, "w", track_order=True) as h5file:
+        h5file.attrs["name"] = np.bytes_("HDF5 MotherNode")
+        h5file.attrs["label"] = np.bytes_("Root Node of HDF5 File")
+        h5file.attrs["type"] = np.bytes_("MT")
+
+        malformed = h5file.create_group("MissingLabel", track_order=True)
+        malformed.attrs["name"] = np.bytes_("MissingLabel")
+        malformed.attrs["type"] = np.bytes_("MT")
+
+        valid = h5file.create_group("Valid", track_order=True)
+        valid.attrs["name"] = np.bytes_("Valid")
+        valid.attrs["label"] = np.bytes_("UserDefinedData_t")
+        valid.attrs["type"] = np.bytes_("MT")
+
+
+def test_cgnsviz_safe_mode_reports_corruption(tmp_path):
+    executable = _cgnsviz_executable()
+    if executable is None:
+        pytest.skip("cgnsviz executable is not available; configure with ENABLE_CGNSVIZ=ON")
+    filename = tmp_path / "cgnsviz-safe-mode.cgns"
+    _write_safe_mode_file(filename)
+
+    environment = os.environ.copy()
+    runtime_directories = [str(executable.parent)]
+    package_directory = executable.parents[1] / "noder"
+    if package_directory.is_dir():
+        runtime_directories.append(str(package_directory))
+    environment["PATH"] = os.pathsep.join(
+        runtime_directories + [environment.get("PATH", "")]
+    )
+    result = subprocess.run(
+        [str(executable), "-s", str(filename), "--non-interactive"],
+        input="q\n",
+        text=True,
+        capture_output=True,
+        check=False,
+        env=environment,
+    )
+
+    assert result.returncode == 0, result.stderr
+    plain_output = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", result.stdout)
+    assert "Corrupted" in plain_output
+    assert "Malformed nodes where found during reading, search using / t:Corrupted_t" in plain_output
+    assert "\x1b[31mMalformed nodes where found during reading" in result.stdout
+
+
 def test_cgnsviz_non_interactive_smoke(tmp_path):
     executable = _cgnsviz_executable()
     expected = os.environ.get("NODER_EXPECT_CGNSVIZ") == "1"
@@ -182,12 +230,12 @@ def test_cgnsviz_non_interactive_smoke(tmp_path):
     plain_output = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", result.stdout)
     assert "ZoneType  ZoneType_t  Structured" in plain_output
     assert "SmallNumbers  DataArray_t  Array int32 [ 0 1 2 3 4 5 6 7 8 ]" in plain_output
-    assert "payload (9 element(s), int32, shape=9): min=0, max=8, mean=4, median=4" in plain_output
+    assert "payload (9 element(s), int32, shape=9): mn=0 MX=8 avg=4 med=4" in plain_output
     assert "payload (9 element(s), int32, shape=9): Array int32" not in plain_output
     assert "0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29" in plain_output
     assert "[ 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 ]" not in plain_output
     assert "[too big size to show]" not in plain_output
-    assert "[min=0, max=74, mean=37, median=37]" in plain_output
+    assert "[mn=0 MX=74 avg=37 med=37]" in plain_output
     assert '[big str: 20 words "FirstWord ... LastWord"]' in plain_output
     assert "previous children hidden" in plain_output
     assert "FirstWord" in plain_output
@@ -327,7 +375,7 @@ def test_cgnsviz_multidimensional_payload_metadata(tmp_path):
     assert result.returncode == 0, result.stderr
     plain_output = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", result.stdout)
     assert "MatrixData  DataArray_t  Array int32 [ 0 1 2 3 4 5 ]" in plain_output
-    assert "payload (6 element(s), int32, shape=3x2): min=0, max=5, mean=2.5, median=2.5" in plain_output
+    assert "payload (6 element(s), int32, shape=3x2): mn=0 MX=5 avg=2.5 med=2.5" in plain_output
     assert "elements: 6    shape: 3x2" in plain_output
     payload_screens = [
         re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", screen)

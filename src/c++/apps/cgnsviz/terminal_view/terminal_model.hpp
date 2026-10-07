@@ -128,6 +128,8 @@ private:
     void renderNodes(std::ostream& output) const;
     void renderMatches(std::ostream& output) const;
     void renderPayload(std::ostream& output) const;
+    void refreshMalformedWarning() const;
+    void renderMalformedWarning(std::ostream& output) const;
 
     std::shared_ptr<io::hdf5::cgns::LazyHdf5Reader> _reader;
     std::shared_ptr<Node> _current;
@@ -148,6 +150,7 @@ private:
     std::size_t _searchResultIndex;
     std::size_t _firstVisibleMatchIndex;
     std::string _searchExpression;
+    mutable bool _malformedNodesFound;
 };
 
 /** @brief Run the platform-neutral key loop around a TerminalModel. */
