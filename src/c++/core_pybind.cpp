@@ -43,7 +43,9 @@ See C++ counterpart: :ref:`cpp-io-module`.
     #endif
     io_m.def(
         "read",
-        &io::read,
+        [](const std::string& filename, const char order, const bool safe_mode) {
+            return io::read(filename, order, safe_mode);
+        },
         R"doc(
 Read a Node hierarchy from file.
 
