@@ -687,6 +687,14 @@ public:
         }
     }
 
+    std::optional<bool> dataIsString(const Node& node) const override {
+        const Record& record = recordFor(node);
+        if (!record.hasData || record.isLink) {
+            return false;
+        }
+        return record.dataType == "C1";
+    }
+
     bool dataIsLoaded(const Node& node) const override {
         const Record& record = recordFor(node);
         return record.dataLoaded || !record.hasData || record.isLink;
@@ -695,7 +703,27 @@ public:
     void dataAssigned(Node& node) override {
         auto iterator = _records.find(&node);
         if (iterator != _records.end()) {
-            iterator->second.dataLoaded = true;
+            Record& record = iterator->second;
+            record.dataLoaded = true;
+            const auto array = std::dynamic_pointer_cast<Array>(node.dataPtr());
+            if (!array || array->isNone()) {
+                record.hasData = false;
+                record.dataType = "MT";
+            } else {
+                record.hasData = true;
+                if (array->hasString()) record.dataType = "C1";
+                else if (array->hasDataOfType<int8_t>()) record.dataType = "I1";
+                else if (array->hasDataOfType<int16_t>()) record.dataType = "I2";
+                else if (array->hasDataOfType<int32_t>()) record.dataType = "I4";
+                else if (array->hasDataOfType<int64_t>()) record.dataType = "I8";
+                else if (array->hasDataOfType<uint8_t>()) record.dataType = "U1";
+                else if (array->hasDataOfType<uint16_t>()) record.dataType = "U2";
+                else if (array->hasDataOfType<uint32_t>()) record.dataType = "U4";
+                else if (array->hasDataOfType<uint64_t>()) record.dataType = "U8";
+                else if (array->hasDataOfType<float>()) record.dataType = "R4";
+                else if (array->hasDataOfType<double>()) record.dataType = "R8";
+                else if (array->hasDataOfType<bool>()) record.dataType = "X1";
+            }
         }
     }
 

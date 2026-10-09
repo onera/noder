@@ -210,6 +210,8 @@ public:
      * the attached backend can answer from metadata.
      */
     std::optional<bool> dataIsScalar() const;
+    /** @brief Inspect whether the payload is string-like without loading it. */
+    std::optional<bool> dataIsString() const;
 
     /** @brief Inspect whether the payload has been materialized. */
     bool dataIsLoaded() const;

@@ -465,6 +465,28 @@ bool numericValue(const Data& data, long double& value) {
     return false;
 }
 
+class SearchPayloadGuard {
+public:
+    explicit SearchPayloadGuard(const Node& node)
+        : _node(node), _unload(node.hasData() && !node.dataIsLoaded()) {}
+
+    ~SearchPayloadGuard() {
+        if (_unload) {
+            try {
+                const_cast<Node&>(_node).unloadData();
+            } catch (...) {
+            }
+        }
+    }
+
+    SearchPayloadGuard(const SearchPayloadGuard&) = delete;
+    SearchPayloadGuard& operator=(const SearchPayloadGuard&) = delete;
+
+private:
+    const Node& _node;
+    bool _unload;
+};
+
 bool matchesAtom(const Atom& atom, const Node& node, const size_t level) {
     switch (atom.kind) {
         case AtomKind::Name:
@@ -486,6 +508,10 @@ bool matchesAtom(const Atom& atom, const Node& node, const size_t level) {
     }
 
     if (!atom.numeric) {
+        const std::optional<bool> isString = node.dataIsString();
+        if (isString.has_value() && !isString.value()) {
+            return false;
+        }
         const Data& data = node.data();
         return data.hasString() && globMatch(atom.pattern, data.extractString());
     }
@@ -499,16 +525,27 @@ bool matchesAtom(const Atom& atom, const Node& node, const size_t level) {
     return numericValue(data, value) && compare(value, atom.comparison, atom.numericValue);
 }
 
-bool matchesExpression(const std::shared_ptr<Expression>& expression, const Node& node, size_t level) {
+bool matchesExpressionImpl(
+    const std::shared_ptr<Expression>& expression,
+    const Node& node,
+    size_t level) {
     if (expression->kind == Expression::Kind::Atom) {
         return matchesAtom(expression->atom, node, level);
     }
     if (expression->kind == Expression::Kind::And) {
-        return matchesExpression(expression->left, node, level) &&
-            matchesExpression(expression->right, node, level);
+        return matchesExpressionImpl(expression->left, node, level) &&
+            matchesExpressionImpl(expression->right, node, level);
     }
-    return matchesExpression(expression->left, node, level) ||
-        matchesExpression(expression->right, node, level);
+    return matchesExpressionImpl(expression->left, node, level) ||
+        matchesExpressionImpl(expression->right, node, level);
+}
+
+bool matchesExpression(
+    const std::shared_ptr<Expression>& expression,
+    const Node& node,
+    const size_t level) {
+    const SearchPayloadGuard payloadGuard(node);
+    return matchesExpressionImpl(expression, node, level);
 }
 
 void appendUnique(

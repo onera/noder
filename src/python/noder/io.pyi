@@ -16,6 +16,8 @@ class LazyHdf5Reader:
     
     The returned root is a regular Node. Direct children and payloads are loaded
     on demand, so ``loaded_children()`` can be used for paged terminal views.
+    When ``safe_mode`` is true, malformed HDF5/CGNS nodes are replaced by
+    ``Corrupted_t`` marker nodes and reported through ``has_warnings()``.
     """
     def __init__(self, filename: str, order: str = 'F', safe_mode: bool = False) -> None:
         ...
@@ -27,15 +29,15 @@ class LazyHdf5Reader:
         ...
     def filename(self) -> str:
         ...
-    def is_open(self) -> bool:
-        ...
     def has_warnings(self) -> bool:
         ...
-    def safe_mode(self) -> bool:
+    def is_open(self) -> bool:
         ...
     def order(self) -> str:
         ...
     def root(self) -> Node:
+        ...
+    def safe_mode(self) -> bool:
         ...
 def read(filename: str, order: str = 'F', safe_mode: bool = False) -> Node:
     """
@@ -49,6 +51,9 @@ def read(filename: str, order: str = 'F', safe_mode: bool = False) -> Node:
         Input file path.
     order : str, optional
         Memory order of arrays when read (``"C"`` or ``"F"``). Defaults to ``"F"`` (CGNS/Fortran convention).
+    safe_mode : bool, optional
+        Replace malformed HDF5/CGNS nodes by ``Corrupted_t`` marker nodes instead
+        of raising. Defaults to ``False``.
     
     Returns
     -------

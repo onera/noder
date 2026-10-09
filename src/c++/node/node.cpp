@@ -594,6 +594,22 @@ std::optional<bool> Node::dataIsScalar() const {
     return false;
 }
 
+std::optional<bool> Node::dataIsString() const {
+    if (_expansion) {
+        const std::optional<bool> result = _expansion->dataIsString(*this);
+        if (result.has_value()) {
+            return result;
+        }
+        if (!_data || _data->isNone()) {
+            return std::nullopt;
+        }
+    }
+    if (_data && !_data->isNone()) {
+        return _data->hasString();
+    }
+    return false;
+}
+
 bool Node::dataIsLoaded() const {
     if (_expansion) {
         return _expansion->dataIsLoaded(*this);

@@ -59,6 +59,11 @@ public:
         return std::nullopt;
     }
 
+    /** @brief Inspect whether a payload is string-like without loading it. */
+    virtual std::optional<bool> dataIsString(const Node& /*node*/) const {
+        return std::nullopt;
+    }
+
     /** @brief Inspect whether the payload has already been materialized. */
     virtual bool dataIsLoaded(const Node& /*node*/) const { return true; }
 

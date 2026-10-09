@@ -594,14 +594,14 @@ class Node:
         Lazy readers can report ``False`` without reading the payload. Calling
         :meth:`Node.data` or :meth:`Node.ensure_data_loaded` materializes it.
         """
-    def unload_data(self) -> None:
-        """
-        Release a materialized payload when the attached backend supports reloading it.
-        """
     def data_is_scalar(self) -> bool:
         """
         Return whether the payload is scalar. Lazy backends may answer this from
         metadata without loading payload values.
+        """
+    def data_is_string(self) -> bool:
+        """
+        Return whether the payload is string-like, using lazy metadata when available.
         """
     def descendants(self) -> list[Node]:
         """
@@ -844,6 +844,12 @@ class Node:
         Return node type.
         
         See C++ counterpart: :ref:`cpp-node-type`.
+        """
+    def unload_data(self) -> None:
+        """
+        Release a materialized payload when the attached backend supports reloading it.
+
+        Lazy HDF5 nodes keep their metadata and become loadable again on demand.
         """
     def write(self, arg0: str) -> None:
         """

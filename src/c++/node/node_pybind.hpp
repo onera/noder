@@ -606,6 +606,11 @@ Return whether a payload exists without forcing lazy payload loading.
 Return whether the payload is scalar. Lazy backends may answer this from
 metadata without loading payload values.
 )doc")
+        .def("data_is_string", [](const Node& node) {
+            return node.dataIsString().value_or(false);
+        }, R"doc(
+Return whether the payload is string-like, using lazy metadata when available.
+)doc")
         .def("data_is_loaded", &Node::dataIsLoaded, R"doc(
 Return whether the payload has already been materialized.
 

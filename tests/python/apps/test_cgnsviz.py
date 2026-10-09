@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 from typing import Optional
 
 import numpy as np
@@ -197,6 +198,7 @@ def test_cgnsviz_non_interactive_smoke(tmp_path):
     result = subprocess.run(
         [str(executable), str(filename), "--non-interactive", "--max-chars", "20"],
         input=(
+            "j\n"
             "d\n"
             "j\n"
             "d\n"
@@ -333,14 +335,57 @@ def test_cgnsviz_saves_payload_from_all_views(tmp_path):
         )
         assert result.returncode == 0, result.stderr
 
-    run("\x13q\n")
+    run("j\x13q\n")
     assert (tmp_path / "cgnsviz-data-ZoneType.txt").read_text() == "Structured\n"
 
     run("l\n/n:NestedLeaf*\nm\x13q\n")
     assert (tmp_path / "cgnsviz-data-NestedLeaf.txt").read_text() == "leaf-one\n"
 
-    run("l\nl\n\x1b[F\nD\n\x13q\n")
+    run("l\nl\nl\n\x1b[F\nD\n\x13q\n")
     assert (tmp_path / "cgnsviz-data-MatrixData.txt").read_text() == "0 1 2 3 4 5\n"
+
+
+def test_cgnsviz_edits_payload_in_place(tmp_path):
+    executable = _cgnsviz_executable()
+    if executable is None:
+        pytest.skip("cgnsviz executable is not available; configure with ENABLE_CGNSVIZ=ON")
+
+    filename = tmp_path / "cgnsviz-edit.cgns"
+    _write_smoke_file(filename)
+    environment = os.environ.copy()
+    repository_root = Path(__file__).resolve().parents[3]
+    package_root = repository_root / "dist" / "dev"
+    runtime_directories = [
+        str(executable.parent),
+        str(package_root / "noder"),
+        str(Path(sys.executable).parent),
+    ]
+    environment["PATH"] = os.pathsep.join(
+        runtime_directories + [environment.get("PATH", "")]
+    )
+    environment["PYTHONPATH"] = os.pathsep.join(
+        [str(package_root), environment.get("PYTHONPATH", "")]
+    )
+    environment.pop("NODER_PYTHON_EXECUTABLE", None)
+
+    result = subprocess.run(
+        [str(executable), str(filename), "--non-interactive"],
+        input="j\nj\nD\ne np.arange(4, dtype=np.int32) + 10\nq\n",
+        text=True,
+        capture_output=True,
+        check=False,
+        cwd=tmp_path,
+        env=environment,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Payload updated in-place." in result.stdout
+    h5py = pytest.importorskip("h5py")
+    with h5py.File(filename, "r") as h5file:
+        np.testing.assert_array_equal(
+            h5file["SmallNumbers"][" data"][...],
+            np.arange(4, dtype=np.int32) + 10,
+        )
 
 
 def test_cgnsviz_multidimensional_payload_metadata(tmp_path):
@@ -358,6 +403,7 @@ def test_cgnsviz_multidimensional_payload_metadata(tmp_path):
     result = subprocess.run(
         [str(executable), str(filename), "--non-interactive"],
         input=(
+            "l\n"
             "l\n"
             "l\n"
             "\x1b[F\n"
@@ -403,6 +449,10 @@ def test_cgnsviz_ctrl_home_searches_from_root(tmp_path):
         [str(executable), str(filename), "--non-interactive"],
         input=(
             "/t:Zone_t\n"
+            "\x1b"
+            "j\n"
+            "/t:Zone_t\n"
+            "\x1b"
             "\x1b[1;5H"
             "/t:Zone_t\n"
             "q\n"
@@ -419,3 +469,30 @@ def test_cgnsviz_ctrl_home_searches_from_root(tmp_path):
     assert "ZoneOne" in result.stdout
     assert "ZoneTwo" in result.stdout
     assert "selection: root" in result.stdout
+
+
+def test_cgnsviz_left_from_root_child_selects_root(tmp_path):
+    executable = _cgnsviz_executable()
+    if executable is None:
+        pytest.skip("cgnsviz executable is not available; configure with ENABLE_CGNSVIZ=ON")
+
+    filename = tmp_path / "cgnsviz-root-left.cgns"
+    _write_smoke_file(filename)
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join(
+        [str(executable.parent), environment.get("PATH", "")]
+    )
+
+    result = subprocess.run(
+        [str(executable), str(filename), "--non-interactive"],
+        input="j\nh\nq\n",
+        text=True,
+        capture_output=True,
+        check=False,
+        env=environment,
+    )
+
+    assert result.returncode == 0, result.stderr
+    final_screen = result.stdout.rsplit("\x1b[2J\x1b[H", maxsplit=1)[-1]
+    assert "selection: root" in final_screen
+    assert "Already at the root node." not in result.stdout

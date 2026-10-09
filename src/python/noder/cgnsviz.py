@@ -29,6 +29,7 @@ def main() -> int:
     environment["PATH"] = os.pathsep.join(
         [str(executable.parent), environment.get("PATH", "")]
     )
+    environment["NODER_PYTHON_EXECUTABLE"] = sys.executable
     arguments = [str(executable), *sys.argv[1:]]
     try:
         return subprocess.run(arguments, env=environment, check=False).returncode

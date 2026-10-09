@@ -23,6 +23,7 @@ enum class Key {
     PageDown,
     Home,
     End,
+    Delete,
     SelectRoot,
     Left,
     Right,
@@ -30,6 +31,7 @@ enum class Key {
     ShiftEnter,
     SearchInward,
     SearchOutward,
+    EditPayload,
     ShowMatches,
     Escape,
     Quit,
@@ -77,6 +79,12 @@ public:
 
     /** @brief Search from the selected node using one directional predicate block. */
     void search(const std::string& predicate, bool outward);
+
+    /** @brief Whether the selected node can be edited from the payload view. */
+    bool canEditPayload() const;
+
+    /** @brief Evaluate and persist a restricted payload expression in-place. */
+    void editPayload(const std::string& expression);
 
 private:
     enum class ViewMode {
