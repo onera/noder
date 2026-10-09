@@ -16,13 +16,13 @@ jobs:
         include:
           - os: ubuntu-latest
             cibuildwheel_version: "4.0.0"
-            cibw_build: "cp313-*"
+            cibw_build: "cp314-*"
           - os: windows-latest
             cibuildwheel_version: "4.0.0"
-            cibw_build: "cp313-*"
+            cibw_build: "cp314-*"
           - os: macos-latest
             cibuildwheel_version: "4.0.0"
-            cibw_build: "cp313-*"
+            cibw_build: "cp314-*"
           - os: ubuntu-latest
             cibuildwheel_version: "3.4.1"
             cibw_build: "cp38-*"
@@ -33,7 +33,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13" # Used for bootstrapping cibuildwheel
+          python-version: "3.14" # Used for bootstrapping cibuildwheel
 
       - name: Install build dependencies
         run: |
