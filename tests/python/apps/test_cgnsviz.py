@@ -1,4 +1,4 @@
-"""Smoke tests for the optional cgnsviz terminal executable."""
+"""Smoke tests for the optional cgnsvi terminal executable."""
 
 import os
 from pathlib import Path
@@ -12,21 +12,21 @@ import numpy as np
 import pytest
 
 
-def _cgnsviz_executable() -> Optional[Path]:
-    configured = os.environ.get("CGNSVIZ_EXECUTABLE")
+def _cgnsvi_executable() -> Optional[Path]:
+    configured = os.environ.get("CGNSVI_EXECUTABLE")
     candidates = []
     if configured:
         candidates.append(Path(configured))
 
-    on_path = shutil.which("cgnsviz")
+    on_path = shutil.which("cgnsvi")
     if on_path:
         candidates.append(Path(on_path))
 
     repository_root = Path(__file__).resolve().parents[3]
-    candidates.append(repository_root / "dist" / "dev" / "noder" / "cgnsviz.exe")
-    candidates.append(repository_root / "dist" / "dev" / "noder" / "cgnsviz")
-    candidates.append(repository_root / "build" / "dev" / "Release" / "cgnsviz.exe")
-    candidates.append(repository_root / "build" / "dev" / "Release" / "cgnsviz")
+    candidates.append(repository_root / "dist" / "dev" / "noder" / "cgnsvi.exe")
+    candidates.append(repository_root / "dist" / "dev" / "noder" / "cgnsvi")
+    candidates.append(repository_root / "build" / "dev" / "Release" / "cgnsvi.exe")
+    candidates.append(repository_root / "build" / "dev" / "Release" / "cgnsvi")
 
     for candidate in candidates:
         if candidate.is_file():
@@ -142,11 +142,11 @@ def _write_safe_mode_file(filename: Path) -> None:
         valid.attrs["type"] = np.bytes_("MT")
 
 
-def test_cgnsviz_safe_mode_reports_corruption(tmp_path):
-    executable = _cgnsviz_executable()
+def test_cgnsvi_safe_mode_reports_corruption(tmp_path):
+    executable = _cgnsvi_executable()
     if executable is None:
-        pytest.skip("cgnsviz executable is not available; configure with ENABLE_CGNSVIZ=ON")
-    filename = tmp_path / "cgnsviz-safe-mode.cgns"
+        pytest.skip("cgnsvi executable is not available; configure with ENABLE_CGNSVI=ON")
+    filename = tmp_path / "cgnsvi-safe-mode.cgns"
     _write_safe_mode_file(filename)
 
     environment = os.environ.copy()
@@ -173,16 +173,16 @@ def test_cgnsviz_safe_mode_reports_corruption(tmp_path):
     assert "\x1b[31mMalformed nodes where found during reading" in result.stdout
 
 
-def test_cgnsviz_non_interactive_smoke(tmp_path):
-    executable = _cgnsviz_executable()
-    expected = os.environ.get("NODER_EXPECT_CGNSVIZ") == "1"
+def test_cgnsvi_non_interactive_smoke(tmp_path):
+    executable = _cgnsvi_executable()
+    expected = os.environ.get("NODER_EXPECT_CGNSVI") == "1"
     expected = expected or os.environ.get("CI", "").lower() == "true"
     if executable is None and expected:
-        pytest.fail("cgnsviz executable was expected but is not available")
+        pytest.fail("cgnsvi executable was expected but is not available")
     if executable is None:
-        pytest.skip("cgnsviz executable is not available; configure with ENABLE_CGNSVIZ=ON")
+        pytest.skip("cgnsvi executable is not available; configure with ENABLE_CGNSVI=ON")
     assert executable is not None
-    filename = tmp_path / "cgnsviz-smoke.cgns"
+    filename = tmp_path / "cgnsvi-smoke.cgns"
     _write_smoke_file(filename)
 
     environment = os.environ.copy()
@@ -219,15 +219,15 @@ def test_cgnsviz_non_interactive_smoke(tmp_path):
     )
 
     assert result.returncode == 0, result.stderr
-    assert "cgnsviz" in result.stdout
+    assert "cgnsvi" in result.stdout
     assert re.search(
-        r"CGNSviz from package NODER v[0-9]+\.[0-9]+\.[0-9]+ \(c\) ONERA",
+        r"CGNSvi from package NODER v[0-9]+\.[0-9]+\.[0-9]+ \(c\) ONERA",
         result.stdout,
     )
     assert "SmokeData" in result.stdout
     assert "DataArray_t" in result.stdout
     assert "[press d to show payload]" in result.stdout
-    assert "cgnsviz  payload view" in result.stdout
+    assert "cgnsvi  payload view" in result.stdout
     assert "[Escape] back" in result.stdout
     plain_output = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", result.stdout)
     assert "ZoneType  ZoneType_t  Structured" in plain_output
@@ -248,12 +248,12 @@ def test_cgnsviz_non_interactive_smoke(tmp_path):
     )
 
 
-def test_cgnsviz_predicate_search_smoke(tmp_path):
-    executable = _cgnsviz_executable()
+def test_cgnsvi_predicate_search_smoke(tmp_path):
+    executable = _cgnsvi_executable()
     if executable is None:
-        pytest.skip("cgnsviz executable is not available; configure with ENABLE_CGNSVIZ=ON")
+        pytest.skip("cgnsvi executable is not available; configure with ENABLE_CGNSVI=ON")
 
-    filename = tmp_path / "cgnsviz-search.cgns"
+    filename = tmp_path / "cgnsvi-search.cgns"
     _write_smoke_file(filename)
     environment = os.environ.copy()
     environment["PATH"] = os.pathsep.join(
@@ -287,12 +287,12 @@ def test_cgnsviz_predicate_search_smoke(tmp_path):
     )
 
     assert result.returncode == 0, result.stderr
-    assert "cgnsviz  matches view" in result.stdout
+    assert "cgnsvi  matches view" in result.stdout
     assert "search: /n:NestedLeaf*    matches: 2" in result.stdout
     assert "Search /n:NestedLeaf*: 2 matches." in result.stdout
     assert "NestedLeaf" in result.stdout
     assert "leaf-two" in result.stdout
-    assert "cgnsviz  payload view" in result.stdout
+    assert "cgnsvi  payload view" in result.stdout
     assert "[Escape] back to node view" in result.stdout
     assert "[m] matches" in result.stdout
     assert "[Escape] node view" in result.stdout
@@ -307,16 +307,16 @@ def test_cgnsviz_predicate_search_smoke(tmp_path):
     plain_output = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", result.stdout)
     assert "NestedLeafTwo  UserDefinedData_t  ZoneType/NestedSmoke" in plain_output
     last_screen = result.stdout.rsplit("\x1b[2J\x1b[H", maxsplit=1)[-1]
-    assert "cgnsviz  matches view" not in last_screen
+    assert "cgnsvi  matches view" not in last_screen
     assert "path:" in last_screen
 
 
-def test_cgnsviz_saves_payload_from_all_views(tmp_path):
-    executable = _cgnsviz_executable()
+def test_cgnsvi_saves_payload_from_all_views(tmp_path):
+    executable = _cgnsvi_executable()
     if executable is None:
-        pytest.skip("cgnsviz executable is not available; configure with ENABLE_CGNSVIZ=ON")
+        pytest.skip("cgnsvi executable is not available; configure with ENABLE_CGNSVI=ON")
 
-    filename = tmp_path / "cgnsviz-save.cgns"
+    filename = tmp_path / "cgnsvi-save.cgns"
     _write_smoke_file(filename)
     environment = os.environ.copy()
     environment["PATH"] = os.pathsep.join(
@@ -336,21 +336,21 @@ def test_cgnsviz_saves_payload_from_all_views(tmp_path):
         assert result.returncode == 0, result.stderr
 
     run("j\x13q\n")
-    assert (tmp_path / "cgnsviz-data-ZoneType.txt").read_text() == "Structured\n"
+    assert (tmp_path / "cgnsvi-data-ZoneType.txt").read_text() == "Structured\n"
 
     run("l\n/n:NestedLeaf*\nm\x13q\n")
-    assert (tmp_path / "cgnsviz-data-NestedLeaf.txt").read_text() == "leaf-one\n"
+    assert (tmp_path / "cgnsvi-data-NestedLeaf.txt").read_text() == "leaf-one\n"
 
     run("l\nl\nl\n\x1b[F\nD\n\x13q\n")
-    assert (tmp_path / "cgnsviz-data-MatrixData.txt").read_text() == "0 1 2 3 4 5\n"
+    assert (tmp_path / "cgnsvi-data-MatrixData.txt").read_text() == "0 1 2 3 4 5\n"
 
 
-def test_cgnsviz_edits_payload_in_place(tmp_path):
-    executable = _cgnsviz_executable()
+def test_cgnsvi_edits_payload_in_place(tmp_path):
+    executable = _cgnsvi_executable()
     if executable is None:
-        pytest.skip("cgnsviz executable is not available; configure with ENABLE_CGNSVIZ=ON")
+        pytest.skip("cgnsvi executable is not available; configure with ENABLE_CGNSVI=ON")
 
-    filename = tmp_path / "cgnsviz-edit.cgns"
+    filename = tmp_path / "cgnsvi-edit.cgns"
     _write_smoke_file(filename)
     environment = os.environ.copy()
     repository_root = Path(__file__).resolve().parents[3]
@@ -388,12 +388,12 @@ def test_cgnsviz_edits_payload_in_place(tmp_path):
         )
 
 
-def test_cgnsviz_multidimensional_payload_metadata(tmp_path):
-    executable = _cgnsviz_executable()
+def test_cgnsvi_multidimensional_payload_metadata(tmp_path):
+    executable = _cgnsvi_executable()
     if executable is None:
-        pytest.skip("cgnsviz executable is not available; configure with ENABLE_CGNSVIZ=ON")
+        pytest.skip("cgnsvi executable is not available; configure with ENABLE_CGNSVI=ON")
 
-    filename = tmp_path / "cgnsviz-multidimensional.cgns"
+    filename = tmp_path / "cgnsvi-multidimensional.cgns"
     _write_smoke_file(filename)
     environment = os.environ.copy()
     environment["PATH"] = os.pathsep.join(
@@ -426,19 +426,19 @@ def test_cgnsviz_multidimensional_payload_metadata(tmp_path):
     payload_screens = [
         re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", screen)
         for screen in result.stdout.split("\x1b[2J\x1b[H")
-        if "cgnsviz  payload view" in screen
+        if "cgnsvi  payload view" in screen
     ]
     assert payload_screens
     assert "0 1 2 3 4 5" in payload_screens[-1]
     assert "[ 0 1 2 3 4 5 ]" not in payload_screens[-1]
 
 
-def test_cgnsviz_ctrl_home_searches_from_root(tmp_path):
-    executable = _cgnsviz_executable()
+def test_cgnsvi_ctrl_home_searches_from_root(tmp_path):
+    executable = _cgnsvi_executable()
     if executable is None:
-        pytest.skip("cgnsviz executable is not available; configure with ENABLE_CGNSVIZ=ON")
+        pytest.skip("cgnsvi executable is not available; configure with ENABLE_CGNSVI=ON")
 
-    filename = tmp_path / "cgnsviz-root-search.cgns"
+    filename = tmp_path / "cgnsvi-root-search.cgns"
     _write_root_search_file(filename)
     environment = os.environ.copy()
     environment["PATH"] = os.pathsep.join(
@@ -471,12 +471,12 @@ def test_cgnsviz_ctrl_home_searches_from_root(tmp_path):
     assert "selection: root" in result.stdout
 
 
-def test_cgnsviz_left_from_root_child_selects_root(tmp_path):
-    executable = _cgnsviz_executable()
+def test_cgnsvi_left_from_root_child_selects_root(tmp_path):
+    executable = _cgnsvi_executable()
     if executable is None:
-        pytest.skip("cgnsviz executable is not available; configure with ENABLE_CGNSVIZ=ON")
+        pytest.skip("cgnsvi executable is not available; configure with ENABLE_CGNSVI=ON")
 
-    filename = tmp_path / "cgnsviz-root-left.cgns"
+    filename = tmp_path / "cgnsvi-root-left.cgns"
     _write_smoke_file(filename)
     environment = os.environ.copy()
     environment["PATH"] = os.pathsep.join(

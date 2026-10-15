@@ -143,7 +143,7 @@ file(MAKE_DIRECTORY ${VERSIONED_OUTPUT_DIR})
 message(STATUS "VERSIONED_OUTPUT_DIR: ${VERSIONED_OUTPUT_DIR}")
 
 # MPI is deliberately opt-in.  Merely finding MPI on a build machine must not
-# make the regular noder/cgnsviz build depend on it: cgnsviz does not create an
+# make the regular noder/cgnsvi build depend on it: cgnsvi does not create an
 # MPI session, and parallel HDF5 may require one before it can be used.
 option(ENABLE_MPI "Enable MPI support for the noder core" OFF)
 if(ENABLE_MPI)
@@ -393,33 +393,33 @@ if(APPLE)
     target_link_options(_cgns PRIVATE "-Wl,-force_load,$<TARGET_FILE:core_shared>")
 endif()
 
-option(ENABLE_CGNSVIZ "Build the optional terminal CGNS/HDF5 explorer" ON)
-if(ENABLE_CGNSVIZ)
+option(ENABLE_CGNSVI "Build the optional terminal CGNS/HDF5 explorer" ON)
+if(ENABLE_CGNSVI)
     if(NOT ENABLE_HDF5_IO)
-        message(FATAL_ERROR "ENABLE_CGNSVIZ requires ENABLE_HDF5_IO")
+        message(FATAL_ERROR "ENABLE_CGNSVI requires ENABLE_HDF5_IO")
     endif()
 
-    add_executable(cgnsviz ${APP_CPP_FILES})
-    target_compile_definitions(cgnsviz PRIVATE
+    add_executable(cgnsvi ${APP_CPP_FILES})
+    target_compile_definitions(cgnsvi PRIVATE
         NODER_VERSION="${NODER_CMAKE_PACKAGE_VERSION}"
     )
-    target_include_directories(cgnsviz PRIVATE
+    target_include_directories(cgnsvi PRIVATE
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/src/c++
     )
-    target_link_libraries(cgnsviz PRIVATE core_shared ${HDF5_LIBRARIES})
+    target_link_libraries(cgnsvi PRIVATE core_shared ${HDF5_LIBRARIES})
     if(STDCXXFS_LIBRARY)
-        target_link_libraries(cgnsviz PRIVATE ${STDCXXFS_LIBRARY})
+        target_link_libraries(cgnsvi PRIVATE ${STDCXXFS_LIBRARY})
     endif()
     if(MSVC)
-        set_target_properties(cgnsviz PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS OFF)
+        set_target_properties(cgnsvi PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS OFF)
     elseif(APPLE)
-        set_target_properties(cgnsviz PROPERTIES
+        set_target_properties(cgnsvi PROPERTIES
             INSTALL_RPATH "@loader_path"
             BUILD_WITH_INSTALL_RPATH TRUE
         )
     elseif(UNIX)
-        set_target_properties(cgnsviz PROPERTIES
+        set_target_properties(cgnsvi PROPERTIES
             INSTALL_RPATH "$ORIGIN"
             BUILD_WITH_INSTALL_RPATH TRUE
         )
@@ -427,7 +427,7 @@ if(ENABLE_CGNSVIZ)
     # Keep the native executable beside core_shared and the Python launcher.
     # The PEP 621 console-script entry point exposes it through the active
     # Python environment's Scripts/bin directory without duplicating DLLs.
-    install(TARGETS cgnsviz RUNTIME DESTINATION ${NODER_PACKAGE_DIR})
+    install(TARGETS cgnsvi RUNTIME DESTINATION ${NODER_PACKAGE_DIR})
 endif()
 
 install(TARGETS core_shared EXPORT noderTargets DESTINATION ${NODER_PACKAGE_DIR})

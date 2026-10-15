@@ -1,4 +1,4 @@
-#include "apps/cgnsviz/terminal_view/terminal_model.hpp"
+#include "apps/cgnsvi/terminal_view/terminal_model.hpp"
 
 #include "array/array.hpp"
 
@@ -42,7 +42,7 @@
 #define NODER_VERSION "unknown"
 #endif
 
-namespace cgnsviz::terminal {
+namespace cgnsvi::terminal {
 
 namespace {
 
@@ -126,7 +126,7 @@ int runPayloadEvaluator(const std::string& python,
         python,
         "-m",
         "noder.payload_expression",
-        "--cgnsviz-evaluate",
+        "--cgnsvi-evaluate",
         expressionPath.string(),
         filename,
         nodePath,
@@ -174,7 +174,7 @@ int runPayloadEvaluator(const std::string& python,
     return static_cast<int>(exitCode);
 #else
     const std::string command =
-        quoteCommandArgument(python) + " -m noder.payload_expression --cgnsviz-evaluate " +
+        quoteCommandArgument(python) + " -m noder.payload_expression --cgnsvi-evaluate " +
         quoteCommandArgument(expressionPath.string()) + " " +
         quoteCommandArgument(filename) + " " +
         quoteCommandArgument(nodePath) + " " +
@@ -197,7 +197,7 @@ public:
         const auto stamp = static_cast<unsigned long long>(
             std::chrono::steady_clock::now().time_since_epoch().count());
         _path = std::filesystem::temp_directory_path() /
-            ("noder-cgnsviz-edit-" + std::to_string(processId) + "-" +
+            ("noder-cgnsvi-edit-" + std::to_string(processId) + "-" +
              std::to_string(stamp) + "-" + std::to_string(sequence++));
         if (!std::filesystem::create_directory(_path)) {
             throw std::runtime_error("could not create a temporary payload-edit directory");
@@ -535,7 +535,7 @@ std::string payloadFileName(const std::string& nodeName) {
     if (safeName.empty()) {
         safeName = "unnamed";
     }
-    return "cgnsviz-data-" + safeName + ".txt";
+    return "cgnsvi-data-" + safeName + ".txt";
 }
 
 std::string stringMarkerText(const std::string& value, const std::size_t maxCharacters) {
@@ -1559,7 +1559,7 @@ void TerminalModel::renderNodes(std::ostream& output) const {
         visibleRows > remaining ? std::numeric_limits<std::size_t>::max() : _firstVisibleIndex + visibleRows);
 
     output << "\x1b[2J\x1b[H";
-    output << "CGNSviz from package NODER v" << NODER_VERSION << " (c) ONERA\n";
+    output << "CGNSvi from package NODER v" << NODER_VERSION << " (c) ONERA\n";
     output << "file:  " << _reader->filename() << "\n";
     output << "path: " << (_rootSelected ? "\033[1;7m" : "\033[1;4m")
            << _current->path() << "\033[0m\n";
@@ -1607,7 +1607,7 @@ void TerminalModel::renderMatches(std::ostream& output) const {
     const std::size_t visibleRows = matchViewportRows();
 
     output << "\x1b[2J\x1b[H";
-    output << "cgnsviz  matches view\n";
+    output << "cgnsvi  matches view\n";
     output << "search: " << _searchExpression << "    matches: "
            << _searchResults.size() << "\n\n";
 
@@ -1666,15 +1666,15 @@ void TerminalModel::renderPayload(std::ostream& output) const {
 
     output << "\x1b[2J\x1b[H";
     if (!compact) {
-        output << "cgnsviz  payload view\n";
+        output << "cgnsvi  payload view\n";
         output << "path: " << path << "\n";
         output << metadata << "\n\n";
     } else if (_viewportRows >= 4) {
-        output << "cgnsviz  payload view\n";
+        output << "cgnsvi  payload view\n";
         output << "path: " << path << "\n";
         output << metadata << "\n";
     } else if (_viewportRows == 3) {
-        output << "cgnsviz  payload view  path: " << path << "\n";
+        output << "cgnsvi  payload view  path: " << path << "\n";
         output << metadata << "\n";
     } else if (_viewportRows == 2) {
         output << metadata << "\n";
@@ -1745,10 +1745,10 @@ class RawTerminal {
 public:
     RawTerminal() {
         if (!isatty(STDIN_FILENO)) {
-            throw std::runtime_error("cgnsviz requires an interactive terminal");
+            throw std::runtime_error("cgnsvi requires an interactive terminal");
         }
         if (tcgetattr(STDIN_FILENO, &_original) != 0) {
-            throw std::runtime_error("cgnsviz: cannot read terminal settings");
+            throw std::runtime_error("cgnsvi: cannot read terminal settings");
         }
         termios raw = _original;
         raw.c_lflag &= static_cast<tcflag_t>(~(ICANON | ECHO));
@@ -1756,7 +1756,7 @@ public:
         raw.c_cc[VMIN] = 1;
         raw.c_cc[VTIME] = 0;
         if (tcsetattr(STDIN_FILENO, TCSANOW, &raw) != 0) {
-            throw std::runtime_error("cgnsviz: cannot enable raw terminal mode");
+            throw std::runtime_error("cgnsvi: cannot enable raw terminal mode");
         }
     }
 
@@ -2121,4 +2121,4 @@ int runInteractiveTerminal(TerminalModel& model) {
     }
 }
 
-} // namespace cgnsviz::terminal
+} // namespace cgnsvi::terminal

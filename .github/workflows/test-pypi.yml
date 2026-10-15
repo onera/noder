@@ -70,7 +70,7 @@ jobs:
           CIBW_BUILD: ${{ matrix.cibw_build }}
           CIBW_SKIP: "*-manylinux_i686 *-musllinux* *-win32 *-pp*"
           CIBW_CONFIG_SETTINGS: >-
-            cmake.define.ENABLE_CGNSVIZ=ON
+            cmake.define.ENABLE_CGNSVI=ON
             cmake.define.ENABLE_MPI=OFF
           CIBW_BEFORE_ALL_LINUX: >
             yum install -y epel-release &&
@@ -78,16 +78,16 @@ jobs:
             find /usr -name hdf5.h &&
             find /usr -name libhdf5.so
           CIBW_ENVIRONMENT_LINUX: >
-            NODER_EXPECT_CGNSVIZ=1
+            NODER_EXPECT_CGNSVI=1
             CMAKE_PREFIX_PATH="/usr"
             CMAKE_INCLUDE_PATH="/usr/include"
             CMAKE_LIBRARY_PATH="/usr/lib64"
           CIBW_ENVIRONMENT_MACOS: >
-            NODER_EXPECT_CGNSVIZ=1
+            NODER_EXPECT_CGNSVI=1
             MACOSX_DEPLOYMENT_TARGET=14.0
             CMAKE_OSX_DEPLOYMENT_TARGET=14.0
           CIBW_ENVIRONMENT_WINDOWS: >
-            NODER_EXPECT_CGNSVIZ=1
+            NODER_EXPECT_CGNSVI=1
             HDF5_C_LIBRARY=%HDF5_C_LIBRARY%
             HDF5_INCLUDE_DIR=%HDF5_INCLUDE_DIR%
             HDF5_DIR=%HDF5_DIR%

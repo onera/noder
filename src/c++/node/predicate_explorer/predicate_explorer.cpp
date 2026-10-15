@@ -236,7 +236,7 @@ public:
 
             // ``//predicate`` and ``\\\\predicate`` are accepted as a
             // convenient one-line spelling for a single directional block.
-            // This keeps compatibility with the original cgnsviz search
+            // This keeps compatibility with the original cgnsvi search
             // sketches while preserving the unambiguous step syntax.
             if ((direction == Step::Direction::Inward && peek().kind == TokenKind::Inward) ||
                 (direction == Step::Direction::Outward && peek().kind == TokenKind::Outward)) {

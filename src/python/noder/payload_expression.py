@@ -169,7 +169,7 @@ def _find_node(root, path: str):
     return node
 
 
-def _save_cgnsviz_result(expression: str, filename: str, node_path: str,
+def _save_cgnsvi_result(expression: str, filename: str, node_path: str,
                          output_path: str, order: str) -> None:
     from noder.core.io import LazyHdf5Reader
 
@@ -249,15 +249,15 @@ def _save_cgnsviz_result(expression: str, filename: str, node_path: str,
 
 def _main(argv=None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cgnsviz-evaluate", nargs=5,
+    parser.add_argument("--cgnsvi-evaluate", nargs=5,
                         metavar=("EXPRESSION", "FILE", "NODE_PATH", "OUTPUT", "ORDER"))
     arguments = parser.parse_args(argv)
-    if not arguments.cgnsviz_evaluate:
-        parser.error("--cgnsviz-evaluate is required")
-    expression_path, filename, node_path, output_path, order = arguments.cgnsviz_evaluate
+    if not arguments.cgnsvi_evaluate:
+        parser.error("--cgnsvi-evaluate is required")
+    expression_path, filename, node_path, output_path, order = arguments.cgnsvi_evaluate
     try:
         expression = Path(expression_path).read_text(encoding="utf-8")
-        _save_cgnsviz_result(expression, filename, node_path, output_path, order)
+        _save_cgnsvi_result(expression, filename, node_path, output_path, order)
     except Exception as error:
         print(f"Payload edit failed: {error}", file=sys.stderr)
         return 1

@@ -848,7 +848,7 @@ class Node:
     def unload_data(self) -> None:
         """
         Release a materialized payload when the attached backend supports reloading it.
-
+        
         Lazy HDF5 nodes keep their metadata and become loadable again on demand.
         """
     def write(self, arg0: str) -> None:

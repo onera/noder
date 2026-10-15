@@ -1,5 +1,5 @@
-#ifndef CGNSVIZ_TERMINAL_MODEL_HPP
-#define CGNSVIZ_TERMINAL_MODEL_HPP
+#ifndef CGNSVI_TERMINAL_MODEL_HPP
+#define CGNSVI_TERMINAL_MODEL_HPP
 
 #include "node/node.hpp"
 
@@ -14,7 +14,7 @@ namespace io::hdf5::cgns {
 class LazyHdf5Reader;
 }
 
-namespace cgnsviz::terminal {
+namespace cgnsvi::terminal {
 
 enum class Key {
     Up,
@@ -42,7 +42,7 @@ enum class Key {
 };
 
 /**
- * @brief State model for the cgnsviz node, matches, and payload views.
+ * @brief State model for the cgnsvi node, matches, and payload views.
  *
  * The model contains no terminal I/O.  It provides deterministic navigation
  * and rendering over a lazy Node tree so that it can also be tested without
@@ -167,6 +167,6 @@ int runTerminal(TerminalModel& model, std::istream& input, std::ostream& output)
 /** @brief Run the real interactive terminal loop. */
 int runInteractiveTerminal(TerminalModel& model);
 
-} // namespace cgnsviz::terminal
+} // namespace cgnsvi::terminal
 
-#endif // CGNSVIZ_TERMINAL_MODEL_HPP
+#endif // CGNSVI_TERMINAL_MODEL_HPP

@@ -259,7 +259,7 @@ public:
      * @brief Return only children currently materialized in this node.
      *
      * Unlike children(), this accessor never asks a lazy backend to load more
-     * children.  It is intended for paged views such as cgnsviz.
+     * children.  It is intended for paged views such as cgnsvi.
      */
     const std::vector<std::shared_ptr<Node>>& loadedChildren() const;
     /** @brief Current direct-child loading state. */

@@ -1,4 +1,4 @@
-"""Python environment launcher for the native cgnsviz application."""
+"""Python environment launcher for the native cgnsvi application."""
 
 import os
 from pathlib import Path
@@ -8,12 +8,12 @@ import sys
 
 def _native_executable() -> Path:
     package_directory = Path(__file__).resolve().parent
-    executable_name = "cgnsviz.exe" if os.name == "nt" else "cgnsviz"
+    executable_name = "cgnsvi.exe" if os.name == "nt" else "cgnsvi"
     executable = package_directory / executable_name
     if not executable.is_file():
         raise FileNotFoundError(
-            "The cgnsviz native executable is not installed in "
-            f"'{package_directory}'. Reinstall noder with CGNSVIZ enabled."
+            "The cgnsvi native executable is not installed in "
+            f"'{package_directory}'. Reinstall noder with CGNSVI enabled."
         )
     return executable
 
@@ -22,7 +22,7 @@ def main() -> int:
     try:
         executable = _native_executable()
     except FileNotFoundError as error:
-        print(f"cgnsviz: {error}", file=sys.stderr)
+        print(f"cgnsvi: {error}", file=sys.stderr)
         return 1
 
     environment = os.environ.copy()
@@ -34,7 +34,7 @@ def main() -> int:
     try:
         return subprocess.run(arguments, env=environment, check=False).returncode
     except OSError as error:
-        print(f"cgnsviz: cannot launch native executable: {error}", file=sys.stderr)
+        print(f"cgnsvi: cannot launch native executable: {error}", file=sys.stderr)
         return 1
 
 

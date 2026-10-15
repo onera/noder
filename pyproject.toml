@@ -35,7 +35,7 @@ dependencies = [
 ]
 
 [project.scripts]
-cgnsviz = "noder.cgnsviz:main"
+cgnsvi = "noder.cgnsvi:main"
 
 [project.optional-dependencies]
 test = [
@@ -88,7 +88,7 @@ Python3_FIND_STRATEGY = "LOCATION"
 Python3_FIND_REGISTRY = "NEVER"
 Python3_FIND_FRAMEWORK = "NEVER"
 Python3_USE_STATIC_LIBS = "OFF"
-ENABLE_CGNSVIZ = "ON"
+ENABLE_CGNSVI = "ON"
 
 
 [tool.setuptools.data-files]

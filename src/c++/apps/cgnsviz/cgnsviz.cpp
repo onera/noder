@@ -1,6 +1,6 @@
 #ifdef ENABLE_HDF5_IO
 
-#include "apps/cgnsviz/terminal_view/terminal_model.hpp"
+#include "apps/cgnsvi/terminal_view/terminal_model.hpp"
 #include "io/hdf5/lazycgns/lazy_hdf5_reader.hpp"
 
 #include <cstddef>
@@ -37,7 +37,7 @@ std::size_t parseSize(const std::string& value, const char* option) {
 Options parseOptions(int argc, char** argv) {
     if (argc < 2) {
         throw std::invalid_argument(
-            "usage: cgnsviz [--safe-mode] FILE [--order C|F] [--page-size N] [--payload-limit N] [--max-chars N] [--non-interactive]");
+            "usage: cgnsvi [--safe-mode] FILE [--order C|F] [--page-size N] [--payload-limit N] [--max-chars N] [--non-interactive]");
     }
 
     Options options;
@@ -73,7 +73,7 @@ Options parseOptions(int argc, char** argv) {
             options.interactive = false;
         } else if (option == "--help" || option == "-h") {
             throw std::invalid_argument(
-                "usage: cgnsviz [--safe-mode] FILE [--order C|F] [--page-size N] [--payload-limit N] [--max-chars N] [--non-interactive]");
+                "usage: cgnsvi [--safe-mode] FILE [--order C|F] [--page-size N] [--payload-limit N] [--max-chars N] [--non-interactive]");
         } else if (options.filename.empty()) {
             options.filename = option;
         } else {
@@ -91,23 +91,23 @@ Options parseOptions(int argc, char** argv) {
 int main(int argc, char** argv) {
     try {
         if (argc == 2 && (std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h")) {
-            std::cout << "usage: cgnsviz [--safe-mode] FILE [--order C|F] [--page-size N] [--payload-limit N] [--max-chars N] [--non-interactive]\n";
+            std::cout << "usage: cgnsvi [--safe-mode] FILE [--order C|F] [--page-size N] [--payload-limit N] [--max-chars N] [--non-interactive]\n";
             return 0;
         }
         const Options options = parseOptions(argc, argv);
         auto reader = std::make_shared<io::hdf5::cgns::LazyHdf5Reader>(
             options.filename, options.order, options.safeMode);
-        cgnsviz::terminal::TerminalModel model(
+        cgnsvi::terminal::TerminalModel model(
             reader,
             options.pageSize,
             options.payloadLimit,
             options.maxChars);
         if (!options.interactive) {
-            return cgnsviz::terminal::runTerminal(model, std::cin, std::cout);
+            return cgnsvi::terminal::runTerminal(model, std::cin, std::cout);
         }
-        return cgnsviz::terminal::runInteractiveTerminal(model);
+        return cgnsvi::terminal::runInteractiveTerminal(model);
     } catch (const std::exception& error) {
-        std::cerr << "cgnsviz: " << error.what() << "\n";
+        std::cerr << "cgnsvi: " << error.what() << "\n";
         return 1;
     }
 }
@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
 #include <iostream>
 
 int main() {
-    std::cerr << "cgnsviz was built without HDF5 support.\n";
+    std::cerr << "cgnsvi was built without HDF5 support.\n";
     return 1;
 }
 
