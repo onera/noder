@@ -37,7 +37,7 @@ set(CMAKE_BUILD_TYPE Release)
 
 # C++17 filesystem library linking
 # For GCC < 9 and Intel compilers, libstdc++fs needs explicit linking
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Intel")
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Intel" AND NOT WIN32)
     # Try to find libstdc++fs explicitly
     find_library(STDCXXFS_LIBRARY stdc++fs)
     if(STDCXXFS_LIBRARY)
@@ -99,13 +99,6 @@ add_definitions(-D_GLIBCXX_USE_CXX11_ABI=1)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# For Intel compiler, explicitly set -std flag based on CMAKE_CXX_STANDARD
-# Intel compiler requires explicit -std=c++XX flag for C++ standard library features
-if(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++${CMAKE_CXX_STANDARD}")
-    message(STATUS "Intel compiler detected: adding -std=c++${CMAKE_CXX_STANDARD} flag")
-endif()
 
 set(CMAKE_SKIP_BUILD_RPATH FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
@@ -233,6 +226,20 @@ if (HDF5_FOUND)
     message(STATUS "    NODER_HDF5_IS_STATIC: ${NODER_HDF5_IS_STATIC}")
 elseif(MSVC)
     message(FATAL_ERROR "did not find hdf5 for Windows")
+endif()
+
+# Intel LLVM binaries use libmmd.dll on Windows. Keep that runtime beside the
+# Python extensions so importing Noder does not depend on a oneAPI PATH.
+set(NODER_INTEL_RUNTIME_DLLS)
+if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+    get_filename_component(NODER_INTEL_COMPILER_BIN "${CMAKE_CXX_COMPILER}" DIRECTORY)
+    foreach(NODER_INTEL_RUNTIME_NAME libmmd.dll libiomp5md.dll svml_dispmd.dll)
+        set(NODER_INTEL_RUNTIME_DLL "${NODER_INTEL_COMPILER_BIN}/${NODER_INTEL_RUNTIME_NAME}")
+        if(EXISTS "${NODER_INTEL_RUNTIME_DLL}")
+            file(COPY "${NODER_INTEL_RUNTIME_DLL}" DESTINATION "${VERSIONED_OUTPUT_DIR}")
+            list(APPEND NODER_INTEL_RUNTIME_DLLS "${NODER_INTEL_RUNTIME_DLL}")
+        endif()
+    endforeach()
 endif()
 
 # Make visible to parent
@@ -431,6 +438,9 @@ if(ENABLE_CGNSVI)
 endif()
 
 install(TARGETS core_shared EXPORT noderTargets DESTINATION ${NODER_PACKAGE_DIR})
+if(NODER_INTEL_RUNTIME_DLLS)
+    install(FILES ${NODER_INTEL_RUNTIME_DLLS} DESTINATION ${NODER_PACKAGE_DIR})
+endif()
 if(MSVC AND ENABLE_HDF5_IO AND NOT NODER_HDF5_IS_STATIC)
     install(FILES "${HDF5_DLL_IN_OUTPUT}" DESTINATION ${NODER_PACKAGE_DIR})
     install(FILES "${HDF5_IMPLIB}" DESTINATION ${NODER_PACKAGE_DIR})

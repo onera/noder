@@ -1,4 +1,6 @@
 import numpy as np
+import copy
+import pytest
 from noder.core import Node, Array, nodeToPyCGNS, pyCGNSToNode
 
 def is_empty_pycgns( obj ):
@@ -24,6 +26,18 @@ def get_all_paths(node):
 def test_pyCGNSToNode_single():
     a = ['a', np.array([1]), [], 'type_t']
     n = pyCGNSToNode(a)
+
+
+@pytest.mark.parametrize("kind", ["bool", "i1", "i2", "i4", "i8", "u1", "u2", "u4", "u8", "f4", "f8"])
+def test_pyCGNSToNode_equivalent_dtype_descriptor(kind):
+    original = np.dtype(kind)
+    descriptor = copy.copy(original)
+    assert descriptor is not original and descriptor == original
+    values = np.array([0, 1], dtype=descriptor)
+    node = pyCGNSToNode(["Data", values, [], "DataArray_t"])
+    restored = nodeToPyCGNS(node)[1]
+    np.testing.assert_array_equal(restored, values)
+    assert restored.dtype == original
 
 def test_pyCGNSToNode_tree():
     e = ["e", np.array([5]), [], "d_t"]

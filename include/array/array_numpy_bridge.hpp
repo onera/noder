@@ -44,17 +44,19 @@ inline ArrayTypeId typeIdFromPyArray(const py::array& array) {
     const py::dtype dtype = array.dtype();
     const char kind = dtype.kind();
 
-    if (dtype.is(py::dtype::of<bool>())) return ArrayTypeId::Bool;
-    if (dtype.is(py::dtype::of<int8_t>())) return ArrayTypeId::Int8;
-    if (dtype.is(py::dtype::of<int16_t>())) return ArrayTypeId::Int16;
-    if (dtype.is(py::dtype::of<int32_t>())) return ArrayTypeId::Int32;
-    if (dtype.is(py::dtype::of<int64_t>())) return ArrayTypeId::Int64;
-    if (dtype.is(py::dtype::of<uint8_t>())) return ArrayTypeId::UInt8;
-    if (dtype.is(py::dtype::of<uint16_t>())) return ArrayTypeId::UInt16;
-    if (dtype.is(py::dtype::of<uint32_t>())) return ArrayTypeId::UInt32;
-    if (dtype.is(py::dtype::of<uint64_t>())) return ArrayTypeId::UInt64;
-    if (dtype.is(py::dtype::of<float>())) return ArrayTypeId::Float32;
-    if (dtype.is(py::dtype::of<double>())) return ArrayTypeId::Float64;
+    // Readers may return equivalent, separately allocated dtype descriptors.
+    // Compare dtype values; pointer identity rejects valid CGNS arrays.
+    if (dtype.equal(py::dtype::of<bool>())) return ArrayTypeId::Bool;
+    if (dtype.equal(py::dtype::of<int8_t>())) return ArrayTypeId::Int8;
+    if (dtype.equal(py::dtype::of<int16_t>())) return ArrayTypeId::Int16;
+    if (dtype.equal(py::dtype::of<int32_t>())) return ArrayTypeId::Int32;
+    if (dtype.equal(py::dtype::of<int64_t>())) return ArrayTypeId::Int64;
+    if (dtype.equal(py::dtype::of<uint8_t>())) return ArrayTypeId::UInt8;
+    if (dtype.equal(py::dtype::of<uint16_t>())) return ArrayTypeId::UInt16;
+    if (dtype.equal(py::dtype::of<uint32_t>())) return ArrayTypeId::UInt32;
+    if (dtype.equal(py::dtype::of<uint64_t>())) return ArrayTypeId::UInt64;
+    if (dtype.equal(py::dtype::of<float>())) return ArrayTypeId::Float32;
+    if (dtype.equal(py::dtype::of<double>())) return ArrayTypeId::Float64;
     if (kind == 'S') return ArrayTypeId::Bytes;
     if (kind == 'U') return ArrayTypeId::Unicode;
     if (kind == 'O') return ArrayTypeId::None;

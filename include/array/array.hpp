@@ -7,10 +7,11 @@
 #include <iostream>
 #include <memory>
 #include <sstream>
-#include <span>
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "array/array_view.hpp"
 
 #include "utils/compat.hpp"
 #include "utils/comparator.hpp"
@@ -179,11 +180,11 @@ public:
 
     /** @brief Checked flat read-only view over a contiguous typed array. */
     template <typename T>
-    std::span<const T> readOnlySpan() const;
+    ArrayView<const T> readOnlySpan() const;
 
     /** @brief Checked flat writable view over a contiguous typed array. */
     template <typename T>
-    std::span<T> writableSpan();
+    ArrayView<T> writableSpan();
 
     template <typename T>
     bool hasDataOfType() const;
@@ -485,18 +486,19 @@ inline bool Array::hasDataOfType() const {
 }
 
 template <typename T>
-inline std::span<const T> Array::readOnlySpan() const {
+inline ArrayView<const T> Array::readOnlySpan() const {
     if (!this->hasDataOfType<T>()) {
         throw std::invalid_argument("Array::readOnlySpan: requested type does not match array dtype");
     }
     if (!this->isContiguous()) {
         throw std::invalid_argument("Array::readOnlySpan: array must be contiguous");
     }
-    return {reinterpret_cast<const T*>(this->rawData()), this->size()};
+    return ArrayView<const T>(
+        reinterpret_cast<const T*>(this->rawData()), this->size());
 }
 
 template <typename T>
-inline std::span<T> Array::writableSpan() {
+inline ArrayView<T> Array::writableSpan() {
     if (!this->hasDataOfType<T>()) {
         throw std::invalid_argument("Array::writableSpan: requested type does not match array dtype");
     }
@@ -506,7 +508,8 @@ inline std::span<T> Array::writableSpan() {
     if (!this->isWritable()) {
         throw std::runtime_error("Array::writableSpan: array is read-only");
     }
-    return {reinterpret_cast<T*>(this->rawData()), this->size()};
+    return ArrayView<T>(
+        reinterpret_cast<T*>(this->rawData()), this->size());
 }
 
 #endif
