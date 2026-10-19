@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=42", "wheel", "scikit-build-core>=0.8.0", "pybind11>=2.12"]
+requires = ["setuptools>=42", "wheel", "scikit-build-core>=0.8.0", "pybind11>=3.0.4"]
 build-backend = "scikit_build_core.build"
 
 
@@ -31,7 +31,7 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
   "numpy",
-  "pybind11>=2.12",
+  "pybind11>=3.0.4",
 ]
 
 [project.scripts]
@@ -46,7 +46,7 @@ test = [
 dev = [
   "pytest >=6",
   "pytest-cov >=3",
-  "pybind11-stubgen>=2.5",
+  "pybind11-stubgen>=2.5.5",
 ]
 docs = [
   "sphinx>=7.0",
