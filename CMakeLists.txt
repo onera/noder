@@ -126,7 +126,7 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 list(APPEND CMAKE_PREFIX_PATH ${PYBIND11_CMAKEDIR})
-find_package(pybind11 REQUIRED)
+find_package(pybind11 3.0 CONFIG REQUIRED)
 include_directories(${PYBIND11_INCLUDE_DIRS})
 
 # Extract short Python version for versioned build outputs (e.g., cp313)
