@@ -35,6 +35,14 @@ public:
     /** @brief Return the lazily-backed root node. */
     std::shared_ptr<Node> root() const;
 
+    /**
+     * @brief Read only the nodes along a path and return the selected node.
+     *
+     * Path components are relative to the HDF5 root. The returned node is
+     * detached from the temporary path hierarchy and remains lazily backed.
+     */
+    std::shared_ptr<Node> nodeAtPath(const std::string& path) const;
+
     /** @brief Source filename. */
     const std::string& filename() const;
 

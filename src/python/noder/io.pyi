@@ -33,6 +33,10 @@ class LazyHdf5Reader:
         ...
     def is_open(self) -> bool:
         ...
+    def node_at_path(self, path: str) -> Node:
+        """
+        Read only the nodes along a path and return the selected lazy node.
+        """
     def order(self) -> str:
         ...
     def root(self) -> Node:

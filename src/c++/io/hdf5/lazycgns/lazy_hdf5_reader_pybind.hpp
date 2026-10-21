@@ -28,6 +28,11 @@ When ``safe_mode`` is true, malformed HDF5/CGNS nodes are replaced by
             py::arg("order") = 'F',
             py::arg("safe_mode") = false)
         .def("root", &io::hdf5::cgns::LazyHdf5Reader::root)
+        .def(
+            "node_at_path",
+            &io::hdf5::cgns::LazyHdf5Reader::nodeAtPath,
+            py::arg("path"),
+            "Read only the nodes along a path and return the selected lazy node.")
         .def("filename", &io::hdf5::cgns::LazyHdf5Reader::filename)
         .def("order", &io::hdf5::cgns::LazyHdf5Reader::order)
         .def("close", &io::hdf5::cgns::LazyHdf5Reader::close)

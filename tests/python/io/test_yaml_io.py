@@ -2,8 +2,9 @@ from pathlib import Path
 
 import numpy as np
 
-from noder.core import Node
+import noder
 import noder.core.io as gio
+from noder.core import Node
 
 
 def _new_cgns_tree():
@@ -37,6 +38,22 @@ def test_yaml_round_trip_python_tree(tmp_path):
     assert np.array_equal(restored_matrix, matrix_data)
     assert restored_matrix.flags["F_CONTIGUOUS"]
     assert read_root.get_at_path("root/message").data().extractString() == "hello yaml"
+
+
+def test_read_from_path_yaml_accepts_pathlib_path(tmp_path):
+    filename = tmp_path / "read_from_path.yaml"
+    root = Node("root")
+    message = Node("message", "Descriptor_t")
+    message.set_data("hello yaml")
+    root.add_child(message)
+    root.write(str(filename))
+
+    selected = noder.read_from_path(filename, "root/message")
+
+    assert selected is not None
+    assert selected.name() == "message"
+    assert selected.parent() is None
+    assert selected.data().extractString() == "hello yaml"
 
 
 def test_yaml_round_trip_plain_inline_string(tmp_path):

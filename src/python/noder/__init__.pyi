@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import typing
+from pathlib import Path
 
 from .core import (
     registerDefaultFactory,
@@ -32,6 +33,7 @@ __all__: list[str] = [
     "add",
     "merge",
     "read",
+    "read_from_path",
     "write_numpy",
     "read_numpy",
     "pyCGNSToNode",
@@ -39,3 +41,10 @@ __all__: list[str] = [
 ]
 
 def zeros(*args, **kwargs: typing.Any) -> Array: ...
+
+def read_from_path(
+    filename: str | Path,
+    path: str,
+    order: str = "F",
+    safe_mode: bool = False,
+) -> Node | None: ...

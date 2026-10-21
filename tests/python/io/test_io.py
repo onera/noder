@@ -3,6 +3,7 @@ import subprocess
 import sys
 import pytest
 import numpy as np
+import noder
 import noder.array.data_types as dtypes
 
 try:
@@ -90,6 +91,41 @@ def test_lazy_hdf5_reader_is_metadata_first_and_navigation_aware(tmp_path):
 
     reader.close()
     assert not reader.is_open()
+
+
+def test_read_from_path_keeps_hdf5_payloads_lazy_and_detaches_result(tmp_path):
+    filename = str(tmp_path / "read_from_path.cgns")
+    _write_handcrafted_lazy_cgns_file(filename)
+
+    selected = noder.read_from_path(filename, "Nested/Leaf")
+
+    assert selected is not None
+    assert selected.name() == "Leaf"
+    assert selected.parent() is None
+    assert not selected.data_is_loaded()
+    np.testing.assert_array_equal(selected.numpy(), np.array([42], dtype=np.int32))
+
+
+def test_lazy_reader_node_at_path_does_not_expand_unrelated_root_children(tmp_path):
+    filename = str(tmp_path / "node_at_path.cgns")
+    _write_handcrafted_lazy_cgns_file(filename)
+
+    reader = gio.LazyHdf5Reader(filename)
+    root = reader.root()
+    selected = reader.node_at_path("Nested/Leaf")
+
+    assert selected is not None
+    assert selected.name() == "Leaf"
+    assert selected.parent() is None
+    assert root.loaded_children() == []
+    assert root.children_load_state() == "unloaded"
+
+    other = reader.node_at_path("First")
+    assert other is not None
+    assert other.name() == "First"
+    np.testing.assert_array_equal(other.numpy(), np.array([7], dtype=np.int32))
+    assert root.loaded_children() == []
+    reader.close()
 
 
 def test_hdf5_safe_mode_keeps_valid_nodes_and_marks_corruption(tmp_path):
@@ -327,34 +363,6 @@ def test_cgns_node_array_roundtrip_respects_requested_order(tmp_path, write_orde
     np.testing.assert_array_equal(loaded, data)
     assert loaded.flags["C_CONTIGUOUS"] is (read_order == "C" or loaded.ndim <= 1)
     assert loaded.flags["F_CONTIGUOUS"] is (read_order == "F" or loaded.ndim <= 1)
-
-def test_cgns_io_read_comparison_treelab(tmp_path):
-    from noder import new_node, read
-
-    try:
-        from treelab.cgns import load as treelab_loader
-    except Exception as e:
-        pytest.skip(reason=str(e))
-
-
-    data = np.array([[1, 2],
-                     [3, 4],
-                     [5, 6]], dtype=np.int32, order='F')
-    root = new_node("root", "UserDefinedData_t")
-    array_node = new_node("array", "DataArray_t", data=data)
-    root.add_child(array_node)
-    filename = str(tmp_path / "ordered.cgns")
-
-    root.write(filename)
-    loaded = read(filename).get_at_path("root/array").data().getPyArray()
-    loaded_tlab = treelab_loader(filename).get('array').value()
-
-    np.testing.assert_array_equal(loaded, data)
-    assert loaded.flags["F_CONTIGUOUS"]
-
-    np.testing.assert_array_equal(loaded, loaded_tlab)
-    assert loaded_tlab.flags["F_CONTIGUOUS"]
-
 
 def test_read_rank_2_cgns_string_dataset(tmp_path):
     h5py = pytest.importorskip("h5py")

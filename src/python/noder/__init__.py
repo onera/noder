@@ -35,6 +35,7 @@ __all__ = [
     "merge",
     # IO functions
     "read",
+    "read_from_path",
     "write_numpy",
     "read_numpy",
     # CGNS conversion
@@ -51,6 +52,7 @@ from .core import (
     pyCGNSToNode,
     nodeToPyCGNS,
 )
+from .core import io as _core_io
 from .core.io import read
 from .cgns import Base, Tree, Zone, add, merge, new_base, new_tree, new_zone_from_arrays, new_zone_from_dict
 
@@ -71,6 +73,54 @@ def zeros(*args, **kwargs):
 
 
 factory.zeros = zeros
+
+
+def read_from_path(filename, path, order="F", safe_mode=False):
+    """Read and return one node from a file.
+
+    For HDF5/CGNS files, this uses :class:`LazyHdf5Reader` and reads metadata
+    only for the nodes along the requested path. Sibling metadata and payload
+    arrays remain untouched.
+    The returned node is detached from the file root and keeps its lazy file
+    state alive until the node is released or its expansion is detached.
+
+    YAML files use the regular eager reader because Noder has no lazy YAML
+    reader. Missing paths return ``None``.
+
+    Parameters
+    ----------
+    filename : str or pathlib.Path
+        Input file path. The file format is inferred from its extension.
+    path : str
+        Slash-separated path relative to the file root.
+    order : str, optional
+        Memory order of arrays when read (``"C"`` or ``"F"``). Defaults to
+        ``"F"`` (CGNS/Fortran convention).
+    safe_mode : bool, optional
+        Replace malformed HDF5/CGNS nodes by ``Corrupted_t`` markers instead
+        of raising. Defaults to ``False``.
+
+    Returns
+    -------
+    Node or None
+        The selected node, detached from its original parent, or ``None`` if
+        the path does not exist.
+    """
+    filename = os.fspath(filename)
+    suffix = Path(filename).suffix.lower()
+    lazy_reader = getattr(_core_io, "LazyHdf5Reader", None)
+
+    if suffix in {".yaml", ".yml"} or lazy_reader is None:
+        selected = read(filename, order=order, safe_mode=safe_mode).get_at_path(
+            path, path_is_relative=True
+        )
+    else:
+        reader = lazy_reader(filename, order=order, safe_mode=safe_mode)
+        selected = reader.node_at_path(path)
+
+    if selected is not None:
+        selected.detach()
+    return selected
 
 # required for codes using noder as a dependency through cmake 
 def get_package_dir() -> str:

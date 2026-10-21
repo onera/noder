@@ -382,6 +382,118 @@ public:
         }
     }
 
+    std::shared_ptr<Node> nodeAtPath(const std::string& path) {
+        std::vector<std::string> pathElements;
+        std::stringstream pathStream(path);
+        std::string element;
+        while (std::getline(pathStream, element, '/')) {
+            if (!element.empty()) {
+                pathElements.push_back(element);
+            }
+        }
+        if (pathElements.empty()) {
+            return nullptr;
+        }
+
+        // Build a temporary hierarchy containing only ancestors on this
+        // path. Do not use _root: its direct children should remain unloaded.
+        std::vector<const Node*> temporaryNodes;
+        auto discardTemporaryRecords = [&]() {
+            for (const Node* node : temporaryNodes) {
+                _records.erase(node);
+            }
+            temporaryNodes.clear();
+        };
+
+        try {
+            std::shared_ptr<Node> current = makeRoot();
+            temporaryNodes.push_back(current.get());
+
+            auto discardCorruptedPath = [&](const std::string& childPath,
+                                             const std::string& detail,
+                                             const bool isFinalComponent) {
+                addCorrupted(*current, childPath, detail);
+                const auto& loadedChildren = current->loadedChildren();
+                std::shared_ptr<Node> marker =
+                    isFinalComponent && !loadedChildren.empty() ? loadedChildren.back() : nullptr;
+                if (marker) {
+                    marker->detach();
+                }
+                discardTemporaryRecords();
+                return marker;
+            };
+
+            size_t firstElement = 0;
+            if (pathElements.front() == current->name()) {
+                firstElement = 1;
+            }
+
+            for (size_t index = firstElement; index < pathElements.size(); ++index) {
+                const std::string& childName = pathElements[index];
+                if (isReservedDatasetName(childName)) {
+                    discardTemporaryRecords();
+                    return nullptr;
+                }
+
+                const Record& parentRecord = recordFor(*current);
+                const std::string childPath = hdf5ChildPath(parentRecord.hdf5Path, childName);
+                const htri_t exists = H5Lexists(_file.get(), childPath.c_str(), H5P_DEFAULT);
+                if (exists == 0) {
+                    discardTemporaryRecords();
+                    return nullptr;
+                }
+                if (exists < 0) {
+                    if (!_safeMode) {
+                        throw std::runtime_error("cannot inspect path component '" + childPath + "'");
+                    }
+                    return discardCorruptedPath(
+                        childPath,
+                        "cannot inspect HDF5 path component",
+                        index + 1 == pathElements.size());
+                }
+
+                hdf5_handle object(H5Oopen(_file.get(), childPath.c_str(), H5P_DEFAULT), H5Oclose);
+                if (object.get() < 0) {
+                    if (!_safeMode) {
+                        throw std::runtime_error("failed to inspect path component '" + childPath + "'");
+                    }
+                    return discardCorruptedPath(
+                        childPath,
+                        "failed to inspect HDF5 path component",
+                        index + 1 == pathElements.size());
+                }
+                if (H5Iget_type(object.get()) != H5I_GROUP) {
+                    discardTemporaryRecords();
+                    return nullptr;
+                }
+
+                std::shared_ptr<Node> child;
+                try {
+                    child = makeNode(childPath);
+                } catch (const std::exception& error) {
+                    if (!_safeMode) {
+                        throw;
+                    }
+                    return discardCorruptedPath(
+                        childPath,
+                        error.what(),
+                        index + 1 == pathElements.size());
+                }
+                temporaryNodes.push_back(child.get());
+                child->attachTo(current, -1, false);
+                current = std::move(child);
+            }
+
+            current->detach();
+            temporaryNodes.pop_back(); // Keep the selected node's lazy record.
+            discardTemporaryRecords();
+            return current;
+        } catch (...) {
+            discardTemporaryRecords();
+            throw;
+        }
+    }
+
     const std::string& filename() const {
         return _filename;
     }
@@ -896,6 +1008,10 @@ LazyHdf5Reader& LazyHdf5Reader::operator=(LazyHdf5Reader&& other) noexcept {
 
 std::shared_ptr<Node> LazyHdf5Reader::root() const {
     return _root;
+}
+
+std::shared_ptr<Node> LazyHdf5Reader::nodeAtPath(const std::string& path) const {
+    return _state->nodeAtPath(path);
 }
 
 const std::string& LazyHdf5Reader::filename() const {
