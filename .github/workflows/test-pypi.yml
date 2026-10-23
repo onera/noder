@@ -20,7 +20,7 @@ jobs:
           - os: windows-latest
             cibuildwheel_version: "4.0.0"
             cibw_build: "cp314-*"
-          - os: macos-latest
+          - os: macos-15
             cibuildwheel_version: "4.0.0"
             cibw_build: "cp314-*"
           - os: ubuntu-latest
@@ -28,10 +28,10 @@ jobs:
             cibw_build: "cp38-*"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.14" # Used for bootstrapping cibuildwheel
 
@@ -64,8 +64,14 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: scripts/setup_hdf5_windows.ps1
+
+      - name: Setup Intel oneAPI for Windows
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: scripts/setup_oneapi_windows.ps1
           
-      - name: Build wheels
+      - name: Build wheels (Linux and macOS)
+        if: runner.os != 'Windows'
         env:
           CIBW_BUILD: ${{ matrix.cibw_build }}
           CIBW_SKIP: "*-manylinux_i686 *-musllinux* *-win32 *-pp*"
@@ -100,6 +106,34 @@ jobs:
             auditwheel repair -w {dest_dir} {wheel}
 
         run: python -m cibuildwheel --output-dir wheelhouse
+
+      - name: Build wheels (Windows with Intel oneAPI)
+        if: runner.os == 'Windows'
+        shell: cmd
+        env:
+          CIBW_BUILD: ${{ matrix.cibw_build }}
+          CIBW_SKIP: "*-manylinux_i686 *-musllinux* *-win32 *-pp*"
+          CIBW_CONFIG_SETTINGS_WINDOWS: >-
+            cmake.define.ENABLE_CGNSVI=ON
+            cmake.define.ENABLE_MPI=OFF
+            cmake.define.CMAKE_C_COMPILER=icx
+            cmake.define.CMAKE_CXX_COMPILER=icx
+          CIBW_ENVIRONMENT_WINDOWS: >-
+            NODER_EXPECT_CGNSVI=1
+            HDF5_C_LIBRARY=%HDF5_C_LIBRARY%
+            HDF5_INCLUDE_DIR=%HDF5_INCLUDE_DIR%
+            HDF5_DIR=%HDF5_DIR%
+            CMAKE_PREFIX_PATH=%HDF5_ROOT%
+            CMAKE_INCLUDE_PATH=%HDF5_INCLUDE_DIR%
+            CMAKE_LIBRARY_PATH=%HDF5_ROOT%\lib
+        run: |
+          call "C:\Program Files (x86)\Intel\oneAPI\setvars-vcvarsall.bat" vs2022
+          if errorlevel 1 exit /b 1
+          call "C:\Program Files (x86)\Intel\oneAPI\compiler\latest\env\vars.bat"
+          if errorlevel 1 exit /b 1
+          icx --version
+          if errorlevel 1 exit /b 1
+          python -m cibuildwheel --output-dir wheelhouse
 
       - name: Publish to Test PyPI
         if: startsWith(github.ref, 'refs/tags/v')

@@ -313,7 +313,11 @@ float resolved_cgns_version(const std::shared_ptr<Node>& root, const float& fall
 
 void add_string_attr_fixed_utf8(hid_t id, const std::string& key, const std::string& value, size_t length) {
     std::vector<char> buffer(length, '\0');
-    std::strncpy(buffer.data(), value.c_str(), length);
+    const size_t valueLength = value.find('\0');
+    const size_t copyLength = std::min(valueLength, buffer.size());
+    if (copyLength > 0) {
+        std::memcpy(buffer.data(), value.data(), copyLength);
+    }
 
     hid_t space = H5Screate(H5S_SCALAR);
     hid_t type = H5Tcopy(H5T_C_S1);

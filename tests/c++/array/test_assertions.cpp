@@ -68,13 +68,13 @@ void test_assertSameSizeAsPyArray() {
 
     {
         std::vector<int> vector = {1, 2, 3, 4};
-        auto other = py::array_t<int>({4}, vector.data());
+        auto other = py::array_t<int>(py::array::ShapeContainer{4}, vector.data());
         array.must().haveSameSizeAs(other);
     }
 
     {
         std::vector<int> vector = {1, 2, 3};
-        auto other = py::array_t<int>({3}, vector.data());
+        auto other = py::array_t<int>(py::array::ShapeContainer{3}, vector.data());
         
         try {
             array.must().haveSameSizeAs(other);

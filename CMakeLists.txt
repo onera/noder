@@ -319,6 +319,12 @@ elseif(UNIX OR MSVC)
 endif()
 
 target_compile_definitions(core_shared PRIVATE BUILDING_NODE_LIBRARY)
+if(MSVC OR CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+    # Keep the existing UTF-8 conversion behavior while silencing the MSVC STL
+    # deprecation notice for std::codecvt, which has no standard replacement.
+    target_compile_definitions(
+        core_shared PRIVATE _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING)
+endif()
 
 
 if(ENABLE_HDF5_IO)

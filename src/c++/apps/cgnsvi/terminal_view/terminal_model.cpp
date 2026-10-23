@@ -960,13 +960,30 @@ bool TerminalModel::preparePayloadEdit(const std::string& expression) {
             prompt.write(expression.data(), static_cast<std::streamsize>(expression.size()));
         }
 
-        const char* configuredPython = std::getenv("NODER_PYTHON_EXECUTABLE");
+        std::string configuredPython;
+#if defined(_WIN32) && defined(_MSC_VER)
+        char* configuredPythonBuffer = nullptr;
+        size_t configuredPythonBufferSize = 0;
+        if (_dupenv_s(
+                &configuredPythonBuffer,
+                &configuredPythonBufferSize,
+                "NODER_PYTHON_EXECUTABLE") == 0 &&
+            configuredPythonBuffer != nullptr) {
+            configuredPython = configuredPythonBuffer;
+        }
+        std::free(configuredPythonBuffer);
+#else
+        const char* configuredPythonValue = std::getenv("NODER_PYTHON_EXECUTABLE");
+        if (configuredPythonValue != nullptr) {
+            configuredPython = configuredPythonValue;
+        }
+#endif
 #ifdef _WIN32
-        const std::string python = configuredPython && *configuredPython
+        const std::string python = !configuredPython.empty()
             ? configuredPython
             : "python";
 #else
-        const std::string python = configuredPython && *configuredPython
+        const std::string python = !configuredPython.empty()
             ? configuredPython
             : "python3";
 #endif
@@ -1503,7 +1520,10 @@ bool TerminalModel::handle(const Key key) {
                 case Key::Delete:
                 case Key::EditPayload:
                 case Key::Enter:
+                case Key::SelectRoot:
                 case Key::SavePayload:
+                case Key::ShowSummary:
+                case Key::ShowDetails:
                 case Key::Unknown:
                 case Key::ShowMatches:
                 case Key::Quit:
@@ -1545,6 +1565,7 @@ bool TerminalModel::handle(const Key key) {
                     break;
                 case Key::Enter:
                 case Key::ShiftEnter:
+                case Key::SelectRoot:
                 case Key::SavePayload:
                 case Key::Delete:
                 case Key::EditPayload:
@@ -1597,9 +1618,12 @@ bool TerminalModel::handle(const Key key) {
                 case Key::SavePayload:
                 case Key::Delete:
                 case Key::EditPayload:
+                case Key::Enter:
+                case Key::ShiftEnter:
                 case Key::SearchInward:
                 case Key::SearchOutward:
                 case Key::Escape:
+                case Key::SelectRoot:
                 case Key::Unknown:
                 case Key::ShowMatches:
                 case Key::Quit:

@@ -11,7 +11,7 @@ void test_constructorEmpty() {
 
 void test_constructorPyArray() {
     int rawArray[3] = {1, 2, 3};
-    py::array_t<int> pyArray = py::array_t<int>({3}, rawArray);
+    py::array_t<int> pyArray = py::array_t<int>(py::array::ShapeContainer{3}, rawArray);
     Array array = arraybridge::arrayFromPyArray(pyArray);
 }
 

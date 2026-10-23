@@ -144,7 +144,7 @@ std::shared_ptr<Data> dataFromPyObject(
 
     throw py::type_error(
         std::string(context) +
-        ": unsupported data type: " + py::str(data.get_type()).cast<std::string>());
+        ": unsupported data type: " + py::str(py::type::of(data)).cast<std::string>());
 }
 
 py::object interpretData(const std::shared_ptr<Data>& data, const py::object& splitStringsLogic);

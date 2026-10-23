@@ -250,7 +250,7 @@ void test_checkedSpans() {
 }
 
 void test_readOnlyArray() {
-    py::array_t<double> values({3});
+    py::array_t<double> values(py::array::ShapeContainer{3});
     values.mutable_at(0) = 1.0;
     values.mutable_at(1) = 2.0;
     values.mutable_at(2) = 3.0;

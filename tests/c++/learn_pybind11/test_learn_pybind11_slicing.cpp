@@ -11,7 +11,7 @@ void test_slicingReferences() {
 
 
     int rawarray[3] = {1, 2, 3};
-    py::array_t<int> arr = py::array_t<int>({3}, rawarray);
+    py::array_t<int> arr = py::array_t<int>(py::array::ShapeContainer{3}, rawarray);
 
     auto arrdata = arr.mutable_unchecked<1>();
 
@@ -38,7 +38,7 @@ void test_slicingReferences() {
 
 void test_pointerAccess() {
     int raw_array[3] = {0, 1, 2};
-    py::array_t<int> pyarray = py::array_t<int>({3}, raw_array);
+    py::array_t<int> pyarray = py::array_t<int>(py::array::ShapeContainer{3}, raw_array);
     int* data = static_cast<int*>(pyarray.request().ptr);
     
     // modification of last item using new pointer to data
