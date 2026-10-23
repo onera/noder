@@ -7,6 +7,7 @@
 #include "cgns/base.hpp"
 #include "cgns/tree.hpp"
 #include "cgns/zone.hpp"
+#include "io/hdf5/cgns/hdf5_compat.hpp"
 #include "io/hdf5/cgns/cgns_name_limits.hpp"
 
 #include <hdf5.h>
@@ -537,24 +538,18 @@ public:
             if (group.get() < 0) {
                 throw std::runtime_error("LazyHdf5Reader: failed to open group while counting children");
             }
-            hsize_t objectCount = 0;
-            check_status(H5Gget_num_objs(group.get(), &objectCount), "enumerate children");
+            const hsize_t objectCount = hdf5_detail::group_link_count(
+                group.get(), "enumerate children");
             size_t count = 0;
             for (hsize_t index = 0; index < objectCount; ++index) {
-                const int objectType = H5Gget_objtype_by_idx(group.get(), index);
-                if (objectType < 0) {
-                    throw std::runtime_error("cannot inspect child while counting children");
+                const std::string name = hdf5_detail::link_name_by_index(
+                    group.get(), index, "cannot read child name while counting children");
+                if (isReservedDatasetName(name)) {
+                    continue;
                 }
-                const ssize_t nameLength = H5Gget_objname_by_idx(group.get(), index, nullptr, 0);
-                if (nameLength < 0) {
-                    throw std::runtime_error("cannot read child name while counting children");
-                }
-                std::string name(static_cast<size_t>(nameLength) + 1, '\0');
-                check_status(
-                    H5Gget_objname_by_idx(group.get(), index, name.data(), name.size()),
-                    "read child name while counting children");
-                name.resize(static_cast<size_t>(nameLength));
-                if (objectType == H5G_GROUP && !isReservedDatasetName(name)) {
+                if (hdf5_detail::object_type_by_index(
+                        group.get(), index, "cannot inspect child while counting children") ==
+                    H5O_TYPE_GROUP) {
                     ++count;
                 }
             }
@@ -591,9 +586,8 @@ public:
             }
 
             if (!record.objectCountKnown) {
-                check_status(
-                    H5Gget_num_objs(group.get(), &record.objectCount),
-                    "enumerate children");
+                record.objectCount = hdf5_detail::group_link_count(
+                    group.get(), "enumerate children");
                 record.objectCountKnown = true;
             }
 

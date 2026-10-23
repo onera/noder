@@ -8,6 +8,7 @@
 #include "cgns/base.hpp"
 #include "cgns/tree.hpp"
 #include "cgns/zone.hpp"
+#include "io/hdf5/cgns/hdf5_compat.hpp"
 #include "io/hdf5/cgns/cgns_name_limits.hpp"
 
 #include <hdf5.h>
@@ -914,26 +915,16 @@ std::shared_ptr<Node> read_node_rec_impl(
         }
     }
 
-    hsize_t nObjs = 0;
-    check_status(H5Gget_num_objs(group.get(), &nObjs), "enumerate children of " + path);
-    for (hsize_t i = 0; i < nObjs; ++i) {
-        const int objectType = H5Gget_objtype_by_idx(group.get(), i);
-        if (objectType < 0) {
-            throw std::runtime_error("HDF5 error: cannot inspect child " + std::to_string(i) + " of " + path);
-        }
-        if (objectType != H5G_GROUP) {
+    const hsize_t nLinks = hdf5_detail::group_link_count(
+        group.get(), "enumerate children of " + path);
+    for (hsize_t i = 0; i < nLinks; ++i) {
+        const std::string childName = hdf5_detail::link_name_by_index(
+            group.get(), i, "cannot get child name " + std::to_string(i) + " of " + path);
+        if (hdf5_detail::object_type_by_index(
+                group.get(), i, "cannot inspect child " + std::to_string(i) + " of " + path) !=
+            H5O_TYPE_GROUP) {
             continue;
         }
-
-        const ssize_t nameLength = H5Gget_objname_by_idx(group.get(), i, nullptr, 0);
-        if (nameLength < 0) {
-            throw std::runtime_error("HDF5 error: cannot get child name " + std::to_string(i) + " of " + path);
-        }
-        std::string childName(static_cast<size_t>(nameLength) + 1, '\0');
-        check_status(
-            H5Gget_objname_by_idx(group.get(), i, childName.data(), childName.size()),
-            "get child name " + std::to_string(i) + " of " + path);
-        childName.resize(static_cast<size_t>(nameLength));
 
         if (childName == " data" || childName == " file" || childName == " path" || childName == " link") {
             continue;
