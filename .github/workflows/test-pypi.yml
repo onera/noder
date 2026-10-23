@@ -65,11 +65,6 @@ jobs:
         shell: powershell
         run: scripts/setup_hdf5_windows.ps1
 
-      - name: Setup Intel oneAPI for Windows
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: scripts/setup_oneapi_windows.ps1
-          
       - name: Build wheels (Linux and macOS)
         if: runner.os != 'Windows'
         env:
@@ -107,7 +102,7 @@ jobs:
 
         run: python -m cibuildwheel --output-dir wheelhouse
 
-      - name: Build wheels (Windows with Intel oneAPI)
+      - name: Build wheels (Windows with MSVC)
         if: runner.os == 'Windows'
         shell: cmd
         env:
@@ -116,8 +111,6 @@ jobs:
           CIBW_CONFIG_SETTINGS_WINDOWS: >-
             cmake.define.ENABLE_CGNSVI=ON
             cmake.define.ENABLE_MPI=OFF
-            cmake.define.CMAKE_C_COMPILER=icx
-            cmake.define.CMAKE_CXX_COMPILER=icx
           CIBW_ENVIRONMENT_WINDOWS: >-
             NODER_EXPECT_CGNSVI=1
             HDF5_C_LIBRARY=%HDF5_C_LIBRARY%
@@ -127,12 +120,6 @@ jobs:
             CMAKE_INCLUDE_PATH=%HDF5_INCLUDE_DIR%
             CMAKE_LIBRARY_PATH=%HDF5_ROOT%\lib
         run: |
-          call "C:\Program Files (x86)\Intel\oneAPI\setvars-vcvarsall.bat" vs2022
-          if errorlevel 1 exit /b 1
-          call "C:\Program Files (x86)\Intel\oneAPI\compiler\latest\env\vars.bat"
-          if errorlevel 1 exit /b 1
-          icx --version
-          if errorlevel 1 exit /b 1
           python -m cibuildwheel --output-dir wheelhouse
 
       - name: Verify HDF5 redistribution notices in wheels
