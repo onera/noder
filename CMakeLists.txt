@@ -236,6 +236,80 @@ elseif(MSVC)
     message(FATAL_ERROR "did not find hdf5 for Windows")
 endif()
 
+if(ENABLE_HDF5_IO)
+    set(NODER_HDF5_VERSION "${HDF5_VERSION}")
+    if(NOT NODER_HDF5_VERSION)
+        set(NODER_HDF5_MAJOR "")
+        set(NODER_HDF5_MINOR "")
+        set(NODER_HDF5_RELEASE "")
+        foreach(NODER_HDF5_INCLUDE_DIR IN LISTS HDF5_INCLUDE_DIRS)
+            if(EXISTS "${NODER_HDF5_INCLUDE_DIR}/H5public.h")
+                file(STRINGS "${NODER_HDF5_INCLUDE_DIR}/H5public.h" NODER_HDF5_VERSION_LINES
+                    REGEX "^#define H5_VERS_(MAJOR|MINOR|RELEASE)[ \t]+[0-9]+")
+                foreach(NODER_HDF5_VERSION_LINE IN LISTS NODER_HDF5_VERSION_LINES)
+                    if(NODER_HDF5_VERSION_LINE MATCHES "H5_VERS_MAJOR[ \t]+([0-9]+)")
+                        set(NODER_HDF5_MAJOR "${CMAKE_MATCH_1}")
+                    elseif(NODER_HDF5_VERSION_LINE MATCHES "H5_VERS_MINOR[ \t]+([0-9]+)")
+                        set(NODER_HDF5_MINOR "${CMAKE_MATCH_1}")
+                    elseif(NODER_HDF5_VERSION_LINE MATCHES "H5_VERS_RELEASE[ \t]+([0-9]+)")
+                        set(NODER_HDF5_RELEASE "${CMAKE_MATCH_1}")
+                    endif()
+                endforeach()
+                break()
+            endif()
+        endforeach()
+        if(NOT "${NODER_HDF5_MAJOR}" STREQUAL "" AND
+           NOT "${NODER_HDF5_MINOR}" STREQUAL "" AND
+           NOT "${NODER_HDF5_RELEASE}" STREQUAL "")
+            set(NODER_HDF5_VERSION "${NODER_HDF5_MAJOR}.${NODER_HDF5_MINOR}.${NODER_HDF5_RELEASE}")
+        else()
+            set(NODER_HDF5_VERSION "unknown")
+        endif()
+    endif()
+
+    set(NODER_HDF5_LINKAGE_IS_STATIC ${NODER_HDF5_IS_STATIC})
+    if(NOT NODER_HDF5_LINKAGE_IS_STATIC)
+        foreach(NODER_HDF5_LIBRARY IN LISTS HDF5_LIBRARIES)
+            if(NODER_HDF5_LIBRARY MATCHES "\\.a$|hdf5-static")
+                set(NODER_HDF5_LINKAGE_IS_STATIC ON)
+                break()
+            endif()
+        endforeach()
+    endif()
+
+    if(NODER_HDF5_LINKAGE_IS_STATIC)
+        set(NODER_HDF5_LINKAGE "static")
+    else()
+        set(NODER_HDF5_LINKAGE "shared (wheel repair bundles runtime dependencies)")
+    endif()
+
+    if(NODER_HDF5_VERSION MATCHES "^1\\.")
+        set(NODER_HDF5_LICENSE_NAME "HDF5-COPYING.txt")
+    else()
+        set(NODER_HDF5_LICENSE_NAME "HDF5-LICENSE.txt")
+    endif()
+
+    foreach(NODER_HDF5_LICENSE_FILE
+            "${CMAKE_CURRENT_SOURCE_DIR}/licenses/HDF5-COPYING.txt"
+            "${CMAKE_CURRENT_SOURCE_DIR}/licenses/HDF5-LICENSE.txt"
+            "${CMAKE_CURRENT_SOURCE_DIR}/licenses/zlib-LICENSE.txt"
+            "${CMAKE_CURRENT_SOURCE_DIR}/licenses/libaec-LICENSE.txt"
+            "${CMAKE_CURRENT_SOURCE_DIR}/licenses/OpenSSL-1.1.1-LICENSE.txt"
+            "${CMAKE_CURRENT_SOURCE_DIR}/licenses/OpenSSL-3-LICENSE.txt"
+            "${CMAKE_CURRENT_SOURCE_DIR}/licenses/THIRD_PARTY_NOTICES.md")
+        if(NOT EXISTS "${NODER_HDF5_LICENSE_FILE}")
+            message(FATAL_ERROR "Required HDF5 redistribution notice is missing: ${NODER_HDF5_LICENSE_FILE}")
+        endif()
+    endforeach()
+
+    set(NODER_HDF5_BUILD_INFO "${CMAKE_CURRENT_BINARY_DIR}/HDF5-BUILD-INFO.txt")
+    file(WRITE "${NODER_HDF5_BUILD_INFO}"
+        "HDF5 version: ${NODER_HDF5_VERSION}\n"
+        "HDF5 linkage: ${NODER_HDF5_LINKAGE}\n"
+        "HDF5 license file: ${NODER_HDF5_LICENSE_NAME}\n")
+    message(STATUS "HDF5 build version: ${NODER_HDF5_VERSION}")
+endif()
+
 # Intel LLVM binaries use libmmd.dll on Windows. Keep that runtime beside the
 # Python extensions so importing Noder does not depend on a oneAPI PATH.
 set(NODER_INTEL_RUNTIME_DLLS)
@@ -452,6 +526,10 @@ if(ENABLE_CGNSVI)
 endif()
 
 install(TARGETS core_shared EXPORT noderTargets DESTINATION ${NODER_PACKAGE_DIR})
+if(ENABLE_HDF5_IO)
+    install(DIRECTORY licenses/ DESTINATION "${NODER_PACKAGE_DIR}/licenses")
+    install(FILES "${NODER_HDF5_BUILD_INFO}" DESTINATION "${NODER_PACKAGE_DIR}/licenses")
+endif()
 if(NODER_INTEL_RUNTIME_DLLS)
     install(FILES ${NODER_INTEL_RUNTIME_DLLS} DESTINATION ${NODER_PACKAGE_DIR})
 endif()
