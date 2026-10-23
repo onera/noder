@@ -1,5 +1,12 @@
 [build-system]
-requires = ["setuptools>=42", "wheel", "scikit-build-core>=0.8.0", "pybind11>=3.0.4"]
+requires = [
+  "setuptools>=42",
+  "wheel",
+  "scikit-build-core>=0.8.0",
+  "pybind11>=3.0.4",
+  "numpy",
+  "pybind11-stubgen>=2.5.5",
+]
 build-backend = "scikit_build_core.build"
 
 
@@ -73,6 +80,9 @@ sdist.include = [
   "src/python/noder/_version.py",
   "src/python/noder",
   "src/python/noder/**",
+  "scripts/gen_stubs.py",
+  "scripts/stubgen_config.json",
+  "scripts/stubgen_postprocess.py",
   "cmake",
   "cmake/**",
   "include",

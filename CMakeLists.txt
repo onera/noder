@@ -450,6 +450,26 @@ install(TARGETS core DESTINATION ${NODER_PACKAGE_DIR})
 install(TARGETS _cgns DESTINATION ${NODER_PACKAGE_DIR})
 install(FILES README.md LICENSE DESTINATION ${NODER_PACKAGE_DIR})
 install(DIRECTORY src/python/noder/ DESTINATION ${NODER_PACKAGE_DIR} FILES_MATCHING PATTERN "*.py*")
+
+# Generate stubs from the extension modules in this exact install tree. This
+# runs for both local CMake installs and scikit-build-core wheel installs.
+file(TO_CMAKE_PATH "${Python3_EXECUTABLE}" NODER_STUBGEN_PYTHON)
+file(TO_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_stubs.py" NODER_STUBGEN_SCRIPT)
+file(TO_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/scripts/stubgen_config.json" NODER_STUBGEN_CONFIG)
+set(NODER_STUBGEN_INSTALL_CODE
+    "set(_noder_stubgen_prefix \"\$ENV{DESTDIR}\${CMAKE_INSTALL_PREFIX}\")
+execute_process(
+    COMMAND \"${NODER_STUBGEN_PYTHON}\" \"${NODER_STUBGEN_SCRIPT}\"
+        --config \"${NODER_STUBGEN_CONFIG}\"
+        --import-root \"\${_noder_stubgen_prefix}\"
+        --output-dir \"\${_noder_stubgen_prefix}/${NODER_PACKAGE_DIR}\"
+    RESULT_VARIABLE _noder_stubgen_result
+)
+if(NOT _noder_stubgen_result EQUAL 0)
+    message(FATAL_ERROR \"Failed to generate Noder stubs for the install tree.\")
+endif()")
+install(CODE "${NODER_STUBGEN_INSTALL_CODE}")
+
 install(DIRECTORY include DESTINATION ${NODER_PACKAGE_DIR})
 
 configure_package_config_file(

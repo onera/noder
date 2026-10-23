@@ -157,6 +157,9 @@ cython_debug/
 
 # setuptools_scm
 src/python/**/_version.py
+src/python/noder/core.pyi
+src/python/noder/_cgns.pyi
+src/python/noder/io.pyi
 
 
 # ruff

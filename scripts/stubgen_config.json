@@ -1,0 +1,25 @@
+{
+  "package": "noder",
+  "modules": [
+    {
+      "name": "noder.core",
+      "filename": "core.pyi",
+      "ignore_unresolved_names": ["Node"],
+      "postprocess": "stubgen_postprocess:postprocess_core_stub"
+    },
+    {
+      "name": "noder._cgns",
+      "filename": "_cgns.pyi",
+      "ignore_unresolved_names": ["Node"]
+    },
+    {
+      "name": "noder.core.io",
+      "filename": "io.pyi",
+      "ignore_unresolved_names": ["Node"]
+    }
+  ],
+  "package_stub": {
+    "filename": "__init__.pyi",
+    "content": "# Stub for noder.__init__\n# Adjust exports to match your public API as needed.\nfrom .core import Node, Array  # type: ignore[misc]\n"
+  }
+}
