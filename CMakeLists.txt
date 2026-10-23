@@ -103,7 +103,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_SKIP_BUILD_RPATH FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-set(CMAKE_INSTALL_RPATH "$ORIGIN")
+if(APPLE)
+    # Python extensions and libcore_shared.dylib are installed side by side.
+    # macOS uses @loader_path (not the ELF $ORIGIN token) to find that library.
+    # This must be set before targets are created because stub generation imports
+    # the extensions from the install tree during wheel construction.
+    set(CMAKE_INSTALL_RPATH "@loader_path")
+else()
+    set(CMAKE_INSTALL_RPATH "$ORIGIN")
+endif()
 
 
 message(STATUS "CMAKE_BUILD_DIR: ${CMAKE_BUILD_DIR}")
