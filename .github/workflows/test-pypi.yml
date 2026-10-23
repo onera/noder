@@ -10,7 +10,7 @@ jobs:
     name: Build ${{ matrix.cibw_build }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     env:
-      SETUPTOOLS_SCM_OVERRIDES_FOR_NODER: '{"local_scheme": "no-local-version"}'
+      SETUPTOOLS_SCM_OVERRIDES_FOR_NODER: '{local_scheme = "no-local-version"}'
     strategy:
       # A failing wheel build must not cancel the other OS/Python legs.
       fail-fast: false
@@ -22,7 +22,7 @@ jobs:
           - os: windows-latest
             cibuildwheel_version: "4.0.0"
             cibw_build: "cp314-*"
-          - os: macos-15
+          - os: macos-latest
             cibuildwheel_version: "4.0.0"
             cibw_build: "cp314-*"
           - os: ubuntu-latest
