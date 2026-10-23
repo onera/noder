@@ -557,6 +557,85 @@ def test_set_data_list_and_tuple():
     node.set_data((1.5, 2.5))
     assert np.array_equal(node.data().getPyArray(), np.array([1.5, 2.5]))
 
+
+def test_set_data_can_store_strings_as_s1():
+    node = Node("string")
+    node.set_data("jamon", store_strings_as_S1=True)
+    scalar_string = node.numpy()
+    assert scalar_string.dtype == np.dtype("|S1")
+    assert scalar_string.tobytes() == b"jamon"
+
+    node.set_data(["toto", "tata"], store_strings_as_S1=True)
+    string_list = node.numpy()
+    assert string_list.dtype == np.dtype("|S1")
+    assert string_list.tobytes() == b"toto tata"
+
+    node.set_data(np.array(["toto", "tata"]), store_strings_as_S1=True)
+    string_array = node.numpy()
+    assert string_array.dtype == np.dtype("|S1")
+    assert string_array.tobytes() == b"toto tata"
+
+
+def test_set_data_string_storage_default_preserves_input_topology():
+    node = Node("string")
+    node.set_data("jamon")
+    assert node.numpy().dtype == np.dtype("|S5")
+
+    node.set_data(["toto", "tata"])
+    assert node.numpy().dtype.kind == "U"
+    assert node.numpy().tolist() == ["toto", "tata"]
+
+
+def test_set_parameters_can_store_nested_strings_as_s1():
+    root = Node("root")
+    root.set_parameters(
+        "Parameters",
+        single="jamon",
+        words=["toto", "tata"],
+        nested={"single": "nested"},
+        entries=[{"single": "first"}, {"words": ["second", "third"]}],
+        store_strings_as_S1=True,
+    )
+
+    parameters = root.get_parameters("Parameters", split_strings_logic=None)
+    for value, expected in (
+        (parameters["single"], b"jamon"),
+        (parameters["words"], b"toto tata"),
+        (parameters["nested"]["single"], b"nested"),
+        (parameters["entries"][0]["single"], b"first"),
+        (parameters["entries"][1]["words"], b"second third"),
+    ):
+        assert value.dtype == np.dtype("|S1")
+        assert value.tobytes() == expected
+
+
+def test_get_parameters_splits_string_payloads_and_none_preserves_arrays():
+    root = Node("root")
+    root.set_parameters(
+        "Parameters",
+        words="jamon tortilla",
+        lines="first\nsecond",
+        rows=np.array([["alpha beta"], ["gamma"]]),
+    )
+
+    parameters = root.get_parameters("Parameters")
+    assert parameters["words"] == ["jamon", "tortilla"]
+    assert root.get_parameters("Parameters", split_strings_logic="eol")["lines"] == [
+        "first", "second"
+    ]
+    assert root.get_parameters("Parameters", split_strings_logic="rows")["rows"] == [
+        "alpha beta", "gamma"
+    ]
+    assert root.get_parameters(
+        "Parameters", split_strings_logic="rows_then_spaces"
+    )["rows"] == ["alpha", "beta", "gamma"]
+
+    raw = root.get_parameters("Parameters", split_strings_logic=None)
+    assert isinstance(raw["words"], np.ndarray)
+    assert raw["words"].dtype == np.dtype("|S14")
+    assert isinstance(raw["rows"], np.ndarray)
+
+
 def test_set_and_get_parameters():
     root = Node("root")
 

@@ -17,9 +17,57 @@
 
 namespace {
 
-std::shared_ptr<Data> dataFromPyObject(const py::object& data, const char* context) {
+std::shared_ptr<Data> stringAsS1Data(const std::string& value) {
+    py::module_ numpy = py::module_::import("numpy");
+    py::array array = numpy.attr("frombuffer")(
+        py::bytes(value), numpy.attr("dtype")("S1")).cast<py::array>();
+    return std::make_shared<Array>(arraybridge::arrayFromPyArray(array));
+}
+
+std::string joinedStringSequence(const py::handle& value, bool& isStringSequence) {
+    isStringSequence = false;
+    if (!py::isinstance<py::list>(value) && !py::isinstance<py::tuple>(value)) {
+        return {};
+    }
+
+    py::sequence sequence = py::reinterpret_borrow<py::sequence>(value);
+    const size_t size = py::len(sequence);
+    if (size == 0) {
+        return {};
+    }
+
+    std::string joined;
+    for (size_t index = 0; index < size; ++index) {
+        py::object item = py::reinterpret_borrow<py::object>(sequence[index]);
+        if (!py::isinstance<py::str>(item)) {
+            return {};
+        }
+        if (index != 0) {
+            joined.push_back(' ');
+        }
+        joined += item.cast<std::string>();
+    }
+    isStringSequence = true;
+    return joined;
+}
+
+std::shared_ptr<Data> dataFromPyObject(
+    const py::object& data,
+    const char* context,
+    bool storeStringsAsS1 = false) {
     if (data.is_none()) {
         return std::make_shared<Array>();
+    }
+
+    if (storeStringsAsS1 && py::isinstance<py::str>(data)) {
+        return stringAsS1Data(data.cast<std::string>());
+    }
+
+    if (storeStringsAsS1 && py::isinstance<Array>(data)) {
+        const auto array = data.cast<std::shared_ptr<Array>>();
+        if (array && array->hasString()) {
+            return stringAsS1Data(array->extractString());
+        }
     }
 
     if (py::isinstance<Data>(data)) {
@@ -44,13 +92,37 @@ std::shared_ptr<Data> dataFromPyObject(const py::object& data, const char* conte
     }
 
     if (py::isinstance<py::array>(data)) {
+        if (storeStringsAsS1) {
+            py::array arrayData = data.cast<py::array>();
+            const std::string kind = py::str(arrayData.dtype().attr("kind")).cast<std::string>();
+            if (kind == "S" || kind == "U") {
+                py::object textArray = arrayData.attr("astype")("str").attr("ravel")("C");
+                py::object joined = py::str(" ").attr("join")(textArray);
+                return stringAsS1Data(joined.cast<std::string>());
+            }
+        }
         return std::make_shared<Array>(arraybridge::arrayFromPyArray(data.cast<py::array>()));
     }
 
     if (py::isinstance<py::list>(data) || py::isinstance<py::tuple>(data)) {
+        if (storeStringsAsS1) {
+            bool isStringSequence = false;
+            const std::string joined = joinedStringSequence(data, isStringSequence);
+            if (isStringSequence) {
+                return stringAsS1Data(joined);
+            }
+        }
         try {
             py::module_ np = py::module_::import("numpy");
             py::array arrayData = np.attr("asarray")(data).cast<py::array>();
+            if (storeStringsAsS1) {
+                const std::string kind = py::str(arrayData.dtype().attr("kind")).cast<std::string>();
+                if (kind == "S" || kind == "U") {
+                    py::object textArray = arrayData.attr("astype")("str").attr("ravel")("C");
+                    py::object joined = py::str(" ").attr("join")(textArray);
+                    return stringAsS1Data(joined.cast<std::string>());
+                }
+            }
             return std::make_shared<Array>(arraybridge::arrayFromPyArray(arrayData));
         } catch (const py::error_already_set&) {
             throw py::type_error(
@@ -63,7 +135,7 @@ std::shared_ptr<Data> dataFromPyObject(const py::object& data, const char* conte
         try {
             py::object scalar = data.attr("item")();
             if (scalar.ptr() != data.ptr()) {
-                return dataFromPyObject(scalar, context);
+                return dataFromPyObject(scalar, context, storeStringsAsS1);
             }
         } catch (const py::error_already_set&) {
             // Fall through to final type error.
@@ -75,9 +147,12 @@ std::shared_ptr<Data> dataFromPyObject(const py::object& data, const char* conte
         ": unsupported data type: " + py::str(data.get_type()).cast<std::string>());
 }
 
-ParameterValue::DictEntries parameterEntriesFromPyMapping(const py::handle& mapping, const char* context);
+py::object interpretData(const std::shared_ptr<Data>& data, const py::object& splitStringsLogic);
 
-ParameterValue parameterValueFromPyObject(const py::handle& value, const char* context) {
+ParameterValue parameterValueFromPyObject(
+    const py::handle& value,
+    const char* context,
+    bool storeStringsAsS1 = false) {
     py::object objectValue = py::reinterpret_borrow<py::object>(value);
 
     if (objectValue.is_none() || PyCallable_Check(objectValue.ptr())) {
@@ -89,7 +164,18 @@ ParameterValue parameterValueFromPyObject(const py::handle& value, const char* c
     }
 
     if (py::isinstance<py::dict>(objectValue)) {
-        return ParameterValue::makeDict(parameterEntriesFromPyMapping(objectValue, context));
+        ParameterValue::DictEntries entries;
+        py::dict mapping = objectValue.cast<py::dict>();
+        entries.reserve(mapping.size());
+        for (const auto& item : mapping) {
+            if (!py::isinstance<py::str>(item.first)) {
+                throw py::type_error(std::string(context) + ": parameter names must be strings");
+            }
+            entries.emplace_back(
+                item.first.cast<std::string>(),
+                parameterValueFromPyObject(item.second, context, storeStringsAsS1));
+        }
+        return ParameterValue::makeDict(std::move(entries));
     }
 
     if (py::isinstance<py::list>(objectValue) || py::isinstance<py::tuple>(objectValue)) {
@@ -112,35 +198,19 @@ ParameterValue parameterValueFromPyObject(const py::handle& value, const char* c
                 if (!py::isinstance<py::dict>(item)) {
                     throw py::value_error(std::string(context) + ": expected dict in list of dicts");
                 }
-                entries.push_back(ParameterValue::makeDict(parameterEntriesFromPyMapping(item, context)));
+                entries.push_back(parameterValueFromPyObject(item, context, storeStringsAsS1));
             }
             return ParameterValue::makeList(std::move(entries));
         }
     }
 
-    return ParameterValue::makeData(dataFromPyObject(objectValue, context));
+    return ParameterValue::makeData(dataFromPyObject(objectValue, context, storeStringsAsS1));
 }
 
-ParameterValue::DictEntries parameterEntriesFromPyMapping(const py::handle& mapping, const char* context) {
-    if (!py::isinstance<py::dict>(mapping)) {
-        throw py::type_error(std::string(context) + ": expected dict-like mapping");
-    }
-
-    py::dict mappingDict = py::reinterpret_borrow<py::dict>(mapping);
-    ParameterValue::DictEntries entries;
-    entries.reserve(mappingDict.size());
-
-    for (const auto& item : mappingDict) {
-        if (!py::isinstance<py::str>(item.first)) {
-            throw py::type_error(std::string(context) + ": parameter names must be strings");
-        }
-        const std::string parameterName = item.first.cast<std::string>();
-        entries.emplace_back(parameterName, parameterValueFromPyObject(item.second, context));
-    }
-    return entries;
-}
-
-py::object pyObjectFromParameterValue(const ParameterValue& value, bool transformNumpyScalars) {
+py::object pyObjectFromParameterValue(
+    const ParameterValue& value,
+    bool transformNumpyScalars,
+    const py::object& splitStringsLogic = py::none()) {
     switch (value.kind) {
         case ParameterValue::Kind::Null:
             return py::none();
@@ -148,6 +218,10 @@ py::object pyObjectFromParameterValue(const ParameterValue& value, bool transfor
         case ParameterValue::Kind::Data: {
             if (!value.data || value.data->isNone()) {
                 return py::none();
+            }
+
+            if (!splitStringsLogic.is_none() && value.data->hasString()) {
+                return interpretData(value.data, splitStringsLogic);
             }
 
             auto arrayData = std::dynamic_pointer_cast<Array>(value.data);
@@ -169,7 +243,8 @@ py::object pyObjectFromParameterValue(const ParameterValue& value, bool transfor
         case ParameterValue::Kind::Dict: {
             py::dict output;
             for (const auto& [key, childValue] : value.dictEntries) {
-                output[py::str(key)] = pyObjectFromParameterValue(childValue, transformNumpyScalars);
+                output[py::str(key)] = pyObjectFromParameterValue(
+                    childValue, transformNumpyScalars, splitStringsLogic);
             }
             return output;
         }
@@ -177,7 +252,8 @@ py::object pyObjectFromParameterValue(const ParameterValue& value, bool transfor
         case ParameterValue::Kind::List: {
             py::list output;
             for (const auto& childValue : value.listEntries) {
-                output.append(pyObjectFromParameterValue(childValue, transformNumpyScalars));
+                output.append(pyObjectFromParameterValue(
+                    childValue, transformNumpyScalars, splitStringsLogic));
             }
             return output;
         }
@@ -321,8 +397,7 @@ std::vector<std::string> stringsFromRows(const Array& arrayData) {
     return output;
 }
 
-py::object interpretNodeData(const Node& node, const py::object& splitStringsLogic) {
-    std::shared_ptr<Data> data = node.dataPtr();
+py::object interpretData(const std::shared_ptr<Data>& data, const py::object& splitStringsLogic) {
     if (!data || data->isNone()) {
         return py::none();
     }
@@ -363,6 +438,10 @@ py::object interpretNodeData(const Node& node, const py::object& splitStringsLog
     throw py::value_error(
         "interpret_data: split_strings_logic must be 'spaces', 'rows', "
         "'rows_then_spaces', 'eol' or None");
+}
+
+py::object interpretNodeData(const Node& node, const py::object& splitStringsLogic) {
+    return interpretData(node.dataPtr(), splitStringsLogic);
 }
 
 } // namespace
@@ -499,20 +578,25 @@ Numeric arrays are returned as NumPy arrays and empty payloads return None.
 )doc",
              py::arg("split_strings_logic") = "spaces")
         
-        .def("set_data", [](Node &node, const py::object& d) {
-            node.setData(dataFromPyObject(d, "set_data"));
+        .def("set_data", [](Node &node, const py::object& d, bool storeStringsAsS1) {
+            node.setData(dataFromPyObject(d, "set_data", storeStringsAsS1));
             synchronizeAliasedNodes({sharedNodeOrNull(node)});
         }, R"doc(
 Set node payload from scalar, string, NumPy array, list/tuple (converted via numpy.asarray), or Data.
 
+When ``store_strings_as_S1`` is True, string payloads are encoded as a flat
+NumPy byte-character array (``dtype='|S1'``). Lists of strings are joined with
+spaces before encoding.
+
 See C++ counterpart: :ref:`cpp-node-setdata`.
-)doc")
+)doc", py::arg("data"), py::arg("store_strings_as_S1") = false)
         .def(
             "set_parameters",
             [](Node& node,
                const std::string& containerName,
                const std::string& containerType,
                const std::string& parameterType,
+               bool storeStringsAsS1,
                py::kwargs parameters) {
                 ParameterValue::DictEntries entries;
                 entries.reserve(parameters.size());
@@ -521,7 +605,9 @@ See C++ counterpart: :ref:`cpp-node-setdata`.
                         throw py::type_error("set_parameters: parameter names must be strings");
                     }
                     const std::string parameterName = item.first.cast<std::string>();
-                    entries.emplace_back(parameterName, parameterValueFromPyObject(item.second, "set_parameters"));
+                    entries.emplace_back(
+                        parameterName,
+                        parameterValueFromPyObject(item.second, "set_parameters", storeStringsAsS1));
                 }
                 auto container = node.setParameters(containerName, entries, containerType, parameterType);
                 synchronizeAliasedNodes({sharedNodeOrNull(node), container});
@@ -535,27 +621,44 @@ Special handling:
 - `list[dict]` values create ordered `_list_.<index>` entries.
 - `None`, callables and Node values are stored as null-like leaves.
 - other values are stored as leaf data arrays/scalars.
+- When ``store_strings_as_S1`` is True, strings are encoded as flat ``|S1``
+  arrays; lists of strings are joined with spaces first.
 
 See C++ counterpart: :ref:`cpp-node-setparameters`.
 )doc",
             py::arg("container_name"),
             py::arg("container_type") = "UserDefinedData_t",
-            py::arg("parameter_type") = "DataArray_t")
+            py::arg("parameter_type") = "DataArray_t",
+            py::kw_only(),
+            py::arg("store_strings_as_S1") = false)
         .def(
             "get_parameters",
-            [](const Node& node, const std::string& containerName, bool transformNumpyScalars) {
+            [](const Node& node,
+               const std::string& containerName,
+               bool transformNumpyScalars,
+               const py::object& splitStringsLogic) {
                 const ParameterValue parameters = node.getParameters(containerName);
-                return pyObjectFromParameterValue(parameters, transformNumpyScalars);
+                return pyObjectFromParameterValue(
+                    parameters, transformNumpyScalars, splitStringsLogic);
             },
             R"doc(
 Read a parameter container and convert it back to Python dict/list/scalar-like objects.
 
 When `transform_numpy_scalars` is True, single-item NumPy arrays are converted to Python scalars.
 
+String leaves can be decoded and split using ``split_strings_logic``:
+
+- ``"spaces"`` (default): split on spaces.
+- ``"rows"``: split a string matrix by rows.
+- ``"rows_then_spaces"``: split rows, then split each row on spaces.
+- ``"eol"``: split on newline characters.
+- ``None``: preserve the original NumPy array.
+
 See C++ counterpart: :ref:`cpp-node-getparameters`.
 )doc",
             py::arg("container_name"),
-            py::arg("transform_numpy_scalars") = false)
+            py::arg("transform_numpy_scalars") = false,
+            py::arg("split_strings_logic") = "spaces")
                 
         .def("children", &Node::children, R"doc(
 Return all direct children preserving insertion order.

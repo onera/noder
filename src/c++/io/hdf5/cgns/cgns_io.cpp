@@ -8,6 +8,7 @@
 #include "cgns/base.hpp"
 #include "cgns/tree.hpp"
 #include "cgns/zone.hpp"
+#include "io/hdf5/cgns/cgns_name_limits.hpp"
 
 #include <hdf5.h>
 
@@ -23,7 +24,10 @@ namespace io::hdf5::cgns {
 
 namespace {
 
-constexpr size_t kCGNSLongStringAttrLen = 33;
+constexpr size_t kCGNSNameStandardAttrLen = kCGNSNameSoftLimitBytes + 1; // Include the terminator byte.
+constexpr size_t kCGNSNameExtendedAttrLen = kCGNSNameHardLimitBytes + 1; // Include the terminator byte.
+constexpr size_t kCGNSLabelAttrLen = 33; // Keep the CGNS file-mapping width.
+constexpr size_t kCGNSVersionDatasetLen = 33;
 constexpr size_t kCGNSTypeAttrLen = 3;
 constexpr unsigned kCGNSLinkCreationOrderFlags = H5P_CRT_ORDER_TRACKED | H5P_CRT_ORDER_INDEXED;
 
@@ -179,6 +183,53 @@ bool is_hdf5_cgns_file_root_label(const std::string& label) {
     return label == "Root Node of HDF5 File";
 }
 
+bool is_cgns_library_version_node(const std::shared_ptr<Node>& node);
+
+void validate_cgns_name_length(const std::string& name, const std::string& path) {
+    if (name.size() > kCGNSNameHardLimitBytes) {
+        throw std::invalid_argument(
+            "CGNS node name at '" + path + "' is " + std::to_string(name.size()) +
+            " bytes; the maximum supported length is " + std::to_string(kCGNSNameHardLimitBytes) + " bytes");
+    }
+}
+
+void warn_if_extended_cgns_name(const std::string& name, const std::string& path) {
+    if (name.size() > kCGNSNameSoftLimitBytes) {
+        std::cerr << "Warning: CGNS node name at '" << path << "' is " << name.size()
+                  << " bytes (CGNS limit: " << kCGNSNameSoftLimitBytes
+                  << "); writing a non-standard extended name attribute."
+                  << std::endl;
+    }
+}
+
+size_t cgns_name_attr_length(const std::string& name) {
+    return name.size() <= kCGNSNameSoftLimitBytes
+        ? kCGNSNameStandardAttrLen
+        : kCGNSNameExtendedAttrLen;
+}
+
+void validate_cgns_name_tree(const std::shared_ptr<Node>& node) {
+    if (!node) {
+        return;
+    }
+    validate_cgns_name_length(node->name(), node->path());
+    for (const auto& child : node->children()) {
+        validate_cgns_name_tree(child);
+    }
+}
+
+void validate_cgns_output_names(const std::shared_ptr<Node>& root) {
+    if (is_cgns_tree_root(root)) {
+        for (const auto& child : root->children()) {
+            if (!is_cgns_library_version_node(child)) {
+                validate_cgns_name_tree(child);
+            }
+        }
+        return;
+    }
+    validate_cgns_name_tree(root);
+}
+
 std::shared_ptr<Node> make_node_for_cgns_label(
     const std::string& name,
     const std::string& label) {
@@ -276,11 +327,11 @@ void add_string_attr_fixed_utf8(hid_t id, const std::string& key, const std::str
 }
 
 void add_cgns_name_attr(hid_t id, const std::string& value) {
-    add_string_attr_fixed_utf8(id, "name", value, kCGNSLongStringAttrLen);
+    add_string_attr_fixed_utf8(id, "name", value, cgns_name_attr_length(value));
 }
 
 void add_cgns_label_attr(hid_t id, const std::string& value) {
-    add_string_attr_fixed_utf8(id, "label", value, kCGNSLongStringAttrLen);
+    add_string_attr_fixed_utf8(id, "label", value, kCGNSLabelAttrLen);
 }
 
 void add_cgns_type_attr(hid_t id, const std::string& value) {
@@ -380,7 +431,7 @@ void write_cgns_file_metadata(hid_t file) {
 
     const std::string versionValue = hdf5_library_version_string();
     std::vector<int8_t> versionData(versionValue.begin(), versionValue.end());
-    versionData.resize(kCGNSLongStringAttrLen, 0);
+    versionData.resize(kCGNSVersionDatasetLen, 0);
     hsize_t versionDims[1] = {static_cast<hsize_t>(versionData.size())};
     hid_t versionSpace = H5Screate_simple(1, versionDims, nullptr);
     hid_t versionDset = H5Dcreate2(file, " hdf5version", H5T_NATIVE_INT8, versionSpace,
@@ -417,11 +468,11 @@ void replace_string_attribute(hid_t location, const std::string& key, const std:
 }
 
 void replace_cgns_name_attr(hid_t location, const std::string& value) {
-    replace_string_attribute(location, "name", value, kCGNSLongStringAttrLen);
+    replace_string_attribute(location, "name", value, cgns_name_attr_length(value));
 }
 
 void replace_cgns_label_attr(hid_t location, const std::string& value) {
-    replace_string_attribute(location, "label", value, kCGNSLongStringAttrLen);
+    replace_string_attribute(location, "label", value, kCGNSLabelAttrLen);
 }
 
 void replace_cgns_type_attr(hid_t location, const std::string& value) {
@@ -562,6 +613,8 @@ void write_node_rec(
     const std::string& cgnsTreeRootName = "") {
 
     std::string groupPath = path + "/" + node->name();
+    validate_cgns_name_length(node->name(), groupPath);
+    warn_if_extended_cgns_name(node->name(), groupPath);
     hid_t group = H5Gcreate2(file, groupPath.c_str(), H5P_DEFAULT, gcpl, H5P_DEFAULT);
     add_cgns_name_attr(group, node->name());
     add_cgns_label_attr(group, node->type());
@@ -771,6 +824,11 @@ std::shared_ptr<Node> read_node_rec_impl(
     std::string name = read_string_attr(group.get(), "name");
     std::string label = read_string_attr(group.get(), "label");
     const std::string dataType = read_string_attr(group.get(), "type");
+    if (name.size() > kCGNSNameHardLimitBytes) {
+        throw cgns_read_error(
+            "CGNS node name at HDF5 path '" + path + "' is " + std::to_string(name.size()) +
+            " bytes; the maximum supported length is " + std::to_string(kCGNSNameHardLimitBytes) + " bytes");
+    }
     if (safeMode) {
         if (name.empty()) {
             throw std::runtime_error("missing required CGNS 'name' attribute");
@@ -916,6 +974,8 @@ std::shared_ptr<Node> read_node_rec(
 } // namespace
 
 void write_node(const std::string& filename, std::shared_ptr<Node> root, const float& cgnsVersion) {
+    validate_cgns_output_names(root);
+
     hid_t fcpl = make_cgns_file_creation_plist();
     hid_t file = H5Fcreate(filename.c_str(), H5F_ACC_TRUNC, fcpl, H5P_DEFAULT);
     H5Pclose(fcpl);
@@ -948,6 +1008,7 @@ void write_node_only(
     if (persistedPath.empty()) {
         throw std::invalid_argument("write_node_only: persistedPath cannot be empty");
     }
+    validate_cgns_name_length(node->name(), persistedPath);
 
     hdf5_handle file(H5Fopen(filename.c_str(), H5F_ACC_RDWR, H5P_DEFAULT), H5Fclose);
     if (file.get() < 0) {
@@ -962,6 +1023,7 @@ void write_node_only(
     }
 
     if (nodeExists == 0) {
+        validate_cgns_name_tree(node);
         const std::string parentPath = parent_hdf5_path(groupPath);
         hdf5_handle parent(H5Gopen2(file.get(), parentPath.c_str(), H5P_DEFAULT), H5Gclose);
         if (parent.get() < 0) {
@@ -980,6 +1042,7 @@ void write_node_only(
         throw std::runtime_error("write_node_only: node path is not an HDF5 group '" + groupPath + "'");
     }
 
+    warn_if_extended_cgns_name(node->name(), groupPath);
     replace_cgns_name_attr(group.get(), node->name());
     replace_cgns_label_attr(group.get(), node->type());
 

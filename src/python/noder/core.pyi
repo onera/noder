@@ -646,11 +646,19 @@ class Node:
         
         See C++ counterpart: :ref:`cpp-node-getlinks`.
         """
-    def get_parameters(self, container_name: str, transform_numpy_scalars: bool = False) -> typing.Any:
+    def get_parameters(self, container_name: str, transform_numpy_scalars: bool = False, split_strings_logic: typing.Any = 'spaces') -> typing.Any:
         """
         Read a parameter container and convert it back to Python dict/list/scalar-like objects.
         
         When `transform_numpy_scalars` is True, single-item NumPy arrays are converted to Python scalars.
+        
+        String leaves can be decoded and split using ``split_strings_logic``:
+        
+        - ``"spaces"`` (default): split on spaces.
+        - ``"rows"``: split a string matrix by rows.
+        - ``"rows_then_spaces"``: split rows, then split each row on spaces.
+        - ``"eol"``: split on newline characters.
+        - ``None``: preserve the original NumPy array.
         
         See C++ counterpart: :ref:`cpp-node-getparameters`.
         """
@@ -791,9 +799,13 @@ class Node:
         
         See C++ counterpart: :ref:`cpp-node-savethisnodeonly`.
         """
-    def set_data(self, arg0: typing.Any) -> None:
+    def set_data(self, data: typing.Any, store_strings_as_S1: bool = False) -> None:
         """
         Set node payload from scalar, string, NumPy array, list/tuple (converted via numpy.asarray), or Data.
+        
+        When ``store_strings_as_S1`` is True, string payloads are encoded as a flat
+        NumPy byte-character array (``dtype='|S1'``). Lists of strings are joined with
+        spaces before encoding.
         
         See C++ counterpart: :ref:`cpp-node-setdata`.
         """
@@ -809,7 +821,7 @@ class Node:
         
         See C++ counterpart: :ref:`cpp-node-setname`.
         """
-    def set_parameters(self, container_name: str, container_type: str = 'UserDefinedData_t', parameter_type: str = 'DataArray_t', **kwargs) -> Node:
+    def set_parameters(self, container_name: str, container_type: str = 'UserDefinedData_t', parameter_type: str = 'DataArray_t', *, store_strings_as_S1: bool = False, **kwargs) -> Node:
         """
         Populate a parameter container using treelab-like kwargs semantics.
         
@@ -818,6 +830,8 @@ class Node:
         - `list[dict]` values create ordered `_list_.<index>` entries.
         - `None`, callables and Node values are stored as null-like leaves.
         - other values are stored as leaf data arrays/scalars.
+        - When ``store_strings_as_S1`` is True, strings are encoded as flat ``|S1``
+          arrays; lists of strings are joined with spaces first.
         
         See C++ counterpart: :ref:`cpp-node-setparameters`.
         """

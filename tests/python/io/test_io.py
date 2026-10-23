@@ -305,6 +305,109 @@ def test_write_nodes_cgns_attrs_layout(tmp_path):
     a.write(tmp_filename)
 
 
+@pytest.mark.parametrize(
+    ("name_bytes", "expected_attr_bytes", "warns"),
+    [(32, 33, False), (33, 65, True), (64, 65, True)],
+)
+def test_cgns_node_names_support_standard_and_extended_lengths(
+    tmp_path, capfd, name_bytes, expected_attr_bytes, warns
+):
+    h5py = pytest.importorskip("h5py")
+    from noder import new_node, read
+
+    name = "N" * name_bytes
+    filename = str(tmp_path / "long_cgns_name.cgns")
+    parent = new_node("Parent", "UserDefinedData_t")
+    child = new_node(name, "DataArray_t", data=np.array([7], dtype=np.int32))
+    parent.add_child(child)
+
+    parent.write(filename)
+
+    warning = capfd.readouterr().err
+    if warns:
+        assert f"/Parent/{name}" in warning
+        assert "non-standard extended name attribute" in warning
+    else:
+        assert warning == ""
+
+    loaded = read(filename)
+    assert loaded.pick().by_name(name).name() == name
+
+    lazy_reader = gio.LazyHdf5Reader(filename)
+    try:
+        assert lazy_reader.node_at_path(f"Parent/{name}").name() == name
+    finally:
+        lazy_reader.close()
+
+    with h5py.File(filename, "r") as h5file:
+        node_group = h5file[f"Parent/{name}"]
+        assert node_group.attrs.get_id("name").dtype.itemsize == expected_attr_bytes
+        assert node_group.attrs.get_id("label").dtype.itemsize == 33
+        assert h5file[" hdf5version"].shape == (33,)
+
+
+def test_cgns_node_name_hard_limit_rejects_writes_without_truncating_file(tmp_path):
+    from noder import new_node, read
+
+    filename = str(tmp_path / "hard_name_limit.cgns")
+    original = new_node("Original", "UserDefinedData_t")
+    original.write(filename)
+
+    too_long = new_node("N" * 65, "UserDefinedData_t")
+    with pytest.raises(ValueError, match="maximum supported length is 64 bytes"):
+        too_long.write(filename)
+
+    assert read(filename).pick().by_name("Original") is not None
+
+
+def test_save_this_node_only_preserves_extended_cgns_name(tmp_path, capfd):
+    h5py = pytest.importorskip("h5py")
+    from noder import Node, read
+
+    filename = str(tmp_path / "save_extended_cgns_name.cgns")
+    name = "N" * 33
+    root = Node("root", "UserDefinedData_t")
+    child = Node(name, "DataArray_t")
+    child.set_data(np.array([1], dtype=np.int32))
+    root.add_child(child)
+    root.write(filename)
+    capfd.readouterr()
+
+    child.set_data(np.array([2], dtype=np.int32))
+    child.save_this_node_only(filename)
+
+    assert f"/root/{name}" in capfd.readouterr().err
+    with h5py.File(filename, "r") as h5file:
+        assert h5file[f"root/{name}"].attrs.get_id("name").dtype.itemsize == 65
+    assert read(filename).pick().by_name(name).name() == name
+
+
+def test_cgns_node_name_hard_limit_applies_to_eager_and_lazy_reads(tmp_path):
+    h5py = pytest.importorskip("h5py")
+    from noder import read
+
+    filename = str(tmp_path / "too_long_cgns_name.cgns")
+    name = "N" * 65
+    with h5py.File(filename, "w", track_order=True) as h5file:
+        h5file.attrs["name"] = np.bytes_("HDF5 MotherNode")
+        h5file.attrs["label"] = np.bytes_("Root Node of HDF5 File")
+        h5file.attrs["type"] = np.bytes_("MT")
+        node_group = h5file.create_group(name, track_order=True)
+        node_group.attrs["name"] = np.bytes_(name)
+        node_group.attrs["label"] = np.bytes_("DataArray_t")
+        node_group.attrs["type"] = np.bytes_("MT")
+
+    with pytest.raises(RuntimeError, match="maximum supported length is 64 bytes"):
+        read(filename)
+
+    lazy_reader = gio.LazyHdf5Reader(filename)
+    try:
+        with pytest.raises(RuntimeError, match="maximum supported length is 64 bytes"):
+            lazy_reader.node_at_path(name)
+    finally:
+        lazy_reader.close()
+
+
 def test_write_cgns_tree_without_root_wrapper(tmp_path):
     os.makedirs(tmp_path, exist_ok=True)
     tmp_filename = str(tmp_path / "test_cgns_tree.cgns")

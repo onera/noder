@@ -13,6 +13,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -360,6 +361,23 @@ std::shared_ptr<Data> readPythonPayloadResult(const std::filesystem::path& path)
         typeId, itemSize, buffer, shape, strides, std::move(owner));
 }
 
+std::shared_ptr<Data> stringAsS1Data(const std::string& value) {
+    std::shared_ptr<void> owner;
+    void* buffer = nullptr;
+    if (!value.empty()) {
+        auto* bytes = new std::uint8_t[value.size()];
+        std::memcpy(bytes, value.data(), value.size());
+        buffer = bytes;
+        owner = std::shared_ptr<void>(bytes, [](void* data) {
+            delete[] static_cast<std::uint8_t*>(data);
+        });
+    }
+
+    Array array = Array::bytesView(
+        buffer, 1, {value.size()}, {1}, std::move(owner));
+    return std::make_shared<Array>(std::move(array));
+}
+
 std::string readFileText(const std::filesystem::path& path) {
     std::ifstream input(path, std::ios::binary);
     std::ostringstream contents;
@@ -672,6 +690,7 @@ TerminalModel::TerminalModel(
       _statusMessage(),
       _viewMode(ViewMode::Node),
       _payloadNode(nullptr),
+      _pendingEditedPayload(nullptr),
       _payloadLines(),
       _payloadScrollOffset(0),
       _searchResults(),
@@ -915,10 +934,18 @@ bool TerminalModel::canEditPayload() const {
 }
 
 void TerminalModel::editPayload(const std::string& expression) {
+    if (preparePayloadEdit(expression)) {
+        completePayloadEdit(false);
+    }
+}
+
+bool TerminalModel::preparePayloadEdit(const std::string& expression) {
     if (_viewMode != ViewMode::Payload || !_payloadNode) {
         _statusMessage = "Open a payload view before editing a payload.";
-        return;
+        return false;
     }
+
+    _pendingEditedPayload.reset();
 
     try {
         TemporaryDirectory temporaryDirectory;
@@ -953,27 +980,58 @@ void TerminalModel::editPayload(const std::string& expression) {
                     std::to_string(exitCode);
             }
             _statusMessage = detail;
-            return;
+            return false;
         }
 
-        const std::shared_ptr<Node> selected = _payloadNode;
-        const std::shared_ptr<Data> previousData = selected->dataPtr();
-        const std::shared_ptr<Data> editedData = readPythonPayloadResult(resultPath);
-        selected->setData(editedData);
-        try {
-            selected->saveThisNodeOnly(_reader->filename());
-        } catch (...) {
-            selected->setData(previousData);
-            throw;
+        _pendingEditedPayload = readPythonPayloadResult(resultPath);
+        if (_pendingEditedPayload->hasString()) {
+            return true;
         }
 
-        rememberPayload(selected, selected->data());
-        _payloadLines = detailedPayloadLines(selected->data());
-        _payloadScrollOffset = 0;
-        _statusMessage = "Payload updated in-place.";
+        const std::shared_ptr<Data> editedData = std::move(_pendingEditedPayload);
+        persistEditedPayload(editedData, false);
     } catch (const std::exception& error) {
         _statusMessage = "Payload edit failed: " + std::string(error.what());
     }
+    return false;
+}
+
+void TerminalModel::completePayloadEdit(const bool storeStringsAsS1) {
+    if (!_pendingEditedPayload) {
+        return;
+    }
+    const std::shared_ptr<Data> editedData = std::move(_pendingEditedPayload);
+    try {
+        persistEditedPayload(editedData, storeStringsAsS1);
+    } catch (const std::exception& error) {
+        _statusMessage = "Payload edit failed: " + std::string(error.what());
+    }
+}
+
+void TerminalModel::persistEditedPayload(
+    const std::shared_ptr<Data>& editedData,
+    const bool storeStringsAsS1) {
+    const std::shared_ptr<Node> selected = _payloadNode;
+    if (!selected) {
+        throw std::runtime_error("The payload selection changed before the edit was saved");
+    }
+
+    const std::shared_ptr<Data> previousData = selected->dataPtr();
+    const std::shared_ptr<Data> storedData = storeStringsAsS1 && editedData->hasString()
+        ? stringAsS1Data(editedData->extractString())
+        : editedData;
+    selected->setData(storedData);
+    try {
+        selected->saveThisNodeOnly(_reader->filename());
+    } catch (...) {
+        selected->setData(previousData);
+        throw;
+    }
+
+    rememberPayload(selected, selected->data());
+    _payloadLines = detailedPayloadLines(selected->data());
+    _payloadScrollOffset = 0;
+    _statusMessage = "Payload updated in-place.";
 }
 
 std::string TerminalModel::payloadMarker(const std::shared_ptr<Node>& node) const {
@@ -2045,7 +2103,19 @@ int runTerminal(TerminalModel& model, std::istream& input, std::ostream& output)
             if (!expression.empty() && expression.back() == '\r') {
                 expression.pop_back();
             }
-            model.editPayload(expression);
+            if (model.preparePayloadEdit(expression)) {
+                output << "> Store string as S1?: Yes [Y or Enter] / No [N]\n";
+                std::string choice;
+                const bool choiceAccepted = static_cast<bool>(std::getline(input, choice));
+                if (!choice.empty() && choice.back() == '\r') {
+                    choice.pop_back();
+                }
+                const std::string normalizedChoice = trim(choice);
+                const bool storeStringsAsS1 = choiceAccepted &&
+                    (normalizedChoice.empty() ||
+                     std::tolower(static_cast<unsigned char>(normalizedChoice.front())) == 'y');
+                model.completePayloadEdit(storeStringsAsS1);
+            }
             model.render(output);
             output.flush();
             continue;
@@ -2110,7 +2180,17 @@ int runInteractiveTerminal(TerminalModel& model) {
             bool accepted = false;
             const std::string expression = readInteractiveLine("payload> ", accepted);
             if (accepted) {
-                model.editPayload(expression);
+                if (model.preparePayloadEdit(expression)) {
+                    bool choiceAccepted = false;
+                    const std::string choice = readInteractiveLine(
+                        "> Store string as S1?: Yes [Y or Enter] / No [N] ",
+                        choiceAccepted);
+                    const std::string normalizedChoice = trim(choice);
+                    const bool storeStringsAsS1 = choiceAccepted &&
+                        (normalizedChoice.empty() ||
+                         std::tolower(static_cast<unsigned char>(normalizedChoice.front())) == 'y');
+                    model.completePayloadEdit(storeStringsAsS1);
+                }
             }
         } else if (!model.handle(key)) {
             return 0;

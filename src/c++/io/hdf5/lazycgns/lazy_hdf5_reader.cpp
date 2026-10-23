@@ -7,6 +7,7 @@
 #include "cgns/base.hpp"
 #include "cgns/tree.hpp"
 #include "cgns/zone.hpp"
+#include "io/hdf5/cgns/cgns_name_limits.hpp"
 
 #include <hdf5.h>
 
@@ -921,7 +922,6 @@ private:
         std::string name = readStringAttribute(group.get(), "name");
         const std::string label = readStringAttribute(group.get(), "label");
         const std::string dataType = readStringAttribute(group.get(), "type");
-
         if (_safeMode) {
             if (name.empty()) {
                 throw std::runtime_error("missing required CGNS 'name' attribute");
@@ -941,6 +941,11 @@ private:
                 const size_t separator = path.find_last_of('/');
                 name = separator == std::string::npos ? path : path.substr(separator + 1);
             }
+        }
+        if (name.size() > kCGNSNameHardLimitBytes) {
+            throw std::runtime_error(
+                "CGNS node name at HDF5 path '" + path + "' is " + std::to_string(name.size()) +
+                " bytes; the maximum supported length is " + std::to_string(kCGNSNameHardLimitBytes) + " bytes");
         }
 
         const std::shared_ptr<Node> node = makeNodeForLabel(name, label);

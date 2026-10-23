@@ -388,6 +388,51 @@ def test_cgnsvi_edits_payload_in_place(tmp_path):
         )
 
 
+@pytest.mark.parametrize("choice", ["y", ""])
+def test_cgnsvi_can_store_edited_strings_as_s1(tmp_path, choice):
+    executable = _cgnsvi_executable()
+    if executable is None:
+        pytest.skip("cgnsvi executable is not available; configure with ENABLE_CGNSVI=ON")
+
+    filename = tmp_path / "cgnsvi-edit-string.cgns"
+    _write_smoke_file(filename)
+    environment = os.environ.copy()
+    repository_root = Path(__file__).resolve().parents[3]
+    package_root = repository_root / "dist" / "dev"
+    runtime_directories = [
+        str(executable.parent),
+        str(package_root / "noder"),
+        str(Path(sys.executable).parent),
+    ]
+    environment["PATH"] = os.pathsep.join(
+        runtime_directories + [environment.get("PATH", "")]
+    )
+    environment["PYTHONPATH"] = os.pathsep.join(
+        [str(package_root), environment.get("PYTHONPATH", "")]
+    )
+    environment.pop("NODER_PYTHON_EXECUTABLE", None)
+
+    result = subprocess.run(
+        [str(executable), str(filename), "--non-interactive"],
+        input=f"j\nj\nD\ne 'jamon'\n{choice}\nq\n",
+        text=True,
+        capture_output=True,
+        check=False,
+        cwd=tmp_path,
+        env=environment,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "> Store string as S1?: Yes [Y or Enter] / No [N]" in result.stdout
+    assert "Payload updated in-place." in result.stdout
+    h5py = pytest.importorskip("h5py")
+    with h5py.File(filename, "r") as h5file:
+        payload = h5file["SmallNumbers"][" data"][...]
+    assert payload.dtype == np.dtype(np.int8)
+    assert payload.shape == (5,)
+    assert payload.tobytes() == b"jamon"
+
+
 def test_cgnsvi_multidimensional_payload_metadata(tmp_path):
     executable = _cgnsvi_executable()
     if executable is None:
