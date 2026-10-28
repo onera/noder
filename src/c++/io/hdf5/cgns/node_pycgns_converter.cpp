@@ -81,6 +81,16 @@ py::object nodeValueToPyCGNS(const std::shared_ptr<Node>& node) {
     }
 
     if (auto arrayPtr = std::dynamic_pointer_cast<Array>(dataPtr)) {
+        if (arrayPtr->hasString()) {
+            // PyCGNS and Cassiopee expect CGNS C1 payloads as one byte per
+            // array element. Legacy fixed-width NumPy strings (for example,
+            // shape (1,), dtype S10) are otherwise written as just their
+            // first character by Cassiopee.
+            const std::string value = arrayPtr->extractString();
+            py::module_ numpy = py::module_::import("numpy");
+            return numpy.attr("frombuffer")(
+                py::bytes(value), numpy.attr("dtype")("S1")).attr("copy")();
+        }
         return arraybridge::toPyObject(*arrayPtr);
     }
 

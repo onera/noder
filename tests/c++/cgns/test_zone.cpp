@@ -94,7 +94,7 @@ std::shared_ptr<Zone> makeParticleZone() {
         {"CoordinateY", {3.0, 4.0, 5.0}},
         {"CoordinateZ", {6.0, 7.0, 8.0}}};
     for (const auto& [name, values] : coordinateValues) {
-        py::array_t<double> array(values.size());
+        py::array_t<double> array(static_cast<ssize_t>(values.size()));
         std::copy(values.begin(), values.end(), array.mutable_data());
         auto coordinate = std::make_shared<Node>(name, "DataArray_t");
         coordinate->setData(std::make_shared<Array>(arraybridge::arrayFromPyArray(array)));

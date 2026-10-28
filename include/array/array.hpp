@@ -320,6 +320,9 @@ private:
     Array& increaseElementsBy(const T& scalar);
 
     template <typename T>
+    Array& decreaseElementsBy(const T& scalar);
+
+    template <typename T>
     Array& increaseElementsFrom(const Array& other);
     template <typename T>
     Array& increaseElementsOfThisContiguousUsingContiguous(const Array& other);

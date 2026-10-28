@@ -35,6 +35,36 @@ project(${SKBUILD_PROJECT_NAME} LANGUAGES C CXX)
 
 set(CMAKE_BUILD_TYPE Release)
 
+# Keep warnings compiler-specific. IntelLLVM accepts a useful subset of the
+# GNU/Clang diagnostics, while GCC-only diagnostics such as -fanalyzer and
+# -Wduplicated-branches are not portable to it.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # core_shared exports C++ classes with STL members. Its consumers use the
+    # same MSVC toolset/runtime, so C4251 is the expected DLL-interface
+    # warning; changing these classes to method-only exports would be a public
+    # ABI redesign.
+    add_compile_options(/W4 /wd4251 "$<$<COMPILE_LANGUAGE:CXX>:/permissive->")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_options(
+        -Wall -Wextra -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align
+        -Woverloaded-virtual -Wconversion -Wsign-conversion -Wnull-dereference -Wdouble-promotion
+        -Wformat=2 -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wlogical-op
+        -Wuseless-cast -Wzero-as-null-pointer-constant -Wunsafe-loop-optimizations
+        -Wstrict-null-sentinel -Wfloat-equal -Wstrict-overflow=5 -Wundef -Wcast-qual
+        -Wredundant-decls -Wnoexcept -Wstrict-aliasing=2 -fanalyzer -Wsign-compare -Wvla
+        -Wpessimizing-move -Wredundant-move -Wunused-parameter -Wstack-protector
+        -Wformat-overflow -Wformat-truncation
+    )
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
+    add_compile_options(
+        -Wall -Wextra -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align
+        -Woverloaded-virtual -Wconversion -Wsign-conversion -Wnull-dereference -Wdouble-promotion
+        -Wformat=2 -Wzero-as-null-pointer-constant -Wfloat-equal -Wundef -Wcast-qual
+        -Wredundant-decls -Wsign-compare -Wvla -Wpessimizing-move -Wredundant-move
+        -Wunused-parameter
+    )
+endif()
+
 # C++17 filesystem library linking
 # For GCC < 9 and Intel compilers, libstdc++fs needs explicit linking
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Intel" AND NOT WIN32)
@@ -51,7 +81,7 @@ else()
     set(STDCXXFS_LIBRARY "")
 endif()
 
-if(MSVC)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     if(NOT CMAKE_CONFIGURATION_TYPES)
         set(BUILD_TYPE ${CMAKE_BUILD_TYPE})
     else()
@@ -60,24 +90,11 @@ if(MSVC)
 else()
     set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g") 
     
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        add_compile_options(
-            -Wall -Wextra -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align
-            -Woverloaded-virtual -Wconversion -Wsign-conversion -Wnull-dereference -Wdouble-promotion
-            -Wformat=2 -Wmisleading-indentation -Wduplicated-cond -Wduplicated-branches -Wlogical-op
-            -Wuseless-cast -Wzero-as-null-pointer-constant -Wunsafe-loop-optimizations
-            -Wstrict-null-sentinel -Wfloat-equal -Wstrict-overflow=5 -Wundef -Wcast-qual
-            -Wredundant-decls -Wnoexcept -Wstrict-aliasing=2 -fanalyzer -Wsign-compare -Wvla
-            -Wpessimizing-move -Wredundant-move -Wunused-parameter -Wstack-protector
-            -Wformat-overflow -Wformat-truncation
-        )
-    endif()
-    
     if (APPLE)
         message(STATUS "Disabling -flto on macOS for linker compatibility")
     elseif (CMAKE_CXX_COMPILER_ID MATCHES "Intel")
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
-    else()
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto=auto")
     endif()
   
@@ -143,25 +160,36 @@ set(VERSIONED_OUTPUT_DIR "${CMAKE_BINARY_DIR}/${PYTHON_TAG}/${SKBUILD_PROJECT_NA
 file(MAKE_DIRECTORY ${VERSIONED_OUTPUT_DIR})
 message(STATUS "VERSIONED_OUTPUT_DIR: ${VERSIONED_OUTPUT_DIR}")
 
-# MPI is deliberately opt-in.  Merely finding MPI on a build machine must not
-# make the regular noder/cgnsvi build depend on it: cgnsvi does not create an
-# MPI session, and parallel HDF5 may require one before it can be used.
-option(ENABLE_MPI "Enable MPI support for the noder core" OFF)
-if(ENABLE_MPI)
-    find_package(MPI REQUIRED COMPONENTS C CXX)
-    include_directories(${MPI_CXX_INCLUDE_DIRS})
-    message(STATUS "MPI explicitly enabled. Using MPI include dirs at: ${MPI_CXX_INCLUDE_DIRS}")
-else()
-    message(STATUS "MPI disabled (set ENABLE_MPI=ON to opt in)")
+# ENABLE_MPI is a mode so the default can follow the selected HDF5 build while
+# still allowing callers to force MPI on or off. Older BOOL cache entries are
+# migrated: the former default OFF becomes AUTO, and explicit ON stays ON.
+if(DEFINED CACHE{ENABLE_MPI})
+    get_property(NODER_ENABLE_MPI_CACHE_TYPE CACHE ENABLE_MPI PROPERTY TYPE)
+    if(NODER_ENABLE_MPI_CACHE_TYPE STREQUAL "BOOL")
+        if(ENABLE_MPI)
+            set(ENABLE_MPI "ON" CACHE STRING "MPI mode: AUTO, ON, or OFF" FORCE)
+        else()
+            set(ENABLE_MPI "AUTO" CACHE STRING "MPI mode: AUTO, ON, or OFF" FORCE)
+        endif()
+        message(STATUS "Migrated the previous ENABLE_MPI BOOL setting to ${ENABLE_MPI}")
+    endif()
+endif()
+set(ENABLE_MPI "AUTO" CACHE STRING "MPI mode: AUTO, ON, or OFF")
+set_property(CACHE ENABLE_MPI PROPERTY STRINGS AUTO ON OFF)
+string(TOUPPER "${ENABLE_MPI}" NODER_MPI_MODE)
+if(NOT NODER_MPI_MODE MATCHES "^(AUTO|ON|OFF)$")
+    message(FATAL_ERROR "ENABLE_MPI must be AUTO, ON, or OFF (got '${ENABLE_MPI}')")
 endif()
 
+# In AUTO mode prefer a parallel installation so the subsequent header probe
+# can detect its MPI requirement. OFF requests the serial HDF5 variant.
+if(NODER_MPI_MODE STREQUAL "OFF")
+    set(HDF5_PREFER_PARALLEL FALSE)
+else()
+    set(HDF5_PREFER_PARALLEL TRUE)
+endif()
 
-# Use serial HDF5 for the normal build.  In particular, do not silently pick
-# the parallel HDF5 installation just because MPI happens to be installed.
-# A future MPI-enabled noder build can opt in together with ENABLE_MPI.
-set(HDF5_PREFER_PARALLEL ${ENABLE_MPI})
-
-if(MSVC)
+if(WIN32)
     option(NODER_STATIC_HDF5 "Link HDF5 statically to avoid Windows DLL conflicts" ON)
 else()
     option(NODER_STATIC_HDF5 "Link HDF5 statically" OFF)
@@ -177,7 +205,7 @@ if (HDF5_C_LIBRARY AND HDF5_INCLUDE_DIR AND
     EXISTS "${HDF5_C_LIBRARY}" AND EXISTS "${HDF5_INCLUDE_DIR}/hdf5.h")
 
     set(NODER_HDF5_LIBRARIES "${HDF5_C_LIBRARY}")
-    if(MSVC AND NODER_STATIC_HDF5)
+    if(WIN32 AND NODER_STATIC_HDF5)
         get_filename_component(HDF5_LIBRARY_DIR "${HDF5_C_LIBRARY}" DIRECTORY)
         get_filename_component(HDF5_LIBRARY_NAME "${HDF5_C_LIBRARY}" NAME)
         if(HDF5_LIBRARY_NAME STREQUAL "hdf5.lib" AND EXISTS "${HDF5_LIBRARY_DIR}/libhdf5.lib")
@@ -225,6 +253,49 @@ else()
         set(ENABLE_HDF5_IO OFF)
         message(WARNING "HDF5 not found. Set HDF5_C_LIBRARY and HDF5_INCLUDE_DIR to override.")
     endif()
+endif()
+
+# Inspect the headers belonging to the HDF5 installation actually selected
+# above. FindHDF5's HDF5_IS_PARALLEL is not available for environment overrides.
+set(NODER_HDF5_IS_PARALLEL OFF)
+if(ENABLE_HDF5_IO)
+    include(CMakePushCheckState)
+    include(CheckCSourceCompiles)
+    unset(NODER_HDF5_HAS_PARALLEL CACHE)
+    cmake_push_check_state(RESET)
+    set(CMAKE_REQUIRED_INCLUDES ${HDF5_INCLUDE_DIRS})
+    check_c_source_compiles([=[
+#include <hdf5.h>
+#ifndef H5_HAVE_PARALLEL
+#error Selected HDF5 was not built with parallel I/O
+#endif
+int main(void) { return 0; }
+]=] NODER_HDF5_HAS_PARALLEL)
+    cmake_pop_check_state()
+    if(NODER_HDF5_HAS_PARALLEL)
+        set(NODER_HDF5_IS_PARALLEL ON)
+    endif()
+endif()
+
+set(NODER_ENABLE_MPI OFF)
+if(NODER_MPI_MODE STREQUAL "ON")
+    set(NODER_ENABLE_MPI ON)
+elseif(NODER_MPI_MODE STREQUAL "AUTO" AND NODER_HDF5_IS_PARALLEL)
+    set(NODER_ENABLE_MPI ON)
+endif()
+
+if(NODER_MPI_MODE STREQUAL "OFF" AND NODER_HDF5_IS_PARALLEL)
+    message(FATAL_ERROR
+        "The selected HDF5 headers enable parallel I/O, but ENABLE_MPI=OFF. "
+        "Use ENABLE_MPI=AUTO or ON, or select a serial HDF5 distribution.")
+endif()
+
+if(NODER_ENABLE_MPI)
+    find_package(MPI REQUIRED COMPONENTS C CXX)
+    include_directories(${MPI_CXX_INCLUDE_DIRS})
+    message(STATUS "MPI enabled (ENABLE_MPI=${NODER_MPI_MODE}, parallel HDF5=${NODER_HDF5_IS_PARALLEL})")
+else()
+    message(STATUS "MPI disabled (ENABLE_MPI=${NODER_MPI_MODE}, parallel HDF5=${NODER_HDF5_IS_PARALLEL})")
 endif()
 
 if (HDF5_FOUND)
@@ -360,6 +431,12 @@ if (MSVC)
 endif()
 
 add_library(core_shared SHARED ${CORE_SHARED_SRC})
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # CMake auto-exports symbols alongside the explicit NODE_EXPORT annotations.
+    # MSVC reports the duplicate vtable exports as LNK4197, though the first
+    # export is used and the duplicates do not change the DLL interface.
+    target_link_options(core_shared PRIVATE /IGNORE:4197)
+endif()
 set_target_properties(core_shared PROPERTIES
     CXX_VISIBILITY_PRESET default
     VISIBILITY_INLINES_HIDDEN OFF
@@ -457,7 +534,7 @@ endif()
 
 endif()
 
-if(ENABLE_MPI)
+if(NODER_ENABLE_MPI)
     target_link_libraries(core_shared PRIVATE ${MPI_CXX_LIBRARIES})
 endif()
 

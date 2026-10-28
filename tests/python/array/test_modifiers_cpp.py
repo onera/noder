@@ -30,6 +30,8 @@ def test_addScalarToRange(): return test_in_cpp.addScalarToRange()
 
 def test_substractScalarToRange(): return test_in_cpp.substractScalarToRange()
 
+def test_substractUnsignedScalar(): return test_in_cpp.substractUnsignedScalar()
+
 
 @pytest.mark.parametrize("dtype", dtypes.floating_and_integral_types)
 def test_multiplyScalarConsideringAllTypes(dtype):

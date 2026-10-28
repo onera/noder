@@ -39,6 +39,21 @@ def test_pyCGNSToNode_equivalent_dtype_descriptor(kind):
     np.testing.assert_array_equal(restored, values)
     assert restored.dtype == original
 
+
+@pytest.mark.parametrize("store_as_s1", [False, True])
+def test_nodeToPyCGNS_normalizes_string_payloads_to_c1_arrays(store_as_s1):
+    node = Node("ZoneType", "ZoneType_t")
+    node.set_data("Structured", store_strings_as_S1=store_as_s1)
+
+    pycgns_node = nodeToPyCGNS(node)
+    payload = pycgns_node[1]
+    assert payload.dtype == np.dtype("S1")
+    assert payload.shape == (len("Structured"),)
+    assert b"".join(payload.tolist()) == b"Structured"
+
+    restored = pyCGNSToNode(pycgns_node)
+    assert restored.data().extractString() == "Structured"
+
 def test_pyCGNSToNode_tree():
     e = ["e", np.array([5]), [], "d_t"]
     d = ["d", np.array([4]), [], "d_t"]

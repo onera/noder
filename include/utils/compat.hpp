@@ -40,10 +40,15 @@ inline void printUTF8Line(const std::string& utf8Text, std::ostream& os = std::c
             if (!isOutputRedirected()) {
                 int wideLen = MultiByteToWideChar(CP_UTF8, 0, utf8Text.c_str(), -1, nullptr, 0);
                 if (wideLen > 0) {
-                    std::wstring wideStr(wideLen, L'\0');
-                    MultiByteToWideChar(CP_UTF8, 0, utf8Text.c_str(), -1, &wideStr[0], wideLen);
+                    std::wstring wideStr(static_cast<std::wstring::size_type>(wideLen), L'\0');
+                    MultiByteToWideChar(CP_UTF8, 0, utf8Text.c_str(), -1, wideStr.data(), wideLen);
                     DWORD written;
-                    WriteConsoleW(hConsole, wideStr.c_str(), wideLen - 1, &written, nullptr);
+                    WriteConsoleW(
+                        hConsole,
+                        wideStr.c_str(),
+                        static_cast<DWORD>(wideLen - 1),
+                        &written,
+                        nullptr);
                     return;
                 }
             }

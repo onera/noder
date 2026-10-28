@@ -4,10 +4,8 @@
 #include "array/factory/strings.hpp"
 
 #include <cctype>
-#include <codecvt>
 #include <cstring>
 #include <limits>
-#include <locale>
 #include <stdexcept>
 
 namespace {
@@ -138,24 +136,6 @@ size_t byteOffsetFromIndices(const Array& array, const std::vector<size_t>& indi
         offset += indices[i] * strides[i];
     }
     return offset;
-}
-
-std::u32string u32StringFromRaw(const char32_t* data, size_t codePointCapacity) {
-    std::u32string output;
-    output.reserve(codePointCapacity);
-    for (size_t i = 0; i < codePointCapacity; ++i) {
-        const char32_t value = data[i];
-        if (value == U'\0') {
-            break;
-        }
-        output.push_back(value);
-    }
-    return output;
-}
-
-std::string stringFromU32String(const std::u32string& value) {
-    std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
-    return converter.to_bytes(value);
 }
 
 template <typename T>

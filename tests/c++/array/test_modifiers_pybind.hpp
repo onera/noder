@@ -35,6 +35,7 @@ void bindTestsOfArrayModifiers(py::module_ &m) {
 
     m.def("addScalarToRange", &test_addScalarToRange);   
     m.def("substractScalarToRange", &test_substractScalarToRange);   
+    m.def("substractUnsignedScalar", &test_substractUnsignedScalar);
 
     utils::bindForFloatingAndIntegralTypes(m, "multiplyScalarConsideringAllTypes",
         []<typename T>(utils::TypeTag<T>) { return &test_multiplyScalarConsideringAllTypes<T>; }

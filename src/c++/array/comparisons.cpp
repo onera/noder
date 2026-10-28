@@ -97,7 +97,6 @@ bool Array::hasAllItemsEqualTo(const T& other) const {
         }
         return true;
     }
-    return false;
 }
 
 

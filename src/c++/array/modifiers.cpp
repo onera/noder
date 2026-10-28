@@ -106,7 +106,6 @@ Array& Array::setElementsFrom(const Array& other) {
         }
     }
 
-    throw std::runtime_error("theoretically unreachable, bad conditioning");
 }
 
 template <typename T>
@@ -206,6 +205,24 @@ Array& Array::increaseElementsBy(const T& scalar) {
     return *this;
 }
 
+template <typename T>
+Array& Array::decreaseElementsBy(const T& scalar) {
+    this->must().haveValidDataTypeForSettingScalar<T>();
+    T* data = this->getPointerOfModifiableDataFast<T>();
+
+    if (this->isContiguous()) {
+        for (size_t i = 0; i < this->_size; i++) {
+            data[i] -= scalar;
+        }
+    } else {
+        for (size_t i = 0; i < this->_size; i++) {
+            const size_t offset = this->getOffsetFromFlatIndex<T>(i);
+            data[offset] -= scalar;
+        }
+    }
+    return *this;
+}
+
 
 template <>
 Array& Array::operator+=(const Array& other) {
@@ -242,7 +259,6 @@ Array& Array::increaseElementsFrom(const Array& other) {
         }
     }
 
-    throw std::runtime_error("theoretically unreachable, bad conditioning");
 }
 
 template <typename T>
@@ -302,25 +318,25 @@ Array& Array::increaseElementsOfThisNonContiguousUsingNonContiguous(const Array&
 }
 
 template <>
-Array& Array::operator-=(const int8_t& scalar) { return this->increaseElementsBy<int8_t>(-scalar);}
+Array& Array::operator-=(const int8_t& scalar) { return this->decreaseElementsBy<int8_t>(scalar);}
 template <>
-Array& Array::operator-=(const int16_t& scalar) { return this->increaseElementsBy<int16_t>(-scalar);}
+Array& Array::operator-=(const int16_t& scalar) { return this->decreaseElementsBy<int16_t>(scalar);}
 template <>
-Array& Array::operator-=(const int32_t& scalar) { return this->increaseElementsBy<int32_t>(-scalar);}
+Array& Array::operator-=(const int32_t& scalar) { return this->decreaseElementsBy<int32_t>(scalar);}
 template <>
-Array& Array::operator-=(const int64_t& scalar) { return this->increaseElementsBy<int64_t>(-scalar);}
+Array& Array::operator-=(const int64_t& scalar) { return this->decreaseElementsBy<int64_t>(scalar);}
 template <>
-Array& Array::operator-=(const uint8_t& scalar) { return this->increaseElementsBy<uint8_t>(-scalar);}
+Array& Array::operator-=(const uint8_t& scalar) { return this->decreaseElementsBy<uint8_t>(scalar);}
 template <>
-Array& Array::operator-=(const uint16_t& scalar) { return this->increaseElementsBy<uint16_t>(-scalar);}
+Array& Array::operator-=(const uint16_t& scalar) { return this->decreaseElementsBy<uint16_t>(scalar);}
 template <>
-Array& Array::operator-=(const uint32_t& scalar) { return this->increaseElementsBy<uint32_t>(-scalar);}
+Array& Array::operator-=(const uint32_t& scalar) { return this->decreaseElementsBy<uint32_t>(scalar);}
 template <>
-Array& Array::operator-=(const uint64_t& scalar) { return this->increaseElementsBy<uint64_t>(-scalar);}
+Array& Array::operator-=(const uint64_t& scalar) { return this->decreaseElementsBy<uint64_t>(scalar);}
 template <>
-Array& Array::operator-=(const float& scalar) { return this->increaseElementsBy<float>(-scalar);}
+Array& Array::operator-=(const float& scalar) { return this->decreaseElementsBy<float>(scalar);}
 template <>
-Array& Array::operator-=(const double& scalar) { return this->increaseElementsBy<double>(-scalar);}
+Array& Array::operator-=(const double& scalar) { return this->decreaseElementsBy<double>(scalar);}
 
 template <>
 Array& Array::operator-=(const Array& other) {
@@ -357,7 +373,6 @@ Array& Array::decreaseElementsFrom(const Array& other) {
         }
     }
 
-    throw std::runtime_error("theoretically unreachable, bad conditioning");
 }
 
 template <typename T>
@@ -473,7 +488,6 @@ Array& Array::multiplyElementsFrom(const Array& other) {
         }
     }
 
-    throw std::runtime_error("theoretically unreachable, bad conditioning");
 }
 
 template <typename T>
@@ -641,7 +655,6 @@ Array& Array::divideElementsFrom(const Array& other) {
         }
     }
 
-    throw std::runtime_error("theoretically unreachable, bad conditioning");
 }
 
 template <typename T>

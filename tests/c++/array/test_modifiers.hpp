@@ -21,6 +21,7 @@ void test_addScalarConsideringAllTypes();
 
 void test_addScalarToRange();
 void test_substractScalarToRange();
+void test_substractUnsignedScalar();
 
 template <typename T>
 void test_multiplyScalarConsideringAllTypes();

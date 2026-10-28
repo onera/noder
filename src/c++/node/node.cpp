@@ -485,10 +485,12 @@ Node::Node(const std::string& name, const std::string& type) :
     _name(name),
     _children(),
     _type(type),
+    _parent(),
+    _expressionRepresentative(),
+    _data(nullptr),
     _linkTargetFile(),
     _linkTargetPath(),
     _revision(0),
-    _data(nullptr),
     _expansion(nullptr),
     _navigator(nullptr) {
     ensureFactoryInitialized();

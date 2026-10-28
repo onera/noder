@@ -51,7 +51,7 @@ void test_uniformFromCount_zero_step() {
     try {
         Array result = uniformFromStep<int>(0, 10, 0);
         throw py::value_error("uniformFromStep failed: did not throw exception for zero step");
-    } catch (const std::invalid_argument& e) {
+    } catch (const std::invalid_argument&) {
         // Expected behavior
     }
 }
@@ -61,7 +61,7 @@ void test_uniformFromCount_incoherent_step() {
     try {
         Array result = uniformFromStep<int>(10, 0, 1);
         throw py::value_error("uniformFromStep failed: did not throw exception for incoherent step");
-    } catch (const std::invalid_argument& e) {
+    } catch (const std::invalid_argument&) {
         // Expected behavior
     }
 }
@@ -108,7 +108,7 @@ void test_uniformFromCount_num_zero() {
 
     try {
         Array result = uniformFromCount<T>(0, 1, 0);
-    } catch ( const std::invalid_argument& e ) {
+    } catch ( const std::invalid_argument& ) {
         return;
     }
 }
@@ -118,7 +118,7 @@ template <typename T>
 void test_uniformFromCount_num_one() {
     try {
         Array result = uniformFromCount<T>(0, 1, 0);
-    } catch ( const std::invalid_argument& e ) {
+    } catch ( const std::invalid_argument& ) {
         return;
     }
 }

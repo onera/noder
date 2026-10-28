@@ -69,6 +69,35 @@ def test_predicate_boolean_precedence_and_quoted_operator_literals():
     assert root.pick().all_by_predicate('/t:FamilyName_t & d:BLA*') == [blade]
 
 
+def test_integer_predicate_comparisons_preserve_64_bit_precision():
+    root = Node("root", "Root_t")
+
+    signed = Node("signed", "DataArray_t")
+    signed.set_data(np.int64(9_007_199_254_740_993))
+    signed.attach_to(root)
+
+    negative = Node("negative", "DataArray_t")
+    negative.set_data(np.int64(-9_007_199_254_740_993))
+    negative.attach_to(root)
+
+    unsigned = Node("unsigned", "DataArray_t")
+    unsigned.set_data(np.array(18_446_744_073_709_551_615, dtype=np.uint64))
+    unsigned.attach_to(root)
+
+    assert root.pick().all_by_predicate("/n:signed & d:9007199254740993") == [signed]
+    assert root.pick().all_by_predicate("/n:signed & d:9007199254740992") == []
+    assert root.pick().all_by_predicate("/n:signed & d:>9007199254740992") == [signed]
+    assert root.pick().all_by_predicate("/n:signed & d:<18446744073709551615") == [signed]
+    assert root.pick().all_by_predicate("/n:signed & d:>9007199254740992.0") == [signed]
+    assert root.pick().all_by_predicate("/n:negative & d:-9007199254740993") == [negative]
+    assert root.pick().all_by_predicate("/n:negative & d:<-9007199254740992") == [negative]
+    assert root.pick().all_by_predicate("/n:unsigned & d:18446744073709551615") == [unsigned]
+    assert root.pick().all_by_predicate("/n:unsigned & d:18446744073709551614") == []
+    assert root.pick().all_by_predicate("/n:unsigned & d:>18446744073709551614") == [unsigned]
+    assert root.pick().all_by_predicate("/n:unsigned & d:>9223372036854775807") == [unsigned]
+    assert root.pick().all_by_predicate("/n:unsigned & d:<18446744073709551616.0") == [unsigned]
+
+
 def test_predicate_ancestor_deduplication_and_empty_results():
     root, branch, proc_a, _, _, _, _, _ = _tree()
 

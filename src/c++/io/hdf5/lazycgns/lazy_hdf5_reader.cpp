@@ -89,19 +89,6 @@ std::string hdf5ChildPath(const std::string& parent, const std::string& child) {
     return parent + "/" + child;
 }
 
-std::string shapeString(const std::vector<size_t>& shape) {
-    std::ostringstream stream;
-    stream << "[";
-    for (size_t index = 0; index < shape.size(); ++index) {
-        if (index != 0) {
-            stream << ", ";
-        }
-        stream << shape[index];
-    }
-    stream << "]";
-    return stream.str();
-}
-
 std::string readStringAttribute(hid_t id, const std::string& key) {
     const htri_t exists = H5Aexists(id, key.c_str());
     if (exists < 0) {
@@ -633,18 +620,20 @@ public:
                             "cannot determine child name at index " + std::to_string(index));
                     }
                     std::string childName(static_cast<size_t>(nameLength) + 1, '\0');
-                    check_status(
-                        H5Lget_name_by_idx(
-                            _file.get(),
-                            record.hdf5Path.c_str(),
-                            record.linkIndexType,
-                            H5_ITER_INC,
-                            index,
-                            childName.data(),
-                            childName.size(),
-                            H5P_DEFAULT),
-                        "read child name at index " + std::to_string(index));
-                    childName.resize(static_cast<size_t>(nameLength));
+                    const ssize_t copiedNameLength = H5Lget_name_by_idx(
+                        _file.get(),
+                        record.hdf5Path.c_str(),
+                        record.linkIndexType,
+                        H5_ITER_INC,
+                        index,
+                        childName.data(),
+                        childName.size(),
+                        H5P_DEFAULT);
+                    if (copiedNameLength < 0) {
+                        throw std::runtime_error(
+                            "cannot read child name at index " + std::to_string(index));
+                    }
+                    childName.resize(static_cast<size_t>(copiedNameLength));
                     if (isReservedDatasetName(childName)) {
                         continue;
                     }

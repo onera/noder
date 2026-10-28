@@ -7,6 +7,7 @@
 #include <cctype>
 #include <cerrno>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <limits>
 #include <memory>
@@ -141,13 +142,21 @@ std::vector<Token> tokenize(const std::string& expression) {
 
 enum class AtomKind { Name, Type, Data, Level };
 enum class Comparison { Equal, Less, LessEqual, Greater, GreaterEqual };
+enum class NumericKind { SignedInteger, UnsignedInteger, FloatingPoint };
+
+struct NumericValue {
+    NumericKind kind = NumericKind::FloatingPoint;
+    int64_t signedValue = 0;
+    uint64_t unsignedValue = 0;
+    long double floatingValue = 0.0L;
+};
 
 struct Atom {
     AtomKind kind;
     std::string pattern;
     bool numeric = false;
     Comparison comparison = Comparison::Equal;
-    long double numericValue = 0.0L;
+    NumericValue numericValue;
     long long levelValue = 0;
 };
 
@@ -189,6 +198,40 @@ bool parseLongLong(const std::string& text, long long& value) {
     char* end = nullptr;
     value = std::strtoll(text.c_str(), &end, 10);
     return errno != ERANGE && end == text.c_str() + text.size();
+}
+
+bool parseNumericValue(const std::string& text, NumericValue& value) {
+    // Decimal and exponent forms retain the floating-point interpretation
+    // they have always had. Plain integer literals stay exact whenever they
+    // fit in the signed or unsigned 64-bit payload types.
+    if (text.find_first_of(".eE") == std::string::npos) {
+        long long signedValue = 0;
+        if (parseLongLong(text, signedValue)) {
+            value.kind = NumericKind::SignedInteger;
+            value.signedValue = static_cast<int64_t>(signedValue);
+            return true;
+        }
+
+        if (text.empty() || text.front() != '-') {
+            errno = 0;
+            char* end = nullptr;
+            const unsigned long long unsignedValue = std::strtoull(text.c_str(), &end, 10);
+            if (errno != ERANGE && end == text.c_str() + text.size() &&
+                unsignedValue <= std::numeric_limits<uint64_t>::max()) {
+                value.kind = NumericKind::UnsignedInteger;
+                value.unsignedValue = static_cast<uint64_t>(unsignedValue);
+                return true;
+            }
+        }
+    }
+
+    long double floatingValue = 0.0L;
+    if (!parseLongDouble(text, floatingValue)) {
+        return false;
+    }
+    value.kind = NumericKind::FloatingPoint;
+    value.floatingValue = floatingValue;
+    return true;
 }
 
 struct ParsedComparison {
@@ -344,10 +387,10 @@ private:
             atom.pattern = value.text;
             const bool quoted = value.kind == TokenKind::Quoted;
             const ParsedComparison comparison = splitComparison(value.text);
-            long double numericValue = 0.0L;
+            NumericValue numericValue;
             const bool hasComparisonPrefix = value.text.rfind("<", 0) == 0 ||
                 value.text.rfind(">", 0) == 0 || value.text.rfind("=", 0) == 0;
-            if (!quoted && parseLongDouble(comparison.value, numericValue)) {
+            if (!quoted && parseNumericValue(comparison.value, numericValue)) {
                 atom.numeric = true;
                 atom.comparison = comparison.comparison;
                 atom.numericValue = numericValue;
@@ -405,25 +448,163 @@ bool globMatch(const std::string& pattern, const std::string& value) {
     return patternIndex == pattern.size();
 }
 
-bool compare(long double left, Comparison comparison, long double right) {
-    switch (comparison) {
-        case Comparison::Equal: {
-            // Payload floating-point values may have been rounded to their
-            // storage type while the predicate literal was parsed as a
-            // long double. Treat values equal at that representation
-            // precision as equal, including literals such as 1e-3.
-            const long double scale = std::max({
-                1.0L,
-                std::abs(left),
-                std::abs(right)});
-            const long double tolerance =
-                8.0L * std::numeric_limits<long double>::epsilon() * scale;
-            return std::abs(left - right) <= tolerance;
+enum class NumericOrder { Less, Equal, Greater, Unordered };
+
+NumericOrder compareFloatingPoint(long double left, long double right) {
+    if (std::isnan(left) || std::isnan(right)) {
+        return NumericOrder::Unordered;
+    }
+    if (left < right) {
+        return NumericOrder::Less;
+    }
+    if (left > right) {
+        return NumericOrder::Greater;
+    }
+    return NumericOrder::Equal;
+}
+
+NumericOrder compareSignedAndUnsigned(int64_t left, uint64_t right) {
+    if (left < 0) {
+        return NumericOrder::Less;
+    }
+    const uint64_t unsignedLeft = static_cast<uint64_t>(left);
+    if (unsignedLeft < right) {
+        return NumericOrder::Less;
+    }
+    if (unsignedLeft > right) {
+        return NumericOrder::Greater;
+    }
+    return NumericOrder::Equal;
+}
+
+NumericOrder compareIntegerAndFloatingPoint(int64_t integer, long double floatingPoint) {
+    if (std::isnan(floatingPoint)) {
+        return NumericOrder::Unordered;
+    }
+
+    const long double lowerBound = -std::ldexp(1.0L, 63);
+    const long double upperBound = std::ldexp(1.0L, 63);
+    if (floatingPoint < lowerBound) {
+        return NumericOrder::Greater;
+    }
+    if (floatingPoint >= upperBound) {
+        return NumericOrder::Less;
+    }
+
+    const int64_t truncated = static_cast<int64_t>(floatingPoint);
+    if (integer < truncated) {
+        return NumericOrder::Less;
+    }
+    if (integer > truncated) {
+        return NumericOrder::Greater;
+    }
+    return compareFloatingPoint(static_cast<long double>(truncated), floatingPoint);
+}
+
+NumericOrder compareIntegerAndFloatingPoint(uint64_t integer, long double floatingPoint) {
+    if (std::isnan(floatingPoint)) {
+        return NumericOrder::Unordered;
+    }
+    if (floatingPoint < 0.0L) {
+        return NumericOrder::Greater;
+    }
+
+    const long double upperBound = std::ldexp(1.0L, 64);
+    if (floatingPoint >= upperBound) {
+        return NumericOrder::Less;
+    }
+
+    const uint64_t truncated = static_cast<uint64_t>(floatingPoint);
+    if (integer < truncated) {
+        return NumericOrder::Less;
+    }
+    if (integer > truncated) {
+        return NumericOrder::Greater;
+    }
+    return compareFloatingPoint(static_cast<long double>(truncated), floatingPoint);
+}
+
+NumericOrder compareNumericValues(const NumericValue& left, const NumericValue& right) {
+    if (left.kind == NumericKind::SignedInteger) {
+        if (right.kind == NumericKind::SignedInteger) {
+            if (left.signedValue < right.signedValue) return NumericOrder::Less;
+            if (left.signedValue > right.signedValue) return NumericOrder::Greater;
+            return NumericOrder::Equal;
         }
-        case Comparison::Less: return left < right;
-        case Comparison::LessEqual: return left <= right;
-        case Comparison::Greater: return left > right;
-        case Comparison::GreaterEqual: return left >= right;
+        if (right.kind == NumericKind::UnsignedInteger) {
+            return compareSignedAndUnsigned(left.signedValue, right.unsignedValue);
+        }
+        return compareIntegerAndFloatingPoint(left.signedValue, right.floatingValue);
+    }
+
+    if (left.kind == NumericKind::UnsignedInteger) {
+        if (right.kind == NumericKind::SignedInteger) {
+            const NumericOrder order = compareSignedAndUnsigned(right.signedValue, left.unsignedValue);
+            if (order == NumericOrder::Less) return NumericOrder::Greater;
+            if (order == NumericOrder::Greater) return NumericOrder::Less;
+            return order;
+        }
+        if (right.kind == NumericKind::UnsignedInteger) {
+            if (left.unsignedValue < right.unsignedValue) return NumericOrder::Less;
+            if (left.unsignedValue > right.unsignedValue) return NumericOrder::Greater;
+            return NumericOrder::Equal;
+        }
+        return compareIntegerAndFloatingPoint(left.unsignedValue, right.floatingValue);
+    }
+
+    if (right.kind == NumericKind::SignedInteger) {
+        const NumericOrder order = compareIntegerAndFloatingPoint(right.signedValue, left.floatingValue);
+        if (order == NumericOrder::Less) return NumericOrder::Greater;
+        if (order == NumericOrder::Greater) return NumericOrder::Less;
+        return order;
+    }
+    if (right.kind == NumericKind::UnsignedInteger) {
+        const NumericOrder order = compareIntegerAndFloatingPoint(right.unsignedValue, left.floatingValue);
+        if (order == NumericOrder::Less) return NumericOrder::Greater;
+        if (order == NumericOrder::Greater) return NumericOrder::Less;
+        return order;
+    }
+    return compareFloatingPoint(left.floatingValue, right.floatingValue);
+}
+
+long double approximateNumericValue(const NumericValue& value) {
+    switch (value.kind) {
+        case NumericKind::SignedInteger: return static_cast<long double>(value.signedValue);
+        case NumericKind::UnsignedInteger: return static_cast<long double>(value.unsignedValue);
+        case NumericKind::FloatingPoint: return value.floatingValue;
+    }
+    return 0.0L;
+}
+
+bool compareFloatingPointWithTolerance(long double left, long double right) {
+    // Payload floating-point values may have been rounded to their storage
+    // type while the predicate literal was parsed as a long double. Treat
+    // values equal at that representation precision as equal, including
+    // literals such as 1e-3.
+    const long double scale = std::max({1.0L, std::abs(left), std::abs(right)});
+    const long double tolerance =
+        8.0L * std::numeric_limits<long double>::epsilon() * scale;
+    return std::abs(left - right) <= tolerance;
+}
+
+bool compare(const NumericValue& left, Comparison comparison, const NumericValue& right) {
+    if (comparison == Comparison::Equal) {
+        const bool bothIntegers = left.kind != NumericKind::FloatingPoint &&
+            right.kind != NumericKind::FloatingPoint;
+        if (bothIntegers) {
+            return compareNumericValues(left, right) == NumericOrder::Equal;
+        }
+        return compareFloatingPointWithTolerance(
+            approximateNumericValue(left), approximateNumericValue(right));
+    }
+
+    const NumericOrder order = compareNumericValues(left, right);
+    switch (comparison) {
+        case Comparison::Equal: return order == NumericOrder::Equal;
+        case Comparison::Less: return order == NumericOrder::Less;
+        case Comparison::LessEqual: return order == NumericOrder::Less || order == NumericOrder::Equal;
+        case Comparison::Greater: return order == NumericOrder::Greater;
+        case Comparison::GreaterEqual: return order == NumericOrder::Greater || order == NumericOrder::Equal;
     }
     return false;
 }
@@ -439,24 +620,51 @@ bool compare(long long left, Comparison comparison, long long right) {
     return false;
 }
 
-bool numericValue(const Data& data, long double& value) {
+bool numericValue(const Data& data, NumericValue& value) {
     const auto* array = dynamic_cast<const Array*>(&data);
     if (array == nullptr || !array->isScalar() || array->size() == 0) {
         return false;
     }
 
     switch (array->typeId()) {
-        case ArrayTypeId::Bool: value = array->getItemAtIndex<bool>(0) ? 1.0L : 0.0L; return true;
-        case ArrayTypeId::Int8: value = array->getItemAtIndex<int8_t>(0); return true;
-        case ArrayTypeId::Int16: value = array->getItemAtIndex<int16_t>(0); return true;
-        case ArrayTypeId::Int32: value = array->getItemAtIndex<int32_t>(0); return true;
-        case ArrayTypeId::Int64: value = array->getItemAtIndex<int64_t>(0); return true;
-        case ArrayTypeId::UInt8: value = array->getItemAtIndex<uint8_t>(0); return true;
-        case ArrayTypeId::UInt16: value = array->getItemAtIndex<uint16_t>(0); return true;
-        case ArrayTypeId::UInt32: value = array->getItemAtIndex<uint32_t>(0); return true;
-        case ArrayTypeId::UInt64: value = array->getItemAtIndex<uint64_t>(0); return true;
-        case ArrayTypeId::Float32: value = array->getItemAtIndex<float>(0); return true;
-        case ArrayTypeId::Float64: value = array->getItemAtIndex<double>(0); return true;
+        case ArrayTypeId::Bool:
+            value.kind = NumericKind::UnsignedInteger;
+            value.unsignedValue = array->getItemAtIndex<bool>(0) ? 1U : 0U;
+            return true;
+        case ArrayTypeId::Int8:
+        case ArrayTypeId::Int16:
+        case ArrayTypeId::Int32:
+        case ArrayTypeId::Int64:
+            value.kind = NumericKind::SignedInteger;
+            switch (array->typeId()) {
+                case ArrayTypeId::Int8: value.signedValue = array->getItemAtIndex<int8_t>(0); break;
+                case ArrayTypeId::Int16: value.signedValue = array->getItemAtIndex<int16_t>(0); break;
+                case ArrayTypeId::Int32: value.signedValue = array->getItemAtIndex<int32_t>(0); break;
+                case ArrayTypeId::Int64: value.signedValue = array->getItemAtIndex<int64_t>(0); break;
+                default: return false;
+            }
+            return true;
+        case ArrayTypeId::UInt8:
+        case ArrayTypeId::UInt16:
+        case ArrayTypeId::UInt32:
+        case ArrayTypeId::UInt64:
+            value.kind = NumericKind::UnsignedInteger;
+            switch (array->typeId()) {
+                case ArrayTypeId::UInt8: value.unsignedValue = array->getItemAtIndex<uint8_t>(0); break;
+                case ArrayTypeId::UInt16: value.unsignedValue = array->getItemAtIndex<uint16_t>(0); break;
+                case ArrayTypeId::UInt32: value.unsignedValue = array->getItemAtIndex<uint32_t>(0); break;
+                case ArrayTypeId::UInt64: value.unsignedValue = array->getItemAtIndex<uint64_t>(0); break;
+                default: return false;
+            }
+            return true;
+        case ArrayTypeId::Float32:
+            value.kind = NumericKind::FloatingPoint;
+            value.floatingValue = static_cast<long double>(array->getItemAtIndex<float>(0));
+            return true;
+        case ArrayTypeId::Float64:
+            value.kind = NumericKind::FloatingPoint;
+            value.floatingValue = static_cast<long double>(array->getItemAtIndex<double>(0));
+            return true;
         case ArrayTypeId::None:
         case ArrayTypeId::Bytes:
         case ArrayTypeId::Unicode:
@@ -521,7 +729,7 @@ bool matchesAtom(const Atom& atom, const Node& node, const size_t level) {
         return false;
     }
     const Data& data = node.data();
-    long double value = 0.0L;
+    NumericValue value;
     return numericValue(data, value) && compare(value, atom.comparison, atom.numericValue);
 }
 

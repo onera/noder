@@ -2,6 +2,8 @@
 
 # include <pybind11/pybind11.h>
 
+# include <limits>
+
 namespace py = pybind11;
 
 
@@ -112,6 +114,17 @@ void test_substractScalarToRange() {
 
     if (array != expected) {
         throw py::value_error("did not get the expected result");
+    }
+}
+
+void test_substractUnsignedScalar() {
+    Array array = arrayfactory::toArray1D(std::vector<uint32_t>({5, 0}));
+    const uint32_t substractedValue = 2;
+    array -= substractedValue;
+
+    if (array.getItemAtIndex<uint32_t>(0) != 3 ||
+        array.getItemAtIndex<uint32_t>(1) != std::numeric_limits<uint32_t>::max() - 1) {
+        throw py::value_error("unsigned scalar subtraction produced an unexpected result");
     }
 }
 

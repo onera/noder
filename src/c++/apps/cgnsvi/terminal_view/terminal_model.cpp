@@ -56,19 +56,8 @@ std::string trim(const std::string& value) {
     return value.substr(first, last - first + 1);
 }
 
+#ifndef _WIN32
 std::string quoteCommandArgument(const std::string& value) {
-#ifdef _WIN32
-    std::string result = "\"";
-    for (const char character : value) {
-        if (character == '"') {
-            result += "\\\"";
-        } else {
-            result.push_back(character);
-        }
-    }
-    result.push_back('"');
-    return result;
-#else
     std::string result = "'";
     for (const char character : value) {
         if (character == '\'') {
@@ -79,8 +68,8 @@ std::string quoteCommandArgument(const std::string& value) {
     }
     result.push_back('\'');
     return result;
-#endif
 }
+#endif
 
 #ifdef _WIN32
 std::string quoteWindowsProcessArgument(const std::string& value) {
@@ -516,7 +505,8 @@ std::string compactString(const std::string& value) {
     std::string result;
     result.reserve(value.size());
     bool pendingSpace = false;
-    for (const unsigned char character : value) {
+    for (const char rawCharacter : value) {
+        const unsigned char character = static_cast<unsigned char>(rawCharacter);
         if (std::isspace(character) != 0) {
             pendingSpace = !result.empty();
             continue;
