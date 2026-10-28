@@ -103,8 +103,12 @@ public:
           std::shared_ptr<void> owner,
           ArrayOwnerKind ownerKind,
           bool writable);
+    /** @brief Construct a legacy fixed-width byte string array. */
     Array(const std::string& string);
+    /** @brief Construct a byte string, optionally stored as flat S1 elements. */
+    Array(const std::string& string, bool storeStringsAsS1);
     Array(const char* string);
+    Array(const char* string, bool storeStringsAsS1);
     Array(const Array& other);
 
     Array(int8_t scalar);

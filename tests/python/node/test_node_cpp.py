@@ -28,6 +28,12 @@ def test_binding_setNameAndTypeFromPython():
 
 def test_noData(): test_in_cpp.test_noData()
 
+def test_cpp_setDataStringStorageDefaultsToS1():
+    return test_in_cpp.test_setDataStringStorageDefaultsToS1()
+
+def test_cpp_setDataStringStorageCanPreserveLegacy():
+    return test_in_cpp.test_setDataStringStorageCanPreserveLegacy()
+
 def test_cpp_children_empty(): return test_in_cpp.test_children_empty()
 
 def test_cpp_parent_empty(): return test_in_cpp.test_parent_empty()

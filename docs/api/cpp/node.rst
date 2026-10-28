@@ -149,7 +149,13 @@ Signatures include:
 
 - ``void setData(std::shared_ptr<Data> d)``
 - ``void setData(const Data& d)``
-- scalar/string overloads in ``Node`` templates
+- scalar overloads in ``Node`` templates
+- ``void setData(const std::string& d, bool storeStringsAsS1 = true)``
+- ``void setData(const char* d, bool storeStringsAsS1 = true)``
+
+String payloads are stored as flat S1 byte arrays by default. Pass
+``false`` to either string overload to preserve the legacy fixed-width string
+representation.
 
 Python counterpart: :py:meth:`noder.core.Node.set_data`
 

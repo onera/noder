@@ -11,7 +11,7 @@ std::shared_ptr<Node> newNode(
     std::shared_ptr<Node> node = std::make_shared<Node>();
     node->setName(name);
     node->setType(type);
-    node->setData(Array(data));
+    node->setData(data);
     if (parent) node->attachTo(parent);
     
     return node;

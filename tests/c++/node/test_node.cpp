@@ -65,6 +65,30 @@ void test_noData() {
     if (!a->noData()) throw py::value_error("expected no data");
 }
 
+void test_setDataStringStorageDefaultsToS1() {
+    Node node("string");
+    node.setData("hello");
+    const auto* array = dynamic_cast<const Array*>(&node.data());
+    if (array == nullptr || array->itemsize() != 1 || array->shape() != std::vector<size_t>{5}) {
+        throw py::value_error("expected a flat S1 string payload");
+    }
+    if (node.data().extractString() != "hello") {
+        throw py::value_error("S1 string payload did not preserve its text");
+    }
+}
+
+void test_setDataStringStorageCanPreserveLegacy() {
+    Node node("string");
+    node.setData("hello", false);
+    const auto* array = dynamic_cast<const Array*>(&node.data());
+    if (array == nullptr || array->itemsize() != 5 || array->shape() != std::vector<size_t>{1}) {
+        throw py::value_error("expected the legacy fixed-width string payload");
+    }
+    if (node.data().extractString() != "hello") {
+        throw py::value_error("legacy string payload did not preserve its text");
+    }
+}
+
 void test_children_empty() {
     auto a = newNode("a");
     auto children = a->children();

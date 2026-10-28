@@ -54,7 +54,7 @@ std::string joinedStringSequence(const py::handle& value, bool& isStringSequence
 std::shared_ptr<Data> dataFromPyObject(
     const py::object& data,
     const char* context,
-    bool storeStringsAsS1 = false) {
+    bool storeStringsAsS1 = true) {
     if (data.is_none()) {
         return std::make_shared<Array>();
     }
@@ -75,7 +75,7 @@ std::shared_ptr<Data> dataFromPyObject(
     }
 
     if (py::isinstance<py::str>(data)) {
-        return std::make_shared<Array>(data.cast<std::string>());
+        return std::make_shared<Array>(data.cast<std::string>(), false);
     }
 
     // bool before int because bool is an int subclass in Python
@@ -152,7 +152,7 @@ py::object interpretData(const std::shared_ptr<Data>& data, const py::object& sp
 ParameterValue parameterValueFromPyObject(
     const py::handle& value,
     const char* context,
-    bool storeStringsAsS1 = false) {
+    bool storeStringsAsS1 = true) {
     py::object objectValue = py::reinterpret_borrow<py::object>(value);
 
     if (objectValue.is_none() || PyCallable_Check(objectValue.ptr())) {
@@ -450,10 +450,11 @@ static std::shared_ptr<Node> new_node(
     const std::string& name,
     const std::string& type,
     py::object data = py::none(),
-    std::shared_ptr<Node> parent = nullptr)
+    std::shared_ptr<Node> parent = nullptr,
+    bool storeStringsAsS1 = true)
 {
     auto node = std::make_shared<Node>(name, type);
-    node->setData(dataFromPyObject(data, "new_node"));
+    node->setData(dataFromPyObject(data, "new_node", storeStringsAsS1));
     if (parent) {
         node->attachTo(parent);
     }
@@ -584,12 +585,12 @@ Numeric arrays are returned as NumPy arrays and empty payloads return None.
         }, R"doc(
 Set node payload from scalar, string, NumPy array, list/tuple (converted via numpy.asarray), or Data.
 
-When ``store_strings_as_S1`` is True, string payloads are encoded as a flat
-NumPy byte-character array (``dtype='|S1'``). Lists of strings are joined with
-spaces before encoding.
+By default, string payloads are encoded as a flat NumPy byte-character array
+(``dtype='|S1'``). Lists of strings are joined with spaces before encoding.
+Pass ``store_strings_as_S1=False`` to preserve the legacy string-array encoding.
 
 See C++ counterpart: :ref:`cpp-node-setdata`.
-)doc", py::arg("data"), py::arg("store_strings_as_S1") = false)
+)doc", py::arg("data"), py::arg("store_strings_as_S1") = true)
         .def(
             "set_parameters",
             [](Node& node,
@@ -621,8 +622,9 @@ Special handling:
 - `list[dict]` values create ordered `_list_.<index>` entries.
 - `None`, callables and Node values are stored as null-like leaves.
 - other values are stored as leaf data arrays/scalars.
-- When ``store_strings_as_S1`` is True, strings are encoded as flat ``|S1``
-  arrays; lists of strings are joined with spaces first.
+- By default, strings are encoded as flat ``|S1`` arrays; lists of strings are
+  joined with spaces first. Pass ``store_strings_as_S1=False`` for the legacy
+  string-array encoding.
 
 See C++ counterpart: :ref:`cpp-node-setparameters`.
 )doc",
@@ -630,7 +632,7 @@ See C++ counterpart: :ref:`cpp-node-setparameters`.
             py::arg("container_type") = "UserDefinedData_t",
             py::arg("parameter_type") = "DataArray_t",
             py::kw_only(),
-            py::arg("store_strings_as_S1") = false)
+            py::arg("store_strings_as_S1") = true)
         .def(
             "get_parameters",
             [](const Node& node,
@@ -1011,6 +1013,9 @@ data : Any, optional
     Payload convertible to :py:class:`noder.core.Data`.
 parent : Node or None, optional
     Parent node for immediate attachment.
+store_strings_as_S1 : bool, optional
+    Store string payloads as a flat ``|S1`` array (default: True). Pass False
+    to preserve the legacy string-array encoding.
 
 Returns
 -------
@@ -1028,7 +1033,8 @@ See C++ class: :ref:`cpp-node-class`.
         py::arg("name") = "",
         py::arg("type") = "",
         py::arg("data") = py::none(),
-        py::arg("parent") = nullptr
+        py::arg("parent") = nullptr,
+        py::arg("store_strings_as_S1") = true
     );
 
 }

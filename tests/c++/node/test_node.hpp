@@ -27,6 +27,10 @@ void test_binding_setNameAndTypeFromPython(Node& node);
 
 void test_noData();
 
+void test_setDataStringStorageDefaultsToS1();
+
+void test_setDataStringStorageCanPreserveLegacy();
+
 void test_children_empty();
 
 void test_parent_empty();

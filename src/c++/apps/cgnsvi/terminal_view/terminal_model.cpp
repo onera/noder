@@ -935,7 +935,7 @@ bool TerminalModel::canEditPayload() const {
 
 void TerminalModel::editPayload(const std::string& expression) {
     if (preparePayloadEdit(expression)) {
-        completePayloadEdit(false);
+        completePayloadEdit();
     }
 }
 
@@ -1006,35 +1006,34 @@ bool TerminalModel::preparePayloadEdit(const std::string& expression) {
         }
 
         const std::shared_ptr<Data> editedData = std::move(_pendingEditedPayload);
-        persistEditedPayload(editedData, false);
+        persistEditedPayload(editedData);
     } catch (const std::exception& error) {
         _statusMessage = "Payload edit failed: " + std::string(error.what());
     }
     return false;
 }
 
-void TerminalModel::completePayloadEdit(const bool storeStringsAsS1) {
+void TerminalModel::completePayloadEdit() {
     if (!_pendingEditedPayload) {
         return;
     }
     const std::shared_ptr<Data> editedData = std::move(_pendingEditedPayload);
     try {
-        persistEditedPayload(editedData, storeStringsAsS1);
+        persistEditedPayload(editedData);
     } catch (const std::exception& error) {
         _statusMessage = "Payload edit failed: " + std::string(error.what());
     }
 }
 
 void TerminalModel::persistEditedPayload(
-    const std::shared_ptr<Data>& editedData,
-    const bool storeStringsAsS1) {
+    const std::shared_ptr<Data>& editedData) {
     const std::shared_ptr<Node> selected = _payloadNode;
     if (!selected) {
         throw std::runtime_error("The payload selection changed before the edit was saved");
     }
 
     const std::shared_ptr<Data> previousData = selected->dataPtr();
-    const std::shared_ptr<Data> storedData = storeStringsAsS1 && editedData->hasString()
+    const std::shared_ptr<Data> storedData = editedData->hasString()
         ? stringAsS1Data(editedData->extractString())
         : editedData;
     selected->setData(storedData);
@@ -2128,17 +2127,7 @@ int runTerminal(TerminalModel& model, std::istream& input, std::ostream& output)
                 expression.pop_back();
             }
             if (model.preparePayloadEdit(expression)) {
-                output << "> Store string as S1?: Yes [Y or Enter] / No [N]\n";
-                std::string choice;
-                const bool choiceAccepted = static_cast<bool>(std::getline(input, choice));
-                if (!choice.empty() && choice.back() == '\r') {
-                    choice.pop_back();
-                }
-                const std::string normalizedChoice = trim(choice);
-                const bool storeStringsAsS1 = choiceAccepted &&
-                    (normalizedChoice.empty() ||
-                     std::tolower(static_cast<unsigned char>(normalizedChoice.front())) == 'y');
-                model.completePayloadEdit(storeStringsAsS1);
+                model.completePayloadEdit();
             }
             model.render(output);
             output.flush();
@@ -2205,15 +2194,7 @@ int runInteractiveTerminal(TerminalModel& model) {
             const std::string expression = readInteractiveLine("payload> ", accepted);
             if (accepted) {
                 if (model.preparePayloadEdit(expression)) {
-                    bool choiceAccepted = false;
-                    const std::string choice = readInteractiveLine(
-                        "> Store string as S1?: Yes [Y or Enter] / No [N] ",
-                        choiceAccepted);
-                    const std::string normalizedChoice = trim(choice);
-                    const bool storeStringsAsS1 = choiceAccepted &&
-                        (normalizedChoice.empty() ||
-                         std::tolower(static_cast<unsigned char>(normalizedChoice.front())) == 'y');
-                    model.completePayloadEdit(storeStringsAsS1);
+                    model.completePayloadEdit();
                 }
             }
         } else if (!model.handle(key)) {

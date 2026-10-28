@@ -15,6 +15,8 @@ void bindTestsOfNode(py::module_ &m) {
     sm.def("test_setType", &test_setType);
     sm.def("test_binding_setNameAndTypeFromPython", &test_binding_setNameAndTypeFromPython);
     sm.def("test_noData", &test_noData);
+    sm.def("test_setDataStringStorageDefaultsToS1", &test_setDataStringStorageDefaultsToS1);
+    sm.def("test_setDataStringStorageCanPreserveLegacy", &test_setDataStringStorageCanPreserveLegacy);
     sm.def("test_children_empty", &test_children_empty);
     sm.def("test_parent_empty", &test_parent_empty);
     sm.def("test_root_itself", &test_root_itself);

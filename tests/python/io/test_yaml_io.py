@@ -67,7 +67,7 @@ def test_yaml_round_trip_plain_inline_string(tmp_path):
     root.write(str(filename))
     read_root = gio.read(str(filename))
 
-    assert "values: [hola]" in filename.read_text(encoding="utf-8")
+    assert "values: [h, o, l, a]" in filename.read_text(encoding="utf-8")
     assert read_root.get_at_path("root/message").data().extractString() == "hola"
 
 

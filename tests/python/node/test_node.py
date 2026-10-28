@@ -560,28 +560,28 @@ def test_set_data_list_and_tuple():
 
 def test_set_data_can_store_strings_as_s1():
     node = Node("string")
-    node.set_data("jamon", store_strings_as_S1=True)
+    node.set_data("jamon")
     scalar_string = node.numpy()
     assert scalar_string.dtype == np.dtype("|S1")
     assert scalar_string.tobytes() == b"jamon"
 
-    node.set_data(["toto", "tata"], store_strings_as_S1=True)
+    node.set_data(["toto", "tata"])
     string_list = node.numpy()
     assert string_list.dtype == np.dtype("|S1")
     assert string_list.tobytes() == b"toto tata"
 
-    node.set_data(np.array(["toto", "tata"]), store_strings_as_S1=True)
+    node.set_data(np.array(["toto", "tata"]))
     string_array = node.numpy()
     assert string_array.dtype == np.dtype("|S1")
     assert string_array.tobytes() == b"toto tata"
 
 
-def test_set_data_string_storage_default_preserves_input_topology():
+def test_set_data_string_storage_can_preserve_input_topology():
     node = Node("string")
-    node.set_data("jamon")
+    node.set_data("jamon", store_strings_as_S1=False)
     assert node.numpy().dtype == np.dtype("|S5")
 
-    node.set_data(["toto", "tata"])
+    node.set_data(["toto", "tata"], store_strings_as_S1=False)
     assert node.numpy().dtype.kind == "U"
     assert node.numpy().tolist() == ["toto", "tata"]
 
@@ -616,6 +616,7 @@ def test_get_parameters_splits_string_payloads_and_none_preserves_arrays():
         words="jamon tortilla",
         lines="first\nsecond",
         rows=np.array([["alpha beta"], ["gamma"]]),
+        store_strings_as_S1=False,
     )
 
     parameters = root.get_parameters("Parameters")
@@ -950,7 +951,7 @@ def test_interpret_data_splits_string_matrix_by_rows():
     data = np.full((len(values), 32), b"\x00", dtype="S1")
     for row, value in enumerate(values):
         data[row, :len(value)] = np.frombuffer(value, dtype="S1")
-    node.set_data(data)
+    node.set_data(data, store_strings_as_S1=False)
 
     assert node.interpret_data(split_strings_logic="rows") == [
         "Kilogram",
@@ -964,7 +965,7 @@ def test_interpret_data_splits_string_matrix_by_rows():
 def test_interpret_data_splits_rows_then_spaces():
     node = Node("Rows")
     data = np.array([["alpha beta"], ["gamma"]])
-    node.set_data(data)
+    node.set_data(data, store_strings_as_S1=False)
 
     assert node.interpret_data(split_strings_logic="rows_then_spaces") == ["alpha", "beta", "gamma"]
 
@@ -1397,13 +1398,13 @@ def test_dangerous_extendChildren():
 
 def test_extract_string_from_numpy_chars_separated_1d():
     node = Node("n")
-    node.set_data(np.array([b"a",b"b"],order='F'))
+    node.set_data(np.array([b"a",b"b"],order='F'), store_strings_as_S1=False)
     extracted_string = node.data().extractString()
     assert extracted_string == "ab"
 
 def test_extract_string_from_numpy_chars_separated_2d():
     node = Node("n")
-    node.set_data(np.array([[b"a"],[b"b"]],order='F'))
+    node.set_data(np.array([[b"a"],[b"b"]],order='F'), store_strings_as_S1=False)
     extracted_string = node.data().extractString()
     assert extracted_string == "ab"
 

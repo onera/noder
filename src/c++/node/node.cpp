@@ -1,5 +1,6 @@
 #include "utils/compat.hpp"
 #include "data/data_factory.hpp"
+#include "array/array.hpp"
 #include "node/node.hpp"
 #include <limits>
 
@@ -659,6 +660,14 @@ void Node::setData(std::shared_ptr<Data> d) {
 
 void Node::setData(const Data& d) {
     this->setData(d.clone());
+}
+
+void Node::setData(const std::string& d, const bool storeStringsAsS1) {
+    this->setData(std::make_shared<Array>(d, storeStringsAsS1));
+}
+
+void Node::setData(const char* d, const bool storeStringsAsS1) {
+    this->setData(std::make_shared<Array>(d, storeStringsAsS1));
 }
 
 std::string Node::type() const {

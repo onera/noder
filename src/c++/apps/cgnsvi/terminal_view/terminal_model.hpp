@@ -86,10 +86,10 @@ public:
     /** @brief Evaluate and persist a restricted payload expression in-place. */
     void editPayload(const std::string& expression);
 
-    /** @brief Evaluate an edit and defer string payloads for the interactive storage choice. */
+    /** @brief Evaluate an edit and defer string payloads until accepted. */
     bool preparePayloadEdit(const std::string& expression);
-    /** @brief Persist the prepared string edit, optionally encoding it as S1. */
-    void completePayloadEdit(bool storeStringsAsS1);
+    /** @brief Persist a prepared edit, encoding string payloads as S1. */
+    void completePayloadEdit();
 
 private:
     enum class ViewMode {
@@ -135,7 +135,7 @@ private:
     std::shared_ptr<Node> selectedMatch() const;
     void rememberPayload(const std::shared_ptr<Node>& node, const Data& data);
     std::string payloadMarker(const std::shared_ptr<Node>& node) const;
-    void persistEditedPayload(const std::shared_ptr<Data>& editedData, bool storeStringsAsS1);
+    void persistEditedPayload(const std::shared_ptr<Data>& editedData);
     std::size_t childViewportRows() const;
     std::size_t matchViewportRows() const;
     std::size_t payloadViewportRows() const;

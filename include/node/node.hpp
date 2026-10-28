@@ -237,15 +237,18 @@ public:
         this->setData(datafactory::makeDataFrom<CanonicalType>(static_cast<CanonicalType>(d)));
     }
 
-    template <typename T, typename std::enable_if_t<std::is_same_v<utils::DecayCvRef_t<T>, std::string>, int> = 0>
-    void setData(const T& d) {
-        this->setData(datafactory::makeDataFrom<std::string>(d));
-    }
 #endif
 
-    void setData(const char* d) {
-        this->setData(datafactory::makeDataFrom(d));
-    }
+    /**
+     * @brief Replace payload with a string, stored as S1 bytes by default.
+     * @param d String payload.
+     * @param storeStringsAsS1 Store one byte per array element; false preserves
+     *        the legacy fixed-width string representation.
+     */
+    void setData(const std::string& d, bool storeStringsAsS1 = true);
+
+    /** @brief Replace payload with a C string, stored as S1 bytes by default. */
+    void setData(const char* d, bool storeStringsAsS1 = true);
 
     /** @brief Human-readable summary of this node. */
     std::string getInfo() const;

@@ -388,8 +388,7 @@ def test_cgnsvi_edits_payload_in_place(tmp_path):
         )
 
 
-@pytest.mark.parametrize("choice", ["y", ""])
-def test_cgnsvi_can_store_edited_strings_as_s1(tmp_path, choice):
+def test_cgnsvi_stores_edited_strings_as_s1_without_prompt(tmp_path):
     executable = _cgnsvi_executable()
     if executable is None:
         pytest.skip("cgnsvi executable is not available; configure with ENABLE_CGNSVI=ON")
@@ -414,7 +413,7 @@ def test_cgnsvi_can_store_edited_strings_as_s1(tmp_path, choice):
 
     result = subprocess.run(
         [str(executable), str(filename), "--non-interactive"],
-        input=f"j\nj\nD\ne 'jamon'\n{choice}\nq\n",
+        input="j\nj\nD\ne 'jamon'\nq\n",
         text=True,
         capture_output=True,
         check=False,
@@ -423,7 +422,7 @@ def test_cgnsvi_can_store_edited_strings_as_s1(tmp_path, choice):
     )
 
     assert result.returncode == 0, result.stderr
-    assert "> Store string as S1?: Yes [Y or Enter] / No [N]" in result.stdout
+    assert "Store string as S1?" not in result.stdout
     assert "Payload updated in-place." in result.stdout
     h5py = pytest.importorskip("h5py")
     with h5py.File(filename, "r") as h5file:

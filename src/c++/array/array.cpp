@@ -399,11 +399,24 @@ void Array::setArrayMembersUsing(ArrayTypeId typeId,
     }
 }
 
-Array::Array(const std::string& str) {
+Array::Array(const std::string& str) : Array(str, false) {}
+
+Array::Array(const std::string& str, const bool storeStringsAsS1) {
     const size_t byteCount = str.size();
     auto owner = allocateBytes(byteCount, false);
     if (byteCount != 0) {
         std::memcpy(owner.get(), str.data(), byteCount);
+    }
+    if (storeStringsAsS1) {
+        this->setArrayMembersUsing(
+            ArrayTypeId::Bytes,
+            sizeof(char),
+            owner.get(),
+            {byteCount},
+            {sizeof(char)},
+            owner,
+            ArrayOwnerKind::ManagedBuffer);
+        return;
     }
     this->setArrayMembersUsing(
         ArrayTypeId::Bytes,
@@ -415,7 +428,10 @@ Array::Array(const std::string& str) {
         ArrayOwnerKind::ManagedBuffer);
 }
 
-Array::Array(const char* str) : Array(std::string(str == nullptr ? "" : str)) {}
+Array::Array(const char* str) : Array(std::string(str == nullptr ? "" : str), false) {}
+
+Array::Array(const char* str, const bool storeStringsAsS1)
+    : Array(std::string(str == nullptr ? "" : str), storeStringsAsS1) {}
 
 Array::Array(const Array& other) = default;
 
