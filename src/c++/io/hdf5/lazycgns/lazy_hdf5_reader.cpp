@@ -159,7 +159,7 @@ std::string readInt8StringDataset(hid_t file, const std::string& datasetPath) {
 }
 
 hid_t hdfTypeFromCgnsType(const std::string& cgnsType) {
-    if (cgnsType == "I1" || cgnsType == "X1") return H5T_NATIVE_INT8;
+    if (cgnsType == "I1" || cgnsType == "B1") return H5T_NATIVE_INT8;
     if (cgnsType == "I2") return H5T_NATIVE_INT16;
     if (cgnsType == "I4") return H5T_NATIVE_INT32;
     if (cgnsType == "I8") return H5T_NATIVE_INT64;
@@ -290,7 +290,7 @@ Array readArrayFromDataset(
     if (cgnsType == "U8") return readNumericArrayTyped<uint64_t>(dataset, shape, cgnsType, order);
     if (cgnsType == "R4") return readNumericArrayTyped<float>(dataset, shape, cgnsType, order);
     if (cgnsType == "R8") return readNumericArrayTyped<double>(dataset, shape, cgnsType, order);
-    if (cgnsType == "X1") return readNumericArrayTyped<int8_t>(dataset, shape, cgnsType, order);
+    if (cgnsType == "B1") return readNumericArrayTyped<int8_t>(dataset, shape, cgnsType, order);
 
     throw std::runtime_error("unsupported payload type '" + cgnsType + "'");
 }

@@ -152,7 +152,7 @@ hid_t hdfTypeFromCgnsType(const std::string& cgnsType) {
     if (cgnsType == "U8") return H5T_NATIVE_UINT64;
     if (cgnsType == "R4") return H5T_NATIVE_FLOAT;
     if (cgnsType == "R8") return H5T_NATIVE_DOUBLE;
-    if (cgnsType == "X1") return H5T_NATIVE_INT8;
+    if (cgnsType == "B1") return H5T_NATIVE_INT8;
     throw std::runtime_error("Unsupported CGNS type: " + cgnsType);
 }
 
@@ -167,7 +167,7 @@ std::string cgnsTypeFromArray(const Array& array) {
     if (array.hasDataOfType<uint64_t>()) return "U8";
     if (array.hasDataOfType<float>()) return "R4";
     if (array.hasDataOfType<double>()) return "R8";
-    if (array.hasDataOfType<bool>()) return "I1";
+    if (array.hasDataOfType<bool>()) return "B1";
     if (array.hasString()) return "C1";
     throw std::runtime_error("Unsupported Array dtype for CGNS");
 }
@@ -605,7 +605,7 @@ void write_array(hid_t loc, const std::string& name, const Array& array, const s
     if (cgnsType == "U8") return write_numeric_array<uint64_t>(loc, name, array, H5T_NATIVE_UINT64);
     if (cgnsType == "R4") return write_numeric_array<float>(loc, name, array, H5T_NATIVE_FLOAT);
     if (cgnsType == "R8") return write_numeric_array<double>(loc, name, array, H5T_NATIVE_DOUBLE);
-    if (cgnsType == "X1") return write_numeric_array<int8_t>(loc, name, array, H5T_NATIVE_INT8);
+    if (cgnsType == "B1") return write_numeric_array<int8_t>(loc, name, array, H5T_NATIVE_INT8);
 
     throw std::runtime_error("Unsupported Array dtype for CGNS write: " + cgnsType);
 }
@@ -778,7 +778,7 @@ Array readArrayFromDataset(hid_t dset, const std::vector<size_t>& shape, const s
     if (cgnsType == "R8") {
         return readNumericArrayTyped<double>(dset, shape, cgnsType, order);
     }
-    if (cgnsType == "X1") {
+    if (cgnsType == "B1") {
         return readNumericArrayTyped<int8_t>(dset, shape, cgnsType, order);
     }
 
