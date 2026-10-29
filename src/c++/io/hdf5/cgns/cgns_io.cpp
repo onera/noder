@@ -167,7 +167,7 @@ std::string cgnsTypeFromArray(const Array& array) {
     if (array.hasDataOfType<uint64_t>()) return "U8";
     if (array.hasDataOfType<float>()) return "R4";
     if (array.hasDataOfType<double>()) return "R8";
-    if (array.hasDataOfType<bool>()) return "X1";
+    if (array.hasDataOfType<bool>()) return "I1";
     if (array.hasString()) return "C1";
     throw std::runtime_error("Unsupported Array dtype for CGNS");
 }
