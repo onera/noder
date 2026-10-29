@@ -665,6 +665,19 @@ void write_node_rec(
             throw std::runtime_error("Expected Array");
         }
         nodeCgnsDataType = cgnsTypeFromArray(*array);
+        if (nodeCgnsDataType == "B1") {
+            auto boolSpan = array->readOnlySpan<bool>();
+            std::vector<int32_t> tempData;
+            tempData.reserve(boolSpan.size());
+            for (const bool& val : boolSpan) {
+                tempData.push_back(static_cast<int32_t>(val));
+            }
+            Array tempArray = arrayfactory::empty<int32_t>(array->shape(), 'F');
+            int32_t* tempPtr = tempArray.getPointerOfModifiableDataFast<int32_t>();
+            std::copy(tempData.begin(), tempData.end(), tempPtr);
+            array = std::make_shared<Array>(tempArray);
+            nodeCgnsDataType = "I4";
+        }
         write_array(file, groupPath + "/ data", *array, nodeCgnsDataType);
     }
     add_cgns_type_attr(group, nodeCgnsDataType);

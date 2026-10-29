@@ -818,7 +818,7 @@ public:
                 else if (array->hasDataOfType<uint64_t>()) record.dataType = "U8";
                 else if (array->hasDataOfType<float>()) record.dataType = "R4";
                 else if (array->hasDataOfType<double>()) record.dataType = "R8";
-                else if (array->hasDataOfType<bool>()) record.dataType = "I1";
+                else if (array->hasDataOfType<bool>()) record.dataType = "B1";
             }
         }
     }
