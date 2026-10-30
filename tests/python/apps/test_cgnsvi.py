@@ -331,14 +331,14 @@ def test_cgnsvi_non_interactive_smoke(tmp_path):
     assert result.returncode == 0, result.stderr
     assert "cgnsvi" in result.stdout
     assert re.search(
-        r"CGNSvi from package NODER v[0-9]+\.[0-9]+\.[0-9]+ \(c\) ONERA",
+        r"CGNSvi from package NODER v[0-9]+\.[0-9]+\.[0-9]+ \(c\) ONERA - Press \[h\] key for help",
         result.stdout,
     )
     assert "SmokeData" in result.stdout
     assert "DataArray_t" in result.stdout
     assert "[press d to show payload]" in result.stdout
     assert "cgnsvi  payload view" in result.stdout
-    assert "[h] help" in result.stdout
+    assert "Press [h] key for help" in result.stdout
     plain_output = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", result.stdout)
     assert "ZoneType  ZoneType_t  C1  Structured" in plain_output
     assert "SmallNumbers  DataArray_t  I4  Array int32 [ 0 1 2 3 4 5 6 7 8 ]" in plain_output
@@ -404,11 +404,11 @@ def test_cgnsvi_predicate_search_smoke(tmp_path):
     assert "leaf-two" in result.stdout
     screens = result.stdout.split("\x1b[2J\x1b[H")
     assert any(
-        "cgnsvi  matches view" in screen and "[h] help" in screen
+        "cgnsvi  matches view" in screen
         for screen in screens
     )
     assert any(
-        "cgnsvi  payload view" in screen and "[h] help" in screen
+        "cgnsvi  payload view" in screen
         for screen in screens
     )
     assert "Match 'NestedLeafTwo' has no children." in result.stdout
@@ -424,7 +424,6 @@ def test_cgnsvi_predicate_search_smoke(tmp_path):
     last_screen = result.stdout.rsplit("\x1b[2J\x1b[H", maxsplit=1)[-1]
     assert "cgnsvi  matches view" not in last_screen
     assert "path:" in last_screen
-    assert "[h] help" in last_screen
 
 
 def test_cgnsvi_saves_payload_from_all_views(tmp_path):

@@ -1090,7 +1090,32 @@ void TerminalModel::persistEditedPayload(
 }
 
 std::string TerminalModel::payloadMarker(const std::shared_ptr<Node>& node) const {
-    if (!node || !node->hasData()) {
+    if (!node) {
+        return "";
+    }
+
+    if (node->hasLinkTarget()) {
+        std::string targetPath = node->linkTargetPath();
+        while (!targetPath.empty() && targetPath.front() == '/') {
+            targetPath.erase(targetPath.begin());
+        }
+        if (targetPath.empty()) {
+            targetPath = ".";
+        }
+
+        std::filesystem::path targetFile(node->linkTargetFile());
+        const std::filesystem::path sourceFile(_reader->filename());
+        if (targetFile.empty() || targetFile == ".") {
+            targetFile = sourceFile;
+        } else if (targetFile.is_relative() && sourceFile.has_parent_path()) {
+            targetFile = sourceFile.parent_path() / targetFile;
+        }
+
+        return "  \033[36m" + targetPath + " @ " +
+            targetFile.lexically_normal().string() + "\033[0m";
+    }
+
+    if (!node->hasData()) {
         return "";
     }
 
@@ -1252,6 +1277,16 @@ void TerminalModel::enterSelectedChildren() {
 
     selected->ensureChildrenLoaded(_pageSize);
     if (selected->loadedChildren().empty()) {
+        if (selected->hasLinkTarget()) {
+            try {
+                if (selected->hasData()) {
+                    enterSelectedPayloadView();
+                    return;
+                }
+            } catch (const std::exception&) {
+                // A malformed or unavailable link has already been reported by the lazy reader.
+            }
+        }
         _statusMessage = "Node '" + selected->name() + "' has no children.";
         return;
     }
@@ -1272,6 +1307,16 @@ void TerminalModel::enterSelectedMatchChildren() {
 
     selected->ensureChildrenLoaded(_pageSize);
     if (selected->loadedChildren().empty()) {
+        if (selected->hasLinkTarget()) {
+            try {
+                if (selected->hasData()) {
+                    enterSelectedPayloadView();
+                    return;
+                }
+            } catch (const std::exception&) {
+                // A malformed or unavailable link has already been reported by the lazy reader.
+            }
+        }
         _statusMessage = "Match '" + selected->name() + "' has no children.";
         return;
     }
@@ -1697,7 +1742,7 @@ void TerminalModel::renderNodes(std::ostream& output) const {
         visibleRows > remaining ? std::numeric_limits<std::size_t>::max() : _firstVisibleIndex + visibleRows);
 
     output << "\x1b[2J\x1b[H";
-    output << "CGNSvi from package NODER v" << NODER_VERSION << " (c) ONERA\n";
+    output << "CGNSvi from package NODER v" << NODER_VERSION << " (c) ONERA - Press [h] key for help\n";
     output << "file:  " << _reader->filename() << "\n";
     output << "path: " << (_rootSelected ? "\033[1;7m" : "\033[1;4m")
            << _current->path() << "\033[0m\n";
@@ -1735,7 +1780,6 @@ void TerminalModel::renderNodes(std::ostream& output) const {
         }
     }
 
-    output << "\n[h] help\n";
     if (!_statusMessage.empty()) {
         output << "\n" << _statusMessage << "\n";
     }
@@ -1779,7 +1823,6 @@ void TerminalModel::renderMatches(std::ostream& output) const {
         }
     }
 
-    output << "\n[h] help\n";
     if (!_statusMessage.empty()) {
         output << "\n" << _statusMessage << "\n";
     }
@@ -1805,9 +1848,6 @@ void TerminalModel::renderPayload(std::ostream& output) const {
     }
     if (compact && !_statusMessage.empty()) {
         metadata += "  [" + _statusMessage + "]";
-    }
-    if (compact) {
-        metadata += "  [h] help";
     }
 
     output << "\x1b[2J\x1b[H";
@@ -1846,7 +1886,6 @@ void TerminalModel::renderPayload(std::ostream& output) const {
     }
 
     if (!compact) {
-        output << "\n[h] help";
         if (!_statusMessage.empty()) {
             output << "\n" << _statusMessage;
         }

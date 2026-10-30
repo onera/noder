@@ -774,7 +774,8 @@ void visitInward(
     std::vector<std::shared_ptr<Node>>& matches,
     std::unordered_set<const Node*>& seen) {
 
-    for (const auto& child : parent->children()) {
+    const std::vector<std::shared_ptr<Node>> children = parent->children();
+    for (const auto& child : children) {
         if (!child) {
             continue;
         }
