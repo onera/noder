@@ -493,6 +493,12 @@ std::shared_ptr<Data> Array::copy(bool deep) const {
     if (this->hasDataOfType<double>()) {
         return std::make_shared<Array>(makeDeepCopyImpl<double>(*this, order));
     }
+    if (this->hasDataOfType<std::complex<float>>()) {
+        return std::make_shared<Array>(makeDeepCopyImpl<std::complex<float>>(*this, order));
+    }
+    if (this->hasDataOfType<std::complex<double>>()) {
+        return std::make_shared<Array>(makeDeepCopyImpl<std::complex<double>>(*this, order));
+    }
 
     throw std::runtime_error("Array::copy unsupported dtype");
 }

@@ -25,13 +25,13 @@ void synchronizeAliasedPyCGNSIfPresent(const std::shared_ptr<Node>& node);
  * @param node Root node to convert.
  * @return Nested list representation.
  */
-py::list nodeToPyCGNS(const std::shared_ptr<Node>& node);
+py::list nodeToPyCGNS(const std::shared_ptr<Node>& node, bool strictTypes = true);
 
 /**
  * @brief Convert a Python CGNS-like nested list to a Node hierarchy.
  * @param pyList Nested list representation.
  * @return Converted root node.
  */
-std::shared_ptr<Node> pyCGNSToNode(const py::list& pyList);
+std::shared_ptr<Node> pyCGNSToNode(const py::list& pyList, bool strictTypes = true);
 
 #endif // IO_HDF5_CGNS_NODE_PYCGNS_CONVERTER_HPP

@@ -1,4 +1,5 @@
 floating_types = ["float","double"]
+complex_types = ["complex64", "complex128"]
 positive_integral_types = ["uint8","uint16","uint32","uint64"]
 signed_integral_types = ["int8", "int16", "int32", "int64"]
 integral_types = positive_integral_types + signed_integral_types
@@ -17,7 +18,9 @@ to_numpy_dtype = {
     "int64": "int64",
     "float": "float32",
     "double": "float64",
-    "bool": "bool"
+    "bool": "bool",
+    "complex64": "complex64",
+    "complex128": "complex128",
 }
 
 def raise_error_if_invalid_dtype(dtype, allowed_dtypes=scalar_types):

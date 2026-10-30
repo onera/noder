@@ -47,4 +47,5 @@ def read_from_path(
     path: str,
     order: str = "F",
     safe_mode: bool = False,
+    strict_types: bool = True,
 ) -> Node | None: ...

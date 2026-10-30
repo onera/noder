@@ -60,7 +60,8 @@ inline bool file_flattens_cgns_tree_root(const std::string& filename) {
 inline void write_node(
     const std::string& filename,
     std::shared_ptr<Node> node,
-    const float& cgnsVersion = 3.1f) {
+    const float& cgnsVersion = 3.1f,
+    const bool strictTypes = true) {
 
     switch (detect_format(filename)) {
         case FileFormat::Yaml:
@@ -68,11 +69,12 @@ inline void write_node(
             return;
         case FileFormat::Hdf5Cgns:
 #ifdef ENABLE_HDF5_IO
-            io::hdf5::cgns::write_node(filename, std::move(node), cgnsVersion);
+            io::hdf5::cgns::write_node(filename, std::move(node), cgnsVersion, strictTypes);
             return;
 #else
             (void)node;
             (void)cgnsVersion;
+            (void)strictTypes;
             throw std::runtime_error(
                 "io::write_node: HDF5/CGNS support is disabled. Use a '.yaml' filename or enable HDF5.");
 #endif
@@ -91,7 +93,8 @@ inline void write_node(
 inline std::shared_ptr<Node> read(
     const std::string& filename,
     const char order = 'F',
-    const bool safeMode = false) {
+    const bool safeMode = false,
+    const bool strictTypes = true) {
     switch (detect_format(filename)) {
         case FileFormat::Yaml:
             (void)order; // YAML doesn't use order parameter
@@ -99,10 +102,11 @@ inline std::shared_ptr<Node> read(
             return io::yaml::read(filename);
         case FileFormat::Hdf5Cgns:
 #ifdef ENABLE_HDF5_IO
-            return io::hdf5::cgns::read(filename, order, safeMode);
+            return io::hdf5::cgns::read(filename, order, safeMode, strictTypes);
 #else
             (void)order;
             (void)safeMode;
+            (void)strictTypes;
             throw std::runtime_error(
                 "io::read: HDF5/CGNS support is disabled. Use a '.yaml' file or enable HDF5.");
 #endif
@@ -112,8 +116,11 @@ inline std::shared_ptr<Node> read(
 }
 
 /** @brief Read using the default memory order with optional HDF5 safe mode. */
-inline std::shared_ptr<Node> read(const std::string& filename, const bool safeMode) {
-    return read(filename, 'F', safeMode);
+inline std::shared_ptr<Node> read(
+    const std::string& filename,
+    const bool safeMode,
+    const bool strictTypes = true) {
+    return read(filename, 'F', safeMode, strictTypes);
 }
 
 } // namespace io

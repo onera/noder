@@ -67,7 +67,26 @@ void validatePyCGNSNodeList(const py::list& pyList) {
     }
 }
 
-py::object nodeValueToPyCGNS(const std::shared_ptr<Node>& node) {
+py::object restrictPyCGNSType(py::object value) {
+    if (!py::isinstance<py::array>(value)) {
+        return value;
+    }
+    const py::dtype dtype = value.cast<py::array>().dtype();
+    const py::dtype boolType = py::dtype::of<bool>();
+    const py::dtype int8Type = py::dtype::of<int8_t>();
+    const py::dtype int16Type = py::dtype::of<int16_t>();
+    const py::dtype uint8Type = py::dtype::of<uint8_t>();
+    const py::dtype uint16Type = py::dtype::of<uint16_t>();
+    if (dtype.equal(boolType) || dtype.equal(int8Type) || dtype.equal(int16Type)) {
+        return value.attr("astype")(py::dtype::of<int32_t>());
+    }
+    if (dtype.equal(uint8Type) || dtype.equal(uint16Type)) {
+        return value.attr("astype")(py::dtype::of<uint32_t>());
+    }
+    return value;
+}
+
+py::object nodeValueToPyCGNS(const std::shared_ptr<Node>& node, const bool strictTypes) {
     if (node->hasLinkTarget()) {
         py::list linkValue;
         linkValue.append("target_file:" + node->linkTargetFile());
@@ -91,32 +110,33 @@ py::object nodeValueToPyCGNS(const std::shared_ptr<Node>& node) {
             return numpy.attr("frombuffer")(
                 py::bytes(value), numpy.attr("dtype")("S1")).attr("copy")();
         }
-        return arraybridge::toPyObject(*arrayPtr);
+        py::object value = arraybridge::toPyObject(*arrayPtr);
+        return strictTypes ? restrictPyCGNSType(std::move(value)) : value;
     }
 
     throw std::runtime_error("nodeToPyCGNS: Unsupported Data subclass.");
 }
 
-py::list buildPyCGNSSnapshot(const std::shared_ptr<Node>& node);
-py::list buildRegisteredPyCGNS(const std::shared_ptr<Node>& node);
-void synchronizeAliasedPyCGNSRecursive(const std::shared_ptr<Node>& node);
+py::list buildPyCGNSSnapshot(const std::shared_ptr<Node>& node, bool strictTypes);
+py::list buildRegisteredPyCGNS(const std::shared_ptr<Node>& node, bool strictTypes);
+void synchronizeAliasedPyCGNSRecursive(const std::shared_ptr<Node>& node, bool strictTypes);
 
-py::list getOrCreateAliasedPyCGNS(const std::shared_ptr<Node>& node) {
+py::list getOrCreateAliasedPyCGNS(const std::shared_ptr<Node>& node, const bool strictTypes) {
     py::object aliasedPyObject = aliasedPyCGNSOrNone(node);
     if (aliasedPyObject.is_none()) {
-        return buildRegisteredPyCGNS(node);
+        return buildRegisteredPyCGNS(node, strictTypes);
     }
 
-    synchronizeAliasedPyCGNSRecursive(node);
+    synchronizeAliasedPyCGNSRecursive(node, strictTypes);
     return aliasedPyObject.cast<py::list>();
 }
 
-py::list buildPyCGNSNodeList(const std::shared_ptr<Node>& node, bool registerAlias) {
+py::list buildPyCGNSNodeList(const std::shared_ptr<Node>& node, bool registerAlias, const bool strictTypes) {
     py::list nodePyList;
     py::list childrenPyList;
 
     nodePyList.append(node->name());
-    nodePyList.append(nodeValueToPyCGNS(node));
+    nodePyList.append(nodeValueToPyCGNS(node, strictTypes));
     nodePyList.append(childrenPyList);
     nodePyList.append(node->type());
 
@@ -126,21 +146,21 @@ py::list buildPyCGNSNodeList(const std::shared_ptr<Node>& node, bool registerAli
 
     for (const auto& child : node->children()) {
         if (registerAlias) {
-            childrenPyList.append(buildRegisteredPyCGNS(child));
+            childrenPyList.append(buildRegisteredPyCGNS(child, strictTypes));
         } else {
-            childrenPyList.append(buildPyCGNSSnapshot(child));
+            childrenPyList.append(buildPyCGNSSnapshot(child, strictTypes));
         }
     }
 
     return nodePyList;
 }
 
-py::list buildPyCGNSSnapshot(const std::shared_ptr<Node>& node) {
-    return buildPyCGNSNodeList(node, false);
+py::list buildPyCGNSSnapshot(const std::shared_ptr<Node>& node, const bool strictTypes) {
+    return buildPyCGNSNodeList(node, false, strictTypes);
 }
 
-py::list buildRegisteredPyCGNS(const std::shared_ptr<Node>& node) {
-    return buildPyCGNSNodeList(node, true);
+py::list buildRegisteredPyCGNS(const std::shared_ptr<Node>& node, const bool strictTypes) {
+    return buildPyCGNSNodeList(node, true, strictTypes);
 }
 
 py::list mutableChildrenList(const py::list& nodePyList) {
@@ -153,7 +173,7 @@ py::list mutableChildrenList(const py::list& nodePyList) {
     return childrenPyList;
 }
 
-void synchronizeAliasedPyCGNSRecursive(const std::shared_ptr<Node>& node) {
+void synchronizeAliasedPyCGNSRecursive(const std::shared_ptr<Node>& node, const bool strictTypes) {
     py::object aliasedPyObject = aliasedPyCGNSOrNone(node);
     if (aliasedPyObject.is_none()) {
         return;
@@ -161,20 +181,24 @@ void synchronizeAliasedPyCGNSRecursive(const std::shared_ptr<Node>& node) {
 
     py::list nodePyList = aliasedPyObject.cast<py::list>();
     nodePyList[0] = py::cast(node->name());
-    nodePyList[1] = nodeValueToPyCGNS(node);
+    nodePyList[1] = nodeValueToPyCGNS(node, strictTypes);
 
     py::list childrenPyList = mutableChildrenList(nodePyList);
     childrenPyList.attr("clear")();
     for (const auto& child : node->children()) {
-        childrenPyList.append(getOrCreateAliasedPyCGNS(child));
+        childrenPyList.append(getOrCreateAliasedPyCGNS(child, strictTypes));
     }
 
     nodePyList[3] = py::cast(node->type());
 }
 
-void populateNodeValueFromPyCGNS(const std::shared_ptr<Node>& node, const py::object& valueObj) {
+void populateNodeValueFromPyCGNS(
+    const std::shared_ptr<Node>& node,
+    const py::object& valueObj,
+    const bool strictTypes) {
     if (py::isinstance<py::array>(valueObj)) {
-        node->setData(arraybridge::arrayFromPyArray(py::cast<py::array>(valueObj)));
+        py::object source = strictTypes ? restrictPyCGNSType(valueObj) : valueObj;
+        node->setData(arraybridge::arrayFromPyArray(py::cast<py::array>(source)));
         return;
     }
 
@@ -232,7 +256,7 @@ std::shared_ptr<Node> makeNodeForCGNSType(
     return std::make_shared<Node>(name, type);
 }
 
-std::shared_ptr<Node> pyCGNSToNodeRecursive(const py::list& pyList) {
+std::shared_ptr<Node> pyCGNSToNodeRecursive(const py::list& pyList, const bool strictTypes) {
     validatePyCGNSNodeList(pyList);
 
     const std::string name = py::cast<std::string>(pyList[0]);
@@ -241,7 +265,7 @@ std::shared_ptr<Node> pyCGNSToNodeRecursive(const py::list& pyList) {
     std::shared_ptr<Node> node = makeNodeForCGNSType(name, type);
     rememberAliasedPyCGNS(node, pyList);
 
-    populateNodeValueFromPyCGNS(node, pyList[1].cast<py::object>());
+    populateNodeValueFromPyCGNS(node, pyList[1].cast<py::object>(), strictTypes);
 
     if (!py::isinstance<py::list>(pyList[2])) {
         throw std::invalid_argument("pyCGNSToNode: Third element must be a list.");
@@ -253,7 +277,7 @@ std::shared_ptr<Node> pyCGNSToNodeRecursive(const py::list& pyList) {
             throw std::invalid_argument("pyCGNSToNode: Child must be a list.");
         }
 
-        node->addChild(pyCGNSToNodeRecursive(py::cast<py::list>(child)));
+        node->addChild(pyCGNSToNodeRecursive(py::cast<py::list>(child), strictTypes));
     }
 
     return node;
@@ -268,7 +292,7 @@ void synchronizeAliasedPyCGNSIfPresent(const std::shared_ptr<Node>& node) {
         return;
     }
 
-    synchronizeAliasedPyCGNSRecursive(node);
+    synchronizeAliasedPyCGNSRecursive(node, true);
 }
 
 } // namespace pycgnsinterop
@@ -278,14 +302,14 @@ void synchronizeAliasedPyCGNSIfPresent(const std::shared_ptr<Node>& node) {
  * @param node The Node to convert.
  * @return A pybind11 list representing the Node in CGNS format.
  */
-py::list nodeToPyCGNS(const std::shared_ptr<Node>& node) {
+py::list nodeToPyCGNS(const std::shared_ptr<Node>& node, const bool strictTypes) {
     py::object aliasedPyObject = aliasedPyCGNSOrNone(node);
     if (!aliasedPyObject.is_none()) {
-        synchronizeAliasedPyCGNSRecursive(node);
+        synchronizeAliasedPyCGNSRecursive(node, strictTypes);
         return aliasedPyObject.cast<py::list>();
     }
 
-    return buildPyCGNSSnapshot(node);
+    return buildPyCGNSSnapshot(node, strictTypes);
 }
 
 /**
@@ -293,6 +317,6 @@ py::list nodeToPyCGNS(const std::shared_ptr<Node>& node) {
  * @param pyList A 4-element list in CGNS format.
  * @return A shared_ptr<Node> representing the converted Node.
  */
-std::shared_ptr<Node> pyCGNSToNode(const py::list& pyList) {
-    return pyCGNSToNodeRecursive(pyList);
+std::shared_ptr<Node> pyCGNSToNode(const py::list& pyList, const bool strictTypes) {
+    return pyCGNSToNodeRecursive(pyList, strictTypes);
 }

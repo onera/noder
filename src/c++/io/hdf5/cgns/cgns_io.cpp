@@ -15,10 +15,12 @@
 
 #include <algorithm>
 #include <cctype>
+#include <complex>
 #include <cstring>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <type_traits>
 #include <unordered_set>
 
 namespace io::hdf5::cgns {
@@ -152,7 +154,7 @@ hid_t hdfTypeFromCgnsType(const std::string& cgnsType) {
     if (cgnsType == "U8") return H5T_NATIVE_UINT64;
     if (cgnsType == "R4") return H5T_NATIVE_FLOAT;
     if (cgnsType == "R8") return H5T_NATIVE_DOUBLE;
-    if (cgnsType == "B1") return H5T_NATIVE_INT8;
+    if (cgnsType == "B1") return H5T_NATIVE_UINT8;
     throw std::runtime_error("Unsupported CGNS type: " + cgnsType);
 }
 
@@ -167,6 +169,8 @@ std::string cgnsTypeFromArray(const Array& array) {
     if (array.hasDataOfType<uint64_t>()) return "U8";
     if (array.hasDataOfType<float>()) return "R4";
     if (array.hasDataOfType<double>()) return "R8";
+    if (array.hasDataOfType<std::complex<float>>()) return "X4";
+    if (array.hasDataOfType<std::complex<double>>()) return "X8";
     if (array.hasDataOfType<bool>()) return "B1";
     if (array.hasString()) return "C1";
     throw std::runtime_error("Unsupported Array dtype for CGNS");
@@ -582,6 +586,88 @@ void write_numeric_array(hid_t loc, const std::string& name, const Array& array,
     H5Sclose(space);
 }
 
+template <typename T, typename Component>
+void write_complex_array(hid_t loc, const std::string& name, const Array& array, const hid_t componentType) {
+    hdf5_handle dtype(H5Tcreate(H5T_COMPOUND, sizeof(T)), H5Tclose);
+    if (dtype.get() < 0) {
+        throw std::runtime_error("HDF5 error: cannot create CGNS complex datatype");
+    }
+    check_status(H5Tinsert(dtype.get(), "r", 0, componentType), "insert complex real component");
+    check_status(
+        H5Tinsert(dtype.get(), "i", sizeof(Component), componentType),
+        "insert complex imaginary component");
+
+    std::vector<size_t> diskShape = array.shape();
+    std::reverse(diskShape.begin(), diskShape.end());
+    hdf5_handle space(make_dataspace(diskShape), H5Sclose);
+    hdf5_handle dataset(
+        H5Dcreate2(loc, name.c_str(), dtype.get(), space.get(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT),
+        H5Dclose);
+    if (dataset.get() < 0) {
+        throw std::runtime_error("HDF5 error: cannot create complex dataset '" + name + "'");
+    }
+    const std::vector<T> buffer = copy_array_to_fortran_buffer<T>(array);
+    check_status(
+        H5Dwrite(dataset.get(), dtype.get(), H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()),
+        "write complex CGNS array");
+}
+
+template <typename Source, typename Target>
+Array castArray(const Array& source) {
+    const std::vector<Source> sourceValues = copy_array_to_fortran_buffer<Source>(source);
+    std::vector<Target> targetValues;
+    targetValues.reserve(sourceValues.size());
+    for (const Source value : sourceValues) {
+        targetValues.push_back(static_cast<Target>(value));
+    }
+    Array result = arrayfactory::empty<Target>(source.shape(), 'F');
+    if (!targetValues.empty()) {
+        std::memcpy(result.rawData(), targetValues.data(), targetValues.size() * sizeof(Target));
+    }
+    return result;
+}
+
+Array castBoolArray(const Array& source) {
+    const std::vector<size_t> shape = source.shape();
+    const std::vector<size_t> strides = source.strides();
+    const auto* sourceBytes = static_cast<const std::uint8_t*>(source.rawData());
+    Array result = arrayfactory::empty<int32_t>(shape, 'F');
+    auto* targetValues = static_cast<int32_t*>(result.rawData());
+    for (size_t index = 0; index < source.size(); ++index) {
+        const std::vector<size_t> indices = indices_from_fortran_flat(index, shape);
+        size_t offset = 0;
+        for (size_t dimension = 0; dimension < indices.size(); ++dimension) {
+            offset += indices[dimension] * strides[dimension];
+        }
+        targetValues[index] = *reinterpret_cast<const bool*>(sourceBytes + offset) ? 1 : 0;
+    }
+    return result;
+}
+
+Array strictCgnsArray(const Array& array, std::string& cgnsType) {
+    if (cgnsType == "I1") {
+        cgnsType = "I4";
+        return castArray<int8_t, int32_t>(array);
+    }
+    if (cgnsType == "I2") {
+        cgnsType = "I4";
+        return castArray<int16_t, int32_t>(array);
+    }
+    if (cgnsType == "U1") {
+        cgnsType = "U4";
+        return castArray<uint8_t, uint32_t>(array);
+    }
+    if (cgnsType == "U2") {
+        cgnsType = "U4";
+        return castArray<uint16_t, uint32_t>(array);
+    }
+    if (cgnsType == "B1") {
+        cgnsType = "I4";
+        return castBoolArray(array);
+    }
+    return array;
+}
+
 void write_array(hid_t loc, const std::string& name, const Array& array, const std::string& cgnsType) {
     if (cgnsType == "C1") {
         std::string str = array.extractString();
@@ -605,7 +691,9 @@ void write_array(hid_t loc, const std::string& name, const Array& array, const s
     if (cgnsType == "U8") return write_numeric_array<uint64_t>(loc, name, array, H5T_NATIVE_UINT64);
     if (cgnsType == "R4") return write_numeric_array<float>(loc, name, array, H5T_NATIVE_FLOAT);
     if (cgnsType == "R8") return write_numeric_array<double>(loc, name, array, H5T_NATIVE_DOUBLE);
-    if (cgnsType == "B1") return write_numeric_array<int8_t>(loc, name, array, H5T_NATIVE_INT8);
+    if (cgnsType == "B1") return write_numeric_array<uint8_t>(loc, name, array, H5T_NATIVE_UINT8);
+    if (cgnsType == "X4") return write_complex_array<std::complex<float>, float>(loc, name, array, H5T_NATIVE_FLOAT);
+    if (cgnsType == "X8") return write_complex_array<std::complex<double>, double>(loc, name, array, H5T_NATIVE_DOUBLE);
 
     throw std::runtime_error("Unsupported Array dtype for CGNS write: " + cgnsType);
 }
@@ -615,7 +703,8 @@ void write_node_rec(
     hid_t gcpl,
     const std::shared_ptr<Node>& node,
     const std::string& path,
-    const std::string& cgnsTreeRootName = "") {
+    const std::string& cgnsTreeRootName,
+    const bool strictTypes) {
 
     std::string groupPath = path + "/" + node->name();
     validate_cgns_name_length(node->name(), groupPath);
@@ -665,25 +754,18 @@ void write_node_rec(
             throw std::runtime_error("Expected Array");
         }
         nodeCgnsDataType = cgnsTypeFromArray(*array);
-        if (nodeCgnsDataType == "B1") {
-            auto boolSpan = array->readOnlySpan<bool>();
-            std::vector<int32_t> tempData;
-            tempData.reserve(boolSpan.size());
-            for (const bool& val : boolSpan) {
-                tempData.push_back(static_cast<int32_t>(val));
+        if (strictTypes) {
+            Array promoted = strictCgnsArray(*array, nodeCgnsDataType);
+            if (nodeCgnsDataType != cgnsTypeFromArray(*array)) {
+                array = std::make_shared<Array>(std::move(promoted));
             }
-            Array tempArray = arrayfactory::empty<int32_t>(array->shape(), 'F');
-            int32_t* tempPtr = tempArray.getPointerOfModifiableDataFast<int32_t>();
-            std::copy(tempData.begin(), tempData.end(), tempPtr);
-            array = std::make_shared<Array>(tempArray);
-            nodeCgnsDataType = "I4";
         }
         write_array(file, groupPath + "/ data", *array, nodeCgnsDataType);
     }
     add_cgns_type_attr(group, nodeCgnsDataType);
 
     for (auto& child : node->children()) {
-        write_node_rec(file, gcpl, child, groupPath, cgnsTreeRootName);
+        write_node_rec(file, gcpl, child, groupPath, cgnsTreeRootName, strictTypes);
     }
 
     H5Gclose(group);
@@ -702,9 +784,14 @@ void write_cgns_library_version(hid_t file, hid_t gcpl, const float& cgnsVersion
 }
 
 template <typename T>
-Array readNumericArrayTyped(hid_t dset, const std::vector<size_t>& shape, const std::string& cgnsType, const char order) {
+Array readNumericArrayTyped(
+    hid_t dset,
+    const std::vector<size_t>& shape,
+    const std::string& cgnsType,
+    const char order,
+    const hid_t memoryType = -1) {
     const char normalizedOrder = normalize_order(order, "CGNS/HDF5 read");
-    hid_t dtype = hdfTypeFromCgnsType(cgnsType);
+    const hid_t dtype = memoryType < 0 ? hdfTypeFromCgnsType(cgnsType) : memoryType;
     const size_t totalSize = flat_size(shape);
 
     if (normalizedOrder == 'F') {
@@ -733,7 +820,67 @@ Array readNumericArrayTyped(hid_t dset, const std::vector<size_t>& shape, const 
     return array;
 }
 
-Array readArrayFromDataset(hid_t dset, const std::vector<size_t>& shape, const std::string& cgnsType, const char order = 'F') {
+template <typename T, typename Component>
+Array readComplexArrayTyped(
+    hid_t dset,
+    const std::vector<size_t>& shape,
+    const char order) {
+    hdf5_handle sourceType(H5Dget_type(dset), H5Tclose);
+    if (sourceType.get() < 0 || H5Tget_class(sourceType.get()) != H5T_COMPOUND ||
+        H5Tget_nmembers(sourceType.get()) != 2) {
+        throw std::runtime_error("complex CGNS payload must use a two-member HDF5 compound type");
+    }
+
+    hdf5_handle memoryType(H5Tcreate(H5T_COMPOUND, sizeof(T)), H5Tclose);
+    if (memoryType.get() < 0) {
+        throw std::runtime_error("cannot create complex HDF5 memory type");
+    }
+    const hid_t componentType = std::is_same_v<Component, float>
+        ? H5T_NATIVE_FLOAT
+        : H5T_NATIVE_DOUBLE;
+    for (unsigned member = 0; member < 2; ++member) {
+        char* memberName = H5Tget_member_name(sourceType.get(), member);
+        if (memberName == nullptr) {
+            throw std::runtime_error("cannot inspect complex HDF5 member name");
+        }
+        const herr_t status = H5Tinsert(
+            memoryType.get(), memberName, member * sizeof(Component), componentType);
+        H5free_memory(memberName);
+        check_status(status, "create complex HDF5 memory member");
+    }
+
+    const char normalizedOrder = normalize_order(order, "CGNS/HDF5 read");
+    const size_t totalSize = flat_size(shape);
+    if (normalizedOrder == 'F') {
+        Array array = arrayfactory::empty<T>(shape, 'F');
+        check_status(
+            H5Dread(dset, memoryType.get(), H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()),
+            "read complex CGNS array");
+        return array;
+    }
+    std::vector<T> buffer(totalSize);
+    check_status(
+        H5Dread(dset, memoryType.get(), H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()),
+        "read complex CGNS array");
+    Array array = arrayfactory::empty<T>(shape, 'C');
+    T* destination = static_cast<T*>(array.rawData());
+    if (shape.size() <= 1) {
+        std::memcpy(destination, buffer.data(), totalSize * sizeof(T));
+        return array;
+    }
+    for (size_t fIndex = 0; fIndex < totalSize; ++fIndex) {
+        const std::vector<size_t> indices = indices_from_fortran_flat(fIndex, shape);
+        destination[c_flat_from_indices(indices, shape)] = buffer[fIndex];
+    }
+    return array;
+}
+
+Array readArrayFromDataset(
+    hid_t dset,
+    const std::vector<size_t>& shape,
+    const std::string& cgnsType,
+    const char order,
+    const bool strictTypes) {
     if (cgnsType == "C1") {
         hid_t space = H5Dget_space(dset);
         int ndims = H5Sget_simple_extent_ndims(space);
@@ -762,9 +909,11 @@ Array readArrayFromDataset(hid_t dset, const std::vector<size_t>& shape, const s
     }
 
     if (cgnsType == "I1") {
+        if (strictTypes) return readNumericArrayTyped<int32_t>(dset, shape, cgnsType, order, H5T_NATIVE_INT32);
         return readNumericArrayTyped<int8_t>(dset, shape, cgnsType, order);
     }
     if (cgnsType == "I2") {
+        if (strictTypes) return readNumericArrayTyped<int32_t>(dset, shape, cgnsType, order, H5T_NATIVE_INT32);
         return readNumericArrayTyped<int16_t>(dset, shape, cgnsType, order);
     }
     if (cgnsType == "I4") {
@@ -774,9 +923,11 @@ Array readArrayFromDataset(hid_t dset, const std::vector<size_t>& shape, const s
         return readNumericArrayTyped<int64_t>(dset, shape, cgnsType, order);
     }
     if (cgnsType == "U1") {
+        if (strictTypes) return readNumericArrayTyped<uint32_t>(dset, shape, cgnsType, order, H5T_NATIVE_UINT32);
         return readNumericArrayTyped<uint8_t>(dset, shape, cgnsType, order);
     }
     if (cgnsType == "U2") {
+        if (strictTypes) return readNumericArrayTyped<uint32_t>(dset, shape, cgnsType, order, H5T_NATIVE_UINT32);
         return readNumericArrayTyped<uint16_t>(dset, shape, cgnsType, order);
     }
     if (cgnsType == "U4") {
@@ -792,8 +943,18 @@ Array readArrayFromDataset(hid_t dset, const std::vector<size_t>& shape, const s
         return readNumericArrayTyped<double>(dset, shape, cgnsType, order);
     }
     if (cgnsType == "B1") {
-        return readNumericArrayTyped<int8_t>(dset, shape, cgnsType, order);
+        if (strictTypes) return readNumericArrayTyped<int32_t>(dset, shape, cgnsType, order, H5T_NATIVE_INT32);
+        Array bytes = readNumericArrayTyped<uint8_t>(dset, shape, cgnsType, order, H5T_NATIVE_UINT8);
+        Array booleans = arrayfactory::empty<bool>(shape, normalize_order(order, "CGNS/HDF5 read"));
+        const auto* source = static_cast<const uint8_t*>(bytes.rawData());
+        auto* destination = static_cast<bool*>(booleans.rawData());
+        for (size_t index = 0; index < bytes.size(); ++index) {
+            destination[index] = source[index] != 0;
+        }
+        return booleans;
     }
+    if (cgnsType == "X4") return readComplexArrayTyped<std::complex<float>, float>(dset, shape, order);
+    if (cgnsType == "X8") return readComplexArrayTyped<std::complex<double>, double>(dset, shape, order);
 
     throw std::runtime_error("Unsupported type in read: " + cgnsType);
 }
@@ -824,6 +985,7 @@ std::shared_ptr<Node> read_node_rec(
     const std::string& path,
     const char order,
     const bool safeMode,
+    const bool strictTypes,
     const std::string& filename,
     std::unordered_set<std::string>& corruptedPaths);
 
@@ -832,6 +994,7 @@ std::shared_ptr<Node> read_node_rec_impl(
     const std::string& path,
     const char order,
     const bool safeMode,
+    const bool strictTypes,
     const std::string& filename,
     std::unordered_set<std::string>& corruptedPaths) {
     hdf5_handle group(H5Gopen2(file, path.c_str(), H5P_DEFAULT), H5Gclose);
@@ -919,7 +1082,7 @@ std::shared_ptr<Node> read_node_rec_impl(
                 if (cgnsType != "C1") {
                     std::reverse(shape.begin(), shape.end());
                 }
-                node->setData(readArrayFromDataset(dset.get(), shape, cgnsType, order));
+                node->setData(readArrayFromDataset(dset.get(), shape, cgnsType, order, strictTypes));
             }
         } catch (const cgns_read_error&) {
             throw;
@@ -949,7 +1112,7 @@ std::shared_ptr<Node> read_node_rec_impl(
         const std::string childPath = hdf5_child_path(path, childName);
         try {
             auto child = read_node_rec(
-                file, childPath, order, safeMode, filename, corruptedPaths);
+                file, childPath, order, safeMode, strictTypes, filename, corruptedPaths);
             child->attachTo(node, -1, false);
         } catch (const std::exception& error) {
             if (!safeMode) {
@@ -967,11 +1130,12 @@ std::shared_ptr<Node> read_node_rec(
     const std::string& path,
     const char order,
     const bool safeMode,
+    const bool strictTypes,
     const std::string& filename,
     std::unordered_set<std::string>& corruptedPaths) {
     try {
         return read_node_rec_impl(
-            file, path, order, safeMode, filename, corruptedPaths);
+            file, path, order, safeMode, strictTypes, filename, corruptedPaths);
     } catch (const cgns_read_error&) {
         throw;
     } catch (const std::exception& error) {
@@ -981,7 +1145,11 @@ std::shared_ptr<Node> read_node_rec(
 
 } // namespace
 
-void write_node(const std::string& filename, std::shared_ptr<Node> root, const float& cgnsVersion) {
+void write_node(
+    const std::string& filename,
+    std::shared_ptr<Node> root,
+    const float& cgnsVersion,
+    const bool strictTypes) {
     validate_cgns_output_names(root);
 
     hid_t fcpl = make_cgns_file_creation_plist();
@@ -995,10 +1163,10 @@ void write_node(const std::string& filename, std::shared_ptr<Node> root, const f
             if (is_cgns_library_version_node(child)) {
                 continue;
             }
-            write_node_rec(file, gcpl, child, "", root->name());
+            write_node_rec(file, gcpl, child, "", root->name(), strictTypes);
         }
     } else {
-        write_node_rec(file, gcpl, root, "");
+        write_node_rec(file, gcpl, root, "", "", strictTypes);
     }
     H5Pclose(gcpl);
     H5Fclose(file);
@@ -1008,7 +1176,8 @@ void write_node_only(
     const std::string& filename,
     std::shared_ptr<Node> node,
     const std::string& persistedPath,
-    const std::string& persistedLinkTargetPath) {
+    const std::string& persistedLinkTargetPath,
+    const bool strictTypes) {
 
     if (!node) {
         throw std::invalid_argument("write_node_only: node cannot be null");
@@ -1040,7 +1209,7 @@ void write_node_only(
         }
 
         hdf5_handle gcpl(make_cgns_group_creation_plist(), H5Pclose);
-        write_node_rec(file.get(), gcpl.get(), node, parentPath);
+        write_node_rec(file.get(), gcpl.get(), node, parentPath, "", strictTypes);
         check_status(H5Fflush(file.get(), H5F_SCOPE_GLOBAL), "flush HDF5 node-only update");
         return;
     }
@@ -1097,8 +1266,12 @@ void write_node_only(
             if (!array) {
                 throw std::runtime_error("write_node_only: expected an Array payload");
             }
-            const std::string cgnsType = cgnsTypeFromArray(*array);
-            write_array(file.get(), groupPath + "/ data", *array, cgnsType);
+            std::string cgnsType = cgnsTypeFromArray(*array);
+            Array promoted = strictTypes ? strictCgnsArray(*array, cgnsType) : *array;
+            const Array& output = strictTypes && cgnsType != cgnsTypeFromArray(*array)
+                ? promoted
+                : *array;
+            write_array(file.get(), groupPath + "/ data", output, cgnsType);
             replace_cgns_type_attr(group.get(), cgnsType);
         }
         const htri_t flagsExists = H5Aexists(group.get(), "flags");
@@ -1116,7 +1289,8 @@ void write_node_only(
 std::shared_ptr<Node> read(
     const std::string& filename,
     const char order,
-    const bool safeMode) {
+    const bool safeMode,
+    const bool strictTypes) {
     hdf5_handle file(H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose);
     if (file.get() < 0) {
         throw std::runtime_error("Failed to open HDF5 file: " + filename);
@@ -1125,7 +1299,7 @@ std::shared_ptr<Node> read(
     std::unordered_set<std::string> corruptedPaths;
     try {
         return read_node_rec(
-            file.get(), "/", order, safeMode, filename, corruptedPaths);
+            file.get(), "/", order, safeMode, strictTypes, filename, corruptedPaths);
     } catch (const std::exception& error) {
         if (safeMode) {
             auto root = make_node_for_cgns_label(

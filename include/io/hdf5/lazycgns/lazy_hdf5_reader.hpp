@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace io::hdf5::cgns {
 
@@ -23,7 +24,8 @@ public:
     explicit LazyHdf5Reader(
         const std::string& filename,
         char order = 'F',
-        bool safeMode = false);
+        bool safeMode = false,
+        bool strictTypes = true);
     explicit LazyHdf5Reader(const std::string& filename, bool safeMode);
     ~LazyHdf5Reader();
 
@@ -43,6 +45,13 @@ public:
      */
     std::shared_ptr<Node> nodeAtPath(const std::string& path) const;
 
+    /** @brief Raw CGNS ``type`` attribute for a node owned by this reader. */
+    std::string cgnsTypeAttribute(const std::shared_ptr<Node>& node) const;
+
+    /** @brief Find all file nodes whose CGNS ``type`` attribute matches a token. */
+    std::vector<std::shared_ptr<Node>> findNodesByCgnsType(
+        const std::string& cgnsType) const;
+
     /** @brief Source filename. */
     const std::string& filename() const;
 
@@ -60,6 +69,9 @@ public:
 
     /** @brief Whether this reader was configured to tolerate malformed nodes. */
     bool safeMode() const;
+
+    /** @brief Whether payload types are restricted to CGNS-compatible widths. */
+    bool strictTypes() const;
 
     /** @brief Explicitly request a direct-child page for a node. */
     void ensureChildrenLoaded(

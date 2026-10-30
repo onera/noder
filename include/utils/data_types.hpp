@@ -2,6 +2,7 @@
 # define DATA_TYPES_HPP
 
 # include <cstdint>
+# include <complex>
 # include <string>
 #include <string_view>
 #include <type_traits>
@@ -23,6 +24,8 @@ namespace utils {
         else if constexpr (std::is_same_v<T, uint64_t>) return "uint64";
         else if constexpr (std::is_same_v<T, float>) return "float";
         else if constexpr (std::is_same_v<T, double>) return "double";
+        else if constexpr (std::is_same_v<T, std::complex<float>>) return "complex64";
+        else if constexpr (std::is_same_v<T, std::complex<double>>) return "complex128";
         else return "unknown";
     }
 
@@ -52,6 +55,9 @@ namespace utils {
 
 
     using FloatingTypes = TypeList<float, double>;
+
+    /** @brief Complex scalar types used by CGNS X4 and X8 payloads. */
+    using ComplexTypes = TypeList<std::complex<float>, std::complex<double>>;
 
     using PositiveIntegralTypes = TypeList<uint8_t, uint16_t, uint32_t, uint64_t>;
     

@@ -34,6 +34,14 @@ def _cgnsvi_executable() -> Optional[Path]:
     return None
 
 
+def _package_root() -> Path:
+    configured = os.environ.get("NODER_PACKAGE_ROOT")
+    if configured:
+        return Path(configured)
+    repository_root = Path(__file__).resolve().parents[3]
+    return repository_root / "dist" / "dev"
+
+
 def _write_smoke_file(filename: Path) -> None:
     h5py = pytest.importorskip("h5py")
     with h5py.File(filename, "w", track_order=True) as h5file:
@@ -105,6 +113,108 @@ def _write_smoke_file(filename: Path) -> None:
             " data",
             data=np.frombuffer(long_text.encode("ascii"), dtype=np.int8),
         )
+
+
+def _write_cgns_type_inspector_file(filename: Path) -> None:
+    h5py = pytest.importorskip("h5py")
+    with h5py.File(filename, "w", track_order=True) as h5file:
+        h5file.attrs["name"] = np.bytes_("HDF5 MotherNode")
+        h5file.attrs["label"] = np.bytes_("Root Node of HDF5 File")
+        h5file.attrs["type"] = np.bytes_("MT")
+
+        first = h5file.create_group("FlagOne", track_order=True)
+        first.attrs["name"] = np.bytes_("FlagOne")
+        first.attrs["label"] = np.bytes_("DataArray_t")
+        first.attrs["type"] = np.bytes_("B1")
+        first.create_dataset(" data", data=np.array([0, 1], dtype=np.uint8))
+
+        container = h5file.create_group("Container", track_order=True)
+        container.attrs["name"] = np.bytes_("Container")
+        container.attrs["label"] = np.bytes_("UserDefinedData_t")
+        container.attrs["type"] = np.bytes_("MT")
+        second = container.create_group("FlagTwo", track_order=True)
+        second.attrs["name"] = np.bytes_("FlagTwo")
+        second.attrs["label"] = np.bytes_("DataArray_t")
+        second.attrs["type"] = np.bytes_("B1")
+        second.create_dataset(" data", data=np.array([1, 0], dtype=np.uint8))
+
+
+def test_cgnsvi_strict_type_cli_options(tmp_path):
+    executable = _cgnsvi_executable()
+    if executable is None:
+        pytest.skip("cgnsvi executable is not available; configure with ENABLE_CGNSVI=ON")
+
+    environment = os.environ.copy()
+    runtime_directories = [str(executable.parent)]
+    package_directory = executable.parents[1] / "noder"
+    if package_directory.is_dir():
+        runtime_directories.append(str(package_directory))
+    build_runtime_directory = executable.parents[1] / "cp312" / "noder" / "Release"
+    if build_runtime_directory.is_dir():
+        runtime_directories.append(str(build_runtime_directory))
+    environment["PATH"] = os.pathsep.join(
+        runtime_directories + [environment.get("PATH", "")]
+    )
+
+    help_result = subprocess.run(
+        [str(executable), "--help"],
+        text=True,
+        capture_output=True,
+        check=False,
+        env=environment,
+    )
+    assert help_result.returncode == 0, help_result.stderr
+    assert "--strict-types|--no-strict-types" in help_result.stdout
+
+    filename = tmp_path / "cgnsvi-no-strict-types.cgns"
+    _write_smoke_file(filename)
+    result = subprocess.run(
+        [str(executable), str(filename), "--no-strict-types", "--non-interactive"],
+        input="q\n",
+        text=True,
+        capture_output=True,
+        check=False,
+        env=environment,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_cgnsvi_inspects_raw_cgns_type_attribute(tmp_path):
+    executable = _cgnsvi_executable()
+    if executable is None:
+        pytest.skip("cgnsvi executable is not available; configure with ENABLE_CGNSVI=ON")
+
+    filename = tmp_path / "cgnsvi-type-inspector.cgns"
+    _write_cgns_type_inspector_file(filename)
+    environment = os.environ.copy()
+    runtime_directories = [str(executable.parent)]
+    package_directory = executable.parents[1] / "noder"
+    if package_directory.is_dir():
+        runtime_directories.append(str(package_directory))
+    build_runtime_directory = executable.parents[1] / "cp312" / "noder" / "Release"
+    if build_runtime_directory.is_dir():
+        runtime_directories.append(str(build_runtime_directory))
+    environment["PATH"] = os.pathsep.join(
+        runtime_directories + [environment.get("PATH", "")]
+    )
+
+    result = subprocess.run(
+        [str(executable), str(filename), "--non-interactive"],
+        input="iB1\nq\n",
+        text=True,
+        capture_output=True,
+        check=False,
+        env=environment,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Enter CGNS HDF5 attribute type to inspect (I4, I5...)" in result.stdout
+    assert "search: cgns_type:B1    matches: 2" in result.stdout
+    assert "FlagOne" in result.stdout
+    assert "FlagTwo" in result.stdout
+    plain_output = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", result.stdout)
+    assert any("FlagOne" in line and "B1" in line for line in plain_output.splitlines())
+    assert any("FlagTwo" in line and "B1" in line for line in plain_output.splitlines())
 
 
 def _write_root_search_file(filename: Path) -> None:
@@ -228,10 +338,10 @@ def test_cgnsvi_non_interactive_smoke(tmp_path):
     assert "DataArray_t" in result.stdout
     assert "[press d to show payload]" in result.stdout
     assert "cgnsvi  payload view" in result.stdout
-    assert "[Escape] back" in result.stdout
+    assert "[h] help" in result.stdout
     plain_output = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", result.stdout)
-    assert "ZoneType  ZoneType_t  Structured" in plain_output
-    assert "SmallNumbers  DataArray_t  Array int32 [ 0 1 2 3 4 5 6 7 8 ]" in plain_output
+    assert "ZoneType  ZoneType_t  C1  Structured" in plain_output
+    assert "SmallNumbers  DataArray_t  I4  Array int32 [ 0 1 2 3 4 5 6 7 8 ]" in plain_output
     assert "payload (9 element(s), int32, shape=9): mn=0 MX=8 avg=4 med=4" in plain_output
     assert "payload (9 element(s), int32, shape=9): Array int32" not in plain_output
     assert "0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29" in plain_output
@@ -292,10 +402,15 @@ def test_cgnsvi_predicate_search_smoke(tmp_path):
     assert "Search /n:NestedLeaf*: 2 matches." in result.stdout
     assert "NestedLeaf" in result.stdout
     assert "leaf-two" in result.stdout
-    assert "cgnsvi  payload view" in result.stdout
-    assert "[Escape] back to node view" in result.stdout
-    assert "[m] matches" in result.stdout
-    assert "[Escape] node view" in result.stdout
+    screens = result.stdout.split("\x1b[2J\x1b[H")
+    assert any(
+        "cgnsvi  matches view" in screen and "[h] help" in screen
+        for screen in screens
+    )
+    assert any(
+        "cgnsvi  payload view" in screen and "[h] help" in screen
+        for screen in screens
+    )
     assert "Match 'NestedLeafTwo' has no children." in result.stdout
     assert "Search \\n:NestedSmoke: 1 match." in result.stdout
     assert "Search error: invalid predicate" in result.stdout
@@ -309,6 +424,7 @@ def test_cgnsvi_predicate_search_smoke(tmp_path):
     last_screen = result.stdout.rsplit("\x1b[2J\x1b[H", maxsplit=1)[-1]
     assert "cgnsvi  matches view" not in last_screen
     assert "path:" in last_screen
+    assert "[h] help" in last_screen
 
 
 def test_cgnsvi_saves_payload_from_all_views(tmp_path):
@@ -354,7 +470,7 @@ def test_cgnsvi_edits_payload_in_place(tmp_path):
     _write_smoke_file(filename)
     environment = os.environ.copy()
     repository_root = Path(__file__).resolve().parents[3]
-    package_root = repository_root / "dist" / "dev"
+    package_root = _package_root()
     runtime_directories = [
         str(executable.parent),
         str(package_root / "noder"),
@@ -397,7 +513,7 @@ def test_cgnsvi_stores_edited_strings_as_s1_without_prompt(tmp_path):
     _write_smoke_file(filename)
     environment = os.environ.copy()
     repository_root = Path(__file__).resolve().parents[3]
-    package_root = repository_root / "dist" / "dev"
+    package_root = _package_root()
     runtime_directories = [
         str(executable.parent),
         str(package_root / "noder"),
@@ -464,7 +580,7 @@ def test_cgnsvi_multidimensional_payload_metadata(tmp_path):
 
     assert result.returncode == 0, result.stderr
     plain_output = re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", result.stdout)
-    assert "MatrixData  DataArray_t  Array int32 [ 0 1 2 3 4 5 ]" in plain_output
+    assert "MatrixData  DataArray_t  I4  Array int32 [ 0 1 2 3 4 5 ]" in plain_output
     assert "payload (6 element(s), int32, shape=3x2): mn=0 MX=5 avg=2.5 med=2.5" in plain_output
     assert "elements: 6    shape: 3x2" in plain_output
     payload_screens = [

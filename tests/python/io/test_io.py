@@ -305,6 +305,132 @@ def test_write_nodes_cgns_attrs_layout(tmp_path):
     a.write(tmp_filename)
 
 
+def _new_type_handling_tree():
+    from noder import Node
+
+    root = Node("Types", "UserDefinedData_t")
+    payloads = {
+        "Boolean": np.array([True, False], dtype=np.bool_),
+        "Int8": np.array([-2, 3], dtype=np.int8),
+        "Int16": np.array([-4, 5], dtype=np.int16),
+        "UInt8": np.array([6, 7], dtype=np.uint8),
+        "UInt16": np.array([8, 9], dtype=np.uint16),
+        "Complex32": np.array([1 + 2j, 3 - 4j], dtype=np.complex64),
+        "Complex64": np.array([5 + 6j, 7 - 8j], dtype=np.complex128),
+    }
+    for name, values in payloads.items():
+        child = Node(name, "DataArray_t")
+        child.set_data(values)
+        root.add_child(child)
+    return root, payloads
+
+
+def test_cgns_strict_type_writes_promote_and_complex_roundtrip(tmp_path):
+    h5py = pytest.importorskip("h5py")
+    from noder import read
+
+    filename = tmp_path / "strict_types.cgns"
+    root, values = _new_type_handling_tree()
+    root.write(str(filename))
+
+    with h5py.File(filename, "r") as h5file:
+        expected_types = {
+            "Boolean": "I4", "Int8": "I4", "Int16": "I4",
+            "UInt8": "U4", "UInt16": "U4", "Complex32": "X4", "Complex64": "X8",
+        }
+        for name, cgns_type in expected_types.items():
+            assert h5file[f"Types/{name}"].attrs["type"].decode() == cgns_type
+
+    loaded = read(str(filename))
+    for name in ("Boolean", "Int8", "Int16"):
+        node = loaded.get_at_path(f"Types/{name}", path_is_relative=True)
+        np.testing.assert_array_equal(node.numpy(), values[name].astype(np.int32))
+        assert node.numpy().dtype == np.dtype(np.int32)
+    for name in ("UInt8", "UInt16"):
+        node = loaded.get_at_path(f"Types/{name}", path_is_relative=True)
+        np.testing.assert_array_equal(node.numpy(), values[name].astype(np.uint32))
+        assert node.numpy().dtype == np.dtype(np.uint32)
+    for name in ("Complex32", "Complex64"):
+        node = loaded.get_at_path(f"Types/{name}", path_is_relative=True)
+        np.testing.assert_array_equal(node.numpy(), values[name])
+
+    lazy = gio.LazyHdf5Reader(str(filename))
+    try:
+        int8_node = lazy.node_at_path("Types/Int8")
+        complex_node = lazy.node_at_path("Types/Complex32")
+        assert int8_node.numpy().dtype == np.dtype(np.int32)
+        np.testing.assert_array_equal(complex_node.numpy(), values["Complex32"])
+    finally:
+        lazy.close()
+
+
+def test_cgns_non_strict_types_preserve_boolean_and_narrow_widths(tmp_path):
+    h5py = pytest.importorskip("h5py")
+    from noder import read
+
+    filename = tmp_path / "non_strict_types.cgns"
+    root, values = _new_type_handling_tree()
+    root.write(str(filename), strict_types=False)
+
+    with h5py.File(filename, "r") as h5file:
+        assert h5file["Types/Boolean"].attrs["type"].decode() == "B1"
+        assert h5file["Types/Int8"].attrs["type"].decode() == "I1"
+        assert h5file["Types/UInt16"].attrs["type"].decode() == "U2"
+
+    loaded = read(str(filename), strict_types=False)
+    for name, original in values.items():
+        node = loaded.get_at_path(f"Types/{name}", path_is_relative=True)
+        np.testing.assert_array_equal(node.numpy(), original)
+        assert node.numpy().dtype == original.dtype
+
+    strict_loaded = read(str(filename))
+    assert strict_loaded.get_at_path("Types/Boolean", path_is_relative=True).numpy().dtype == np.dtype(np.int32)
+
+
+def test_lazy_reader_inspects_source_cgns_types_without_loading_payloads(tmp_path):
+    filename = tmp_path / "inspect_source_types.cgns"
+    root, values = _new_type_handling_tree()
+    root.write(str(filename), strict_types=False)
+
+    reader = gio.LazyHdf5Reader(str(filename), strict_types=True)
+    try:
+        boolean_nodes = reader.find_nodes_by_cgns_type(" b1 ")
+        int8_nodes = reader.find_nodes_by_cgns_type("i1")
+        assert [node.name() for node in boolean_nodes] == ["Boolean"]
+        assert [node.name() for node in int8_nodes] == ["Int8"]
+
+        boolean = boolean_nodes[0]
+        assert boolean.path().endswith("Types/Boolean")
+        assert reader.cgns_type_attribute(boolean) == "B1"
+        assert not boolean.data_is_loaded()
+
+        np.testing.assert_array_equal(boolean.numpy(), values["Boolean"].astype(np.int32))
+        assert boolean.numpy().dtype == np.dtype(np.int32)
+        assert reader.cgns_type_attribute(boolean) == "B1"
+    finally:
+        reader.close()
+
+
+def test_save_this_node_only_applies_strict_type_policy(tmp_path):
+    h5py = pytest.importorskip("h5py")
+    from noder import Node
+
+    filename = tmp_path / "save_strict_types.cgns"
+    root = Node("Types", "UserDefinedData_t")
+    flag = Node("Flag", "DataArray_t")
+    flag.set_data(np.array([True, False], dtype=np.bool_))
+    root.add_child(flag)
+    root.write(str(filename))
+
+    flag.save_this_node_only(str(filename), strict_types=False)
+    with h5py.File(filename, "r") as h5file:
+        assert h5file["Types/Flag"].attrs["type"].decode() == "B1"
+
+    flag.save_this_node_only(str(filename), strict_types=True)
+    with h5py.File(filename, "r") as h5file:
+        assert h5file["Types/Flag"].attrs["type"].decode() == "I4"
+
+
 @pytest.mark.parametrize(
     ("name_bytes", "expected_attr_bytes", "warns"),
     [(32, 33, False), (33, 65, True), (64, 65, True)],

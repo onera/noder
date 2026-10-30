@@ -798,7 +798,7 @@ Persist only this node payload/metadata into an existing file.
 
 See C++ counterpart: :ref:`cpp-node-savethisnodeonly`.
 )doc",
-             py::arg("filename"), py::arg("backend")="hdf5")
+             py::arg("filename"), py::arg("backend")="hdf5", py::arg("strict_types")=true)
         .def("parent", [](const Node &self) -> std::shared_ptr<Node> {
             return self.parent().lock();
         }, R"doc(
@@ -973,9 +973,12 @@ See C++ counterpart: :ref:`cpp-node-path`.
 Write this subtree to file.
 
 The output format is inferred from the filename extension.
+strict_types : bool, optional
+    Promote narrow integer and boolean payloads to CGNS-compatible types. Defaults to ``True``.
 
 See C++ counterpart: :ref:`cpp-node-write`.
-)doc")
+)doc",
+             py::arg("filename"), py::arg("strict_types")=true)
         .def("descendants", &Node::descendants, R"doc(
 Return this node and all descendants in depth-first order.
 

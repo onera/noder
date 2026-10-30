@@ -1112,7 +1112,10 @@ void Node::reloadNodeData(const std::string& filename) {
     this->setData(updatedNode->data());
 }
 
-void Node::saveThisNodeOnly(const std::string& filename, const std::string& backend) {
+void Node::saveThisNodeOnly(
+    const std::string& filename,
+    const std::string& backend,
+    const bool strictTypes) {
     if (!(backend == "hdf5" || backend == "h5py2cgns" || backend == "yaml" || backend == "auto")) {
         throw std::invalid_argument(
             "saveThisNodeOnly: unsupported backend '" + backend + "'. Supported: auto, hdf5, h5py2cgns, yaml");
@@ -1121,7 +1124,7 @@ void Node::saveThisNodeOnly(const std::string& filename, const std::string& back
     const bool flattenCgnsTreeRoot = io::file_flattens_cgns_tree_root(filename);
     const std::string persistedPath = persistedPathForNode(*this, flattenCgnsTreeRoot);
     if (persistedPath.empty()) {
-        io::write_node(filename, shared_from_this());
+        io::write_node(filename, shared_from_this(), 3.1f, strictTypes);
         return;
     }
 
@@ -1138,7 +1141,8 @@ void Node::saveThisNodeOnly(const std::string& filename, const std::string& back
                 filename,
                 shared_from_this(),
                 persistedPath,
-                persistedLinkTargetPath);
+                persistedLinkTargetPath,
+                strictTypes);
         } catch (...) {
             if (_expansion) {
                 _expansion->endExternalWrite();
@@ -1157,7 +1161,7 @@ void Node::saveThisNodeOnly(const std::string& filename, const std::string& back
         throw std::runtime_error("saveThisNodeOnly: node path is empty");
     }
 
-    auto loadedTreeContainer = io::read(filename);
+    auto loadedTreeContainer = io::read(filename, 'F', false, strictTypes);
     if (!loadedTreeContainer) {
         throw std::runtime_error("saveThisNodeOnly: could not load file '" + filename + "'");
     }
@@ -1194,7 +1198,7 @@ void Node::saveThisNodeOnly(const std::string& filename, const std::string& back
         persistedNode->setData(this->data());
     }
 
-    io::write_node(filename, persistedRoot);
+    io::write_node(filename, persistedRoot, 3.1f, strictTypes);
 }
 
 void Node::merge(std::shared_ptr<Node> node) {
@@ -1393,6 +1397,6 @@ std::string Node::getInfo() const {
 }
 
 
-void Node::write(const std::string& filename) {
-    io::write_node(filename, shared_from_this());
+void Node::write(const std::string& filename, const bool strictTypes) {
+    io::write_node(filename, shared_from_this(), 3.1f, strictTypes);
 }

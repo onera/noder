@@ -201,6 +201,7 @@ struct Instantiator {
 };
 
 template void utils::instantiateFromTypeList<Instantiator, utils::ScalarTypes>();
+template void utils::instantiateFromTypeList<Instantiator, utils::ComplexTypes>();
 
 template size_t Array::getOffsetFromFlatIndex<bool>(size_t) const;
 template size_t Array::getOffsetFromFlatIndex<float>(size_t) const;
@@ -213,3 +214,5 @@ template size_t Array::getOffsetFromFlatIndex<uint8_t>(size_t) const;
 template size_t Array::getOffsetFromFlatIndex<uint16_t>(size_t) const;
 template size_t Array::getOffsetFromFlatIndex<uint32_t>(size_t) const;
 template size_t Array::getOffsetFromFlatIndex<uint64_t>(size_t) const;
+template size_t Array::getOffsetFromFlatIndex<std::complex<float>>(size_t) const;
+template size_t Array::getOffsetFromFlatIndex<std::complex<double>>(size_t) const;

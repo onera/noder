@@ -10,7 +10,11 @@
 
 namespace io::hdf5::cgns {
 
-void write_node(const std::string& filename, std::shared_ptr<Node> node, const float& cgnsVersion = 3.1f);
+void write_node(
+    const std::string& filename,
+    std::shared_ptr<Node> node,
+    const float& cgnsVersion = 3.1f,
+    bool strictTypes = true);
 
 /**
  * @brief Update one existing CGNS/HDF5 node without reading or rewriting the file tree.
@@ -24,12 +28,14 @@ void write_node_only(
     const std::string& filename,
     std::shared_ptr<Node> node,
     const std::string& persistedPath,
-    const std::string& persistedLinkTargetPath = std::string());
+    const std::string& persistedLinkTargetPath = std::string(),
+    bool strictTypes = true);
 
 std::shared_ptr<Node> read(
     const std::string& filename,
     const char order = 'F',
-    bool safeMode = false);
+    bool safeMode = false,
+    bool strictTypes = true);
 
 std::shared_ptr<Node> read(const std::string& filename, bool safeMode);
 

@@ -989,6 +989,9 @@ YamlValue array_value_to_yaml(
                 return numeric_element_to_yaml<float>(array, offset);
             case ArrayTypeId::Float64:
                 return numeric_element_to_yaml<double>(array, offset);
+            case ArrayTypeId::Complex64:
+            case ArrayTypeId::Complex128:
+                throw std::runtime_error("YAML does not support complex Array payloads");
             case ArrayTypeId::Bytes:
                 return YamlValue::makeString(bytes_element_to_string(array, offset));
             case ArrayTypeId::Unicode:
@@ -1282,6 +1285,9 @@ void fill_array_values(
             case ArrayTypeId::Float64:
                 store_numeric_value<double>(array, offset, parse_float_yaml<double>(value, context));
                 return;
+            case ArrayTypeId::Complex64:
+            case ArrayTypeId::Complex128:
+                throw std::runtime_error(std::string(context) + ": YAML does not support complex Array payloads");
             case ArrayTypeId::Bytes:
                 if (value.kind != YamlValue::Kind::String) {
                     throw std::runtime_error(std::string(context) + ": expected string YAML value");

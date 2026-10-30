@@ -28,16 +28,28 @@ def test_pyCGNSToNode_single():
     n = pyCGNSToNode(a)
 
 
-@pytest.mark.parametrize("kind", ["bool", "i1", "i2", "i4", "i8", "u1", "u2", "u4", "u8", "f4", "f8"])
+@pytest.mark.parametrize("kind", ["bool", "i1", "i2", "i4", "i8", "u1", "u2", "u4", "u8", "f4", "f8", "c8", "c16"])
 def test_pyCGNSToNode_equivalent_dtype_descriptor(kind):
     original = np.dtype(kind)
     descriptor = copy.copy(original)
     assert descriptor is not original and descriptor == original
     values = np.array([0, 1], dtype=descriptor)
-    node = pyCGNSToNode(["Data", values, [], "DataArray_t"])
-    restored = nodeToPyCGNS(node)[1]
+    node = pyCGNSToNode(["Data", values, [], "DataArray_t"], strict_types=False)
+    restored = nodeToPyCGNS(node, strict_types=False)[1]
     np.testing.assert_array_equal(restored, values)
     assert restored.dtype == original
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected"),
+    [("bool", np.int32), ("i1", np.int32), ("i2", np.int32),
+     ("u1", np.uint32), ("u2", np.uint32)],
+)
+def test_pyCGNSToNode_strict_types_promotes_narrow_values(kind, expected):
+    values = np.array([0, 1], dtype=kind)
+    node = pyCGNSToNode(["Data", values, [], "DataArray_t"])
+    assert node.numpy().dtype == np.dtype(expected)
+    assert nodeToPyCGNS(node)[1].dtype == np.dtype(expected)
 
 
 @pytest.mark.parametrize("store_as_s1", [False, True])

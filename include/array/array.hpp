@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <complex>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -33,6 +34,8 @@ enum class ArrayTypeId {
     UInt64,
     Float32,
     Float64,
+    Complex64,
+    Complex128,
     Bytes,
     Unicode
 };
@@ -431,6 +434,8 @@ inline char ArrayDType::kind() const {
         case ArrayTypeId::UInt64: return 'u';
         case ArrayTypeId::Float32:
         case ArrayTypeId::Float64: return 'f';
+        case ArrayTypeId::Complex64:
+        case ArrayTypeId::Complex128: return 'c';
         case ArrayTypeId::Bytes: return 'S';
         case ArrayTypeId::Unicode: return 'U';
         case ArrayTypeId::None: return 'V';
@@ -451,6 +456,8 @@ inline std::string ArrayDType::name() const {
         case ArrayTypeId::UInt64: return "uint64";
         case ArrayTypeId::Float32: return "float32";
         case ArrayTypeId::Float64: return "float64";
+        case ArrayTypeId::Complex64: return "complex64";
+        case ArrayTypeId::Complex128: return "complex128";
         case ArrayTypeId::Bytes: return "bytes";
         case ArrayTypeId::Unicode: return "unicode";
         case ArrayTypeId::None: return "none";
@@ -482,6 +489,10 @@ inline constexpr ArrayTypeId Array::typeIdFor() {
         return ArrayTypeId::Float32;
     } else if constexpr (std::is_same_v<T, double>) {
         return ArrayTypeId::Float64;
+    } else if constexpr (std::is_same_v<T, std::complex<float>>) {
+        return ArrayTypeId::Complex64;
+    } else if constexpr (std::is_same_v<T, std::complex<double>>) {
+        return ArrayTypeId::Complex128;
     } else {
         static_assert(!sizeof(T*), "Unsupported Array::typeIdFor<T>()");
     }

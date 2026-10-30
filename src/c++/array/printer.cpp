@@ -30,6 +30,8 @@ std::string Array::getNumericalArrayPrintDispatchingByType() const {
     else if (hasDataOfType<uint64_t>()) { return this->getNumericalArrayPrint<uint64_t>();}
     else if (hasDataOfType<float>())    { return this->getNumericalArrayPrint<float>();}
     else if (hasDataOfType<double>())   { return this->getNumericalArrayPrint<double>();}
+    else if (hasDataOfType<std::complex<float>>()) { return this->getNumericalArrayPrint<std::complex<float>>();}
+    else if (hasDataOfType<std::complex<double>>()) { return this->getNumericalArrayPrint<std::complex<double>>();}
     else if (hasDataOfType<bool>())     { return this->getNumericalArrayPrint<bool>();}
     else { throw std::runtime_error("getNumericalArrayPrintDispatchingByType: unsupported array data type"); }
 }
@@ -43,7 +45,12 @@ std::string Array::getNumericalArrayPrint() const {
     ss << "[ ";
     for (size_t i = 0; i < this->size(); ++i) {
         T value = this->getItemAtIndex<T>(i);
-        ss << static_cast<double>(value) << " ";
+        if constexpr (std::is_arithmetic_v<T>) {
+            ss << static_cast<double>(value);
+        } else {
+            ss << value;
+        }
+        ss << " ";
     }
     ss << "]";
 
@@ -60,3 +67,5 @@ template std::string Array::getNumericalArrayPrint<uint64_t>() const;
 template std::string Array::getNumericalArrayPrint<float>() const;
 template std::string Array::getNumericalArrayPrint<double>() const;
 template std::string Array::getNumericalArrayPrint<bool>() const;
+template std::string Array::getNumericalArrayPrint<std::complex<float>>() const;
+template std::string Array::getNumericalArrayPrint<std::complex<double>>() const;

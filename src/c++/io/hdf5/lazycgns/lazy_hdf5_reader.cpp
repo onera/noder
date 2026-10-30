@@ -14,11 +14,13 @@
 
 #include <algorithm>
 #include <cctype>
+#include <complex>
 #include <cstring>
 #include <iostream>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -159,7 +161,8 @@ std::string readInt8StringDataset(hid_t file, const std::string& datasetPath) {
 }
 
 hid_t hdfTypeFromCgnsType(const std::string& cgnsType) {
-    if (cgnsType == "I1" || cgnsType == "B1") return H5T_NATIVE_INT8;
+    if (cgnsType == "I1") return H5T_NATIVE_INT8;
+    if (cgnsType == "B1") return H5T_NATIVE_UINT8;
     if (cgnsType == "I2") return H5T_NATIVE_INT16;
     if (cgnsType == "I4") return H5T_NATIVE_INT32;
     if (cgnsType == "I8") return H5T_NATIVE_INT64;
@@ -178,6 +181,19 @@ char normalizeOrder(char order) {
         throw std::invalid_argument("LazyHdf5Reader: order must be 'C' or 'F'");
     }
     return normalized;
+}
+
+std::string normalizeCgnsTypeToken(std::string type) {
+    const auto first = type.find_first_not_of(" \t\r\n\0", 0, 5);
+    if (first == std::string::npos) {
+        return {};
+    }
+    const auto last = type.find_last_not_of(" \t\r\n\0", std::string::npos, 5);
+    type = type.substr(first, last - first + 1);
+    std::transform(type.begin(), type.end(), type.begin(), [](const unsigned char character) {
+        return static_cast<char>(std::toupper(character));
+    });
+    return type;
 }
 
 size_t flatSize(const std::vector<size_t>& shape) {
@@ -222,10 +238,11 @@ Array readNumericArrayTyped(
     hid_t dataset,
     const std::vector<size_t>& shape,
     const std::string& cgnsType,
-    char order) {
+    char order,
+    hid_t memoryType = -1) {
 
     const size_t totalSize = flatSize(shape);
-    const hid_t hdfType = hdfTypeFromCgnsType(cgnsType);
+    const hid_t hdfType = memoryType < 0 ? hdfTypeFromCgnsType(cgnsType) : memoryType;
 
     if (order == 'F') {
         Array array = arrayfactory::empty<T>(shape, 'F');
@@ -254,11 +271,85 @@ Array readNumericArrayTyped(
     return array;
 }
 
+Array readBooleanArray(
+    hid_t dataset,
+    const std::vector<size_t>& shape,
+    char order,
+    const std::string& cgnsType) {
+    Array bytes = readNumericArrayTyped<uint8_t>(
+        dataset, shape, cgnsType, order, H5T_NATIVE_UINT8);
+    Array booleans = arrayfactory::empty<bool>(shape, order);
+    const auto* source = static_cast<const uint8_t*>(bytes.rawData());
+    auto* destination = static_cast<bool*>(booleans.rawData());
+    for (size_t index = 0; index < bytes.size(); ++index) {
+        destination[index] = source[index] != 0;
+    }
+    return booleans;
+}
+
+template <typename T, typename Component>
+Array readComplexArrayTyped(
+    hid_t dataset,
+    const std::vector<size_t>& shape,
+    char order) {
+
+    hdf5_handle sourceType(H5Dget_type(dataset), H5Tclose);
+    if (sourceType.get() < 0 || H5Tget_class(sourceType.get()) != H5T_COMPOUND ||
+        H5Tget_nmembers(sourceType.get()) != 2) {
+        throw std::runtime_error("complex CGNS payload must use a two-member HDF5 compound type");
+    }
+
+    hdf5_handle memoryType(H5Tcreate(H5T_COMPOUND, sizeof(T)), H5Tclose);
+    if (memoryType.get() < 0) {
+        throw std::runtime_error("cannot create complex HDF5 memory type");
+    }
+    for (unsigned member = 0; member < 2; ++member) {
+        char* memberName = H5Tget_member_name(sourceType.get(), member);
+        if (memberName == nullptr) {
+            throw std::runtime_error("cannot inspect complex HDF5 member name");
+        }
+        const size_t offset = member * sizeof(Component);
+        const hid_t componentType = std::is_same_v<Component, float>
+            ? H5T_NATIVE_FLOAT
+            : H5T_NATIVE_DOUBLE;
+        const herr_t status = H5Tinsert(
+            memoryType.get(), memberName, offset, componentType);
+        H5free_memory(memberName);
+        check_status(status, "create complex HDF5 memory member");
+    }
+
+    const size_t totalSize = flatSize(shape);
+    if (order == 'F') {
+        Array array = arrayfactory::empty<T>(shape, 'F');
+        check_status(
+            H5Dread(dataset, memoryType.get(), H5S_ALL, H5S_ALL, H5P_DEFAULT, array.rawData()),
+            "read complex CGNS payload");
+        return array;
+    }
+
+    std::vector<T> buffer(totalSize);
+    check_status(
+        H5Dread(dataset, memoryType.get(), H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()),
+        "read complex CGNS payload");
+    Array array = arrayfactory::empty<T>(shape, 'C');
+    T* destination = static_cast<T*>(array.rawData());
+    if (shape.size() <= 1) {
+        std::memcpy(destination, buffer.data(), totalSize * sizeof(T));
+        return array;
+    }
+    for (size_t index = 0; index < totalSize; ++index) {
+        const std::vector<size_t> indices = indicesFromFortranFlat(index, shape);
+        destination[cFlatFromIndices(indices, shape)] = buffer[index];
+    }
+    return array;
+}
+
 Array readArrayFromDataset(
     hid_t dataset,
     const std::vector<size_t>& shape,
     const std::string& cgnsType,
-    char order) {
+    char order,
+    bool strictTypes) {
 
     if (cgnsType == "C1") {
         hdf5_handle space(H5Dget_space(dataset), H5Sclose);
@@ -280,17 +371,29 @@ Array readArrayFromDataset(
         return Array(value);
     }
 
-    if (cgnsType == "I1") return readNumericArrayTyped<int8_t>(dataset, shape, cgnsType, order);
-    if (cgnsType == "I2") return readNumericArrayTyped<int16_t>(dataset, shape, cgnsType, order);
+    if (cgnsType == "I1") return strictTypes
+        ? readNumericArrayTyped<int32_t>(dataset, shape, cgnsType, order, H5T_NATIVE_INT32)
+        : readNumericArrayTyped<int8_t>(dataset, shape, cgnsType, order);
+    if (cgnsType == "I2") return strictTypes
+        ? readNumericArrayTyped<int32_t>(dataset, shape, cgnsType, order, H5T_NATIVE_INT32)
+        : readNumericArrayTyped<int16_t>(dataset, shape, cgnsType, order);
     if (cgnsType == "I4") return readNumericArrayTyped<int32_t>(dataset, shape, cgnsType, order);
     if (cgnsType == "I8") return readNumericArrayTyped<int64_t>(dataset, shape, cgnsType, order);
-    if (cgnsType == "U1") return readNumericArrayTyped<uint8_t>(dataset, shape, cgnsType, order);
-    if (cgnsType == "U2") return readNumericArrayTyped<uint16_t>(dataset, shape, cgnsType, order);
+    if (cgnsType == "U1") return strictTypes
+        ? readNumericArrayTyped<uint32_t>(dataset, shape, cgnsType, order, H5T_NATIVE_UINT32)
+        : readNumericArrayTyped<uint8_t>(dataset, shape, cgnsType, order);
+    if (cgnsType == "U2") return strictTypes
+        ? readNumericArrayTyped<uint32_t>(dataset, shape, cgnsType, order, H5T_NATIVE_UINT32)
+        : readNumericArrayTyped<uint16_t>(dataset, shape, cgnsType, order);
     if (cgnsType == "U4") return readNumericArrayTyped<uint32_t>(dataset, shape, cgnsType, order);
     if (cgnsType == "U8") return readNumericArrayTyped<uint64_t>(dataset, shape, cgnsType, order);
     if (cgnsType == "R4") return readNumericArrayTyped<float>(dataset, shape, cgnsType, order);
     if (cgnsType == "R8") return readNumericArrayTyped<double>(dataset, shape, cgnsType, order);
-    if (cgnsType == "B1") return readNumericArrayTyped<int8_t>(dataset, shape, cgnsType, order);
+    if (cgnsType == "B1") return strictTypes
+        ? readNumericArrayTyped<int32_t>(dataset, shape, cgnsType, order, H5T_NATIVE_INT32)
+        : readBooleanArray(dataset, shape, order, cgnsType);
+    if (cgnsType == "X4") return readComplexArrayTyped<std::complex<float>, float>(dataset, shape, order);
+    if (cgnsType == "X8") return readComplexArrayTyped<std::complex<double>, double>(dataset, shape, order);
 
     throw std::runtime_error("unsupported payload type '" + cgnsType + "'");
 }
@@ -327,6 +430,7 @@ private:
     struct Record {
         std::string hdf5Path;
         std::string dataType = "MT";
+        std::string sourceTypeAttribute;
         bool hasData = false;
         bool dataLoaded = false;
         bool isLink = false;
@@ -341,10 +445,11 @@ private:
     };
 
 public:
-    State(std::string filename, char order, const bool safeMode)
+    State(std::string filename, char order, const bool safeMode, const bool strictTypes)
         : _filename(std::move(filename)),
           _order(normalizeOrder(order)),
           _safeMode(safeMode),
+          _strictTypes(strictTypes),
           _file(H5Fopen(_filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT), H5Fclose) {
 
         if (_file.get() < 0) {
@@ -505,6 +610,63 @@ public:
 
     bool safeMode() const {
         return _safeMode;
+    }
+
+    bool strictTypes() const {
+        return _strictTypes;
+    }
+
+    std::string cgnsTypeAttribute(const std::shared_ptr<Node>& node) const {
+        if (!node) {
+            throw std::invalid_argument("LazyHdf5Reader::cgnsTypeAttribute: node cannot be null");
+        }
+        const Record& record = recordFor(*node);
+        if (!isOpen()) {
+            return record.sourceTypeAttribute;
+        }
+        hdf5_handle group(H5Gopen2(_file.get(), record.hdf5Path.c_str(), H5P_DEFAULT), H5Gclose);
+        if (group.get() < 0) {
+            throw std::runtime_error("cannot inspect CGNS type attribute at '" + record.hdf5Path + "'");
+        }
+        return readStringAttribute(group.get(), "type");
+    }
+
+    std::vector<std::shared_ptr<Node>> findNodesByCgnsType(
+        const std::shared_ptr<Node>& root,
+        const std::string& cgnsType) const {
+        if (!root) {
+            throw std::invalid_argument("LazyHdf5Reader::findNodesByCgnsType: root cannot be null");
+        }
+        const std::string target = normalizeCgnsTypeToken(cgnsType);
+        if (target.empty()) {
+            throw std::invalid_argument("CGNS type to inspect cannot be empty");
+        }
+
+        std::vector<std::shared_ptr<Node>> matches;
+        std::vector<std::shared_ptr<Node>> pending{root};
+        while (!pending.empty()) {
+            std::shared_ptr<Node> node = std::move(pending.back());
+            pending.pop_back();
+
+            const Record* record = nullptr;
+            try {
+                record = &recordFor(*node);
+            } catch (const std::runtime_error&) {
+                continue;
+            }
+
+            if (normalizeCgnsTypeToken(cgnsTypeAttribute(node)) == target) {
+                matches.push_back(node);
+            }
+            if (record->isLink) {
+                continue;
+            }
+
+            node->ensureChildrenLoaded();
+            const auto& children = node->loadedChildren();
+            pending.insert(pending.end(), children.rbegin(), children.rend());
+        }
+        return matches;
     }
 
     ChildrenLoadState childrenLoadState(const Node& node) const override {
@@ -710,7 +872,8 @@ public:
                 throw std::runtime_error("malformed zero-size HDF5 dataset");
             }
 
-            node.setData(readArrayFromDataset(dataset.get(), shape, record.dataType, _order));
+            node.setData(readArrayFromDataset(
+                dataset.get(), shape, record.dataType, _order, _strictTypes));
             record.dataLoaded = true;
         } catch (const std::exception& error) {
             const std::runtime_error contextual = contextualError(
@@ -819,6 +982,8 @@ public:
                 else if (array->hasDataOfType<float>()) record.dataType = "R4";
                 else if (array->hasDataOfType<double>()) record.dataType = "R8";
                 else if (array->hasDataOfType<bool>()) record.dataType = "B1";
+                else if (array->hasDataOfType<std::complex<float>>()) record.dataType = "X4";
+                else if (array->hasDataOfType<std::complex<double>>()) record.dataType = "X8";
             }
         }
     }
@@ -937,6 +1102,7 @@ private:
         Record record;
         record.hdf5Path = path;
         record.dataType = dataType.empty() ? "MT" : dataType;
+        record.sourceTypeAttribute = dataType;
         record.isLink = record.dataType == "LK";
         if (record.isLink) {
             const std::string targetFile = readInt8StringDataset(_file.get(), path + "/ file");
@@ -962,6 +1128,7 @@ private:
     std::string _filename;
     char _order;
     bool _safeMode;
+    bool _strictTypes;
     hdf5_handle _file;
     std::unordered_map<const Node*, Record> _records;
     mutable std::unordered_set<std::string> _corruptedPaths;
@@ -971,14 +1138,15 @@ private:
 LazyHdf5Reader::LazyHdf5Reader(
     const std::string& filename,
     const char order,
-    const bool safeMode)
-    : _state(std::make_shared<State>(filename, order, safeMode)),
+    const bool safeMode,
+    const bool strictTypes)
+    : _state(std::make_shared<State>(filename, order, safeMode, strictTypes)),
       _root(_state->makeRoot()) {}
 
 LazyHdf5Reader::LazyHdf5Reader(
     const std::string& filename,
     const bool safeMode)
-    : LazyHdf5Reader(filename, 'F', safeMode) {}
+    : LazyHdf5Reader(filename, 'F', safeMode, true) {}
 
 LazyHdf5Reader::~LazyHdf5Reader() = default;
 
@@ -1000,6 +1168,15 @@ std::shared_ptr<Node> LazyHdf5Reader::root() const {
 
 std::shared_ptr<Node> LazyHdf5Reader::nodeAtPath(const std::string& path) const {
     return _state->nodeAtPath(path);
+}
+
+std::string LazyHdf5Reader::cgnsTypeAttribute(const std::shared_ptr<Node>& node) const {
+    return _state->cgnsTypeAttribute(node);
+}
+
+std::vector<std::shared_ptr<Node>> LazyHdf5Reader::findNodesByCgnsType(
+    const std::string& cgnsType) const {
+    return _state->findNodesByCgnsType(_root, cgnsType);
 }
 
 const std::string& LazyHdf5Reader::filename() const {
@@ -1024,6 +1201,10 @@ bool LazyHdf5Reader::hasWarnings() const {
 
 bool LazyHdf5Reader::safeMode() const {
     return _state->safeMode();
+}
+
+bool LazyHdf5Reader::strictTypes() const {
+    return _state->strictTypes();
 }
 
 void LazyHdf5Reader::ensureChildrenLoaded(

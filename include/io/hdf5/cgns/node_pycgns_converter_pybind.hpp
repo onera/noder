@@ -17,6 +17,8 @@ Parameters
 ----------
 arg0 : Node
     Root node to convert.
+strict_types : bool, optional
+    Promote narrow integer and boolean payloads to CGNS-compatible types. Defaults to ``True``.
 
 Returns
 -------
@@ -28,12 +30,13 @@ Example
 .. literalinclude:: ../../../tests/python/io/test_node_pycgns.py
    :language: python
    :pyobject: test_nodeToPyCGNS_tree
-)doc");
+)doc",
+        py::arg("arg0"), py::arg("strict_types") = true);
     m.def(
         "pyCGNSToNode",
-        [](const py::list& pyList) {
+        [](const py::list& pyList, const bool strictTypes) {
             py::module_::import("noder._cgns");
-            auto node = pyCGNSToNode(pyList);
+            auto node = pyCGNSToNode(pyList, strictTypes);
             if (auto zone = std::dynamic_pointer_cast<Zone>(node)) {
                 return py::cast(zone);
             }
@@ -46,6 +49,8 @@ Parameters
 ----------
 arg0 : list
     CGNS-like list representation.
+strict_types : bool, optional
+    Promote narrow integer and boolean payloads to CGNS-compatible types. Defaults to ``True``.
 
 Returns
 -------
@@ -57,7 +62,8 @@ Example
 .. literalinclude:: ../../../tests/python/io/test_node_pycgns.py
    :language: python
    :pyobject: test_pyCGNSToNode_tree
-)doc");
+)doc",
+        py::arg("arg0"), py::arg("strict_types") = true);
 }
 
 #endif // IO_HDF5_CGNS_NODE_PYCGNS_CONVERTER_PYBIND_HPP

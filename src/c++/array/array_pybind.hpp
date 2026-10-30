@@ -39,6 +39,8 @@ Pure C++ array payload exposed to Python through a NumPy bridge.
             if (self.hasDataOfType<uint64_t>()) { return py::cast(self.getItemAtIndex<uint64_t>(flatIndex)); }
             if (self.hasDataOfType<float>()) { return py::cast(self.getItemAtIndex<float>(flatIndex)); }
             if (self.hasDataOfType<double>()) { return py::cast(self.getItemAtIndex<double>(flatIndex)); }
+            if (self.hasDataOfType<std::complex<float>>()) { return py::cast(self.getItemAtIndex<std::complex<float>>(flatIndex)); }
+            if (self.hasDataOfType<std::complex<double>>()) { return py::cast(self.getItemAtIndex<std::complex<double>>(flatIndex)); }
             if (self.hasDataOfType<bool>()) { return py::cast(self.getItemAtIndex<bool>(flatIndex)); }
             throw std::runtime_error("Array::getItemAtIndex unsupported array data type");
         })

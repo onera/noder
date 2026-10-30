@@ -339,7 +339,10 @@ public:
     /** @brief Reload payload from disk using this node path as lookup key. */
     void reloadNodeData(const std::string& filename);
     /** @brief Save only this node payload/metadata to an existing file. */
-    void saveThisNodeOnly(const std::string& filename, const std::string& backend = "hdf5");
+    void saveThisNodeOnly(
+        const std::string& filename,
+        const std::string& backend = "hdf5",
+        bool strictTypes = true);
     /** @brief Merge another subtree into this node (same-root strategy). */
     void merge(std::shared_ptr<Node> node);
 
@@ -359,7 +362,7 @@ public:
     std::string path() const;
 
     /** @brief Write this subtree to file using the format inferred from the filename. */
-    void write(const std::string& filename);
+    void write(const std::string& filename, bool strictTypes = true);
 
     // Print method
     /** @brief Stream helper for textual tree rendering. */

@@ -31,6 +31,7 @@ enum class Key {
     ShiftEnter,
     SearchInward,
     SearchOutward,
+    InspectCgnsType,
     EditPayload,
     ShowMatches,
     Escape,
@@ -38,7 +39,8 @@ enum class Key {
     Unknown,
     ShowSummary,
     ShowDetails,
-    SavePayload
+    SavePayload,
+    ShowHelp
 };
 
 /**
@@ -54,7 +56,8 @@ public:
         std::shared_ptr<io::hdf5::cgns::LazyHdf5Reader> reader,
         std::size_t pageSize = 5,
         std::size_t payloadElementLimit = 64,
-        std::size_t maxPayloadChars = 80);
+        std::size_t maxPayloadChars = 80,
+        bool strictTypes = true);
 
     /** @brief Apply one navigation key.  Returns false when the view should quit. */
     bool handle(Key key);
@@ -79,6 +82,9 @@ public:
 
     /** @brief Search from the selected node using one directional predicate block. */
     void search(const std::string& predicate, bool outward);
+
+    /** @brief Inspect all nodes with a matching raw CGNS HDF5 ``type`` value. */
+    void inspectCgnsType(const std::string& cgnsType);
 
     /** @brief Whether the selected node can be edited from the payload view. */
     bool canEditPayload() const;
@@ -142,10 +148,12 @@ private:
     void renderNodes(std::ostream& output) const;
     void renderMatches(std::ostream& output) const;
     void renderPayload(std::ostream& output) const;
+    void renderHelp(std::ostream& output) const;
     void refreshMalformedWarning() const;
     void renderMalformedWarning(std::ostream& output) const;
 
     std::shared_ptr<io::hdf5::cgns::LazyHdf5Reader> _reader;
+    bool _strictTypes;
     std::shared_ptr<Node> _current;
     std::size_t _selectedIndex;
     std::size_t _firstVisibleIndex;
@@ -157,6 +165,7 @@ private:
     std::string _statusMessage;
     std::unordered_map<const Node*, PayloadDisplay> _payloadDisplays;
     ViewMode _viewMode;
+    bool _helpVisible;
     std::shared_ptr<Node> _payloadNode;
     std::shared_ptr<Data> _pendingEditedPayload;
     std::vector<std::string> _payloadLines;

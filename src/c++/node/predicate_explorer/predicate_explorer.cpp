@@ -665,6 +665,8 @@ bool numericValue(const Data& data, NumericValue& value) {
             value.kind = NumericKind::FloatingPoint;
             value.floatingValue = static_cast<long double>(array->getItemAtIndex<double>(0));
             return true;
+        case ArrayTypeId::Complex64:
+        case ArrayTypeId::Complex128:
         case ArrayTypeId::None:
         case ArrayTypeId::Bytes:
         case ArrayTypeId::Unicode:

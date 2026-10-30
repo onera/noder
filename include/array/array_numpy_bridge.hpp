@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <pybind11/numpy.h>
+#include <pybind11/complex.h>
 #include <pybind11/pybind11.h>
 
 #include "array/array.hpp"
@@ -57,6 +58,8 @@ inline ArrayTypeId typeIdFromPyArray(const py::array& array) {
     if (dtype.equal(py::dtype::of<uint64_t>())) return ArrayTypeId::UInt64;
     if (dtype.equal(py::dtype::of<float>())) return ArrayTypeId::Float32;
     if (dtype.equal(py::dtype::of<double>())) return ArrayTypeId::Float64;
+    if (dtype.equal(py::dtype::of<std::complex<float>>())) return ArrayTypeId::Complex64;
+    if (dtype.equal(py::dtype::of<std::complex<double>>())) return ArrayTypeId::Complex128;
     if (kind == 'S') return ArrayTypeId::Bytes;
     if (kind == 'U') return ArrayTypeId::Unicode;
     if (kind == 'O') return ArrayTypeId::None;
@@ -150,6 +153,8 @@ inline py::dtype dtypeFromArray(const Array& array) {
         case ArrayTypeId::UInt64: return py::dtype::of<uint64_t>();
         case ArrayTypeId::Float32: return py::dtype::of<float>();
         case ArrayTypeId::Float64: return py::dtype::of<double>();
+        case ArrayTypeId::Complex64: return py::dtype::of<std::complex<float>>();
+        case ArrayTypeId::Complex128: return py::dtype::of<std::complex<double>>();
         case ArrayTypeId::Bytes: return py::dtype("S" + std::to_string(array.itemsize()));
         case ArrayTypeId::Unicode: return py::dtype("U" + std::to_string(array.itemsize() / sizeof(char32_t)));
         case ArrayTypeId::None: break;

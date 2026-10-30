@@ -56,6 +56,17 @@ std::string trim(const std::string& value) {
     return value.substr(first, last - first + 1);
 }
 
+std::string cgnsTypeAttributeText(
+    const io::hdf5::cgns::LazyHdf5Reader& reader,
+    const std::shared_ptr<Node>& node) {
+    try {
+        const std::string value = reader.cgnsTypeAttribute(node);
+        return value.empty() ? "<missing>" : value;
+    } catch (const std::exception&) {
+        return "<unavailable>";
+    }
+}
+
 #ifndef _WIN32
 std::string quoteCommandArgument(const std::string& value) {
     std::string result = "'";
@@ -473,6 +484,8 @@ std::string numericalSummary(const Array& array) {
         case ArrayTypeId::UInt64: return numericalSummaryForType<uint64_t>(array);
         case ArrayTypeId::Float32: return numericalSummaryForType<float>(array);
         case ArrayTypeId::Float64: return numericalSummaryForType<double>(array);
+        case ArrayTypeId::Complex64:
+        case ArrayTypeId::Complex128:
         case ArrayTypeId::None:
         case ArrayTypeId::Bytes:
         case ArrayTypeId::Unicode:
@@ -628,6 +641,10 @@ std::vector<std::string> detailedPayloadLines(const Data& data) {
             case ArrayTypeId::UInt64: appendNumericalPayloadLines<uint64_t>(*array, lines); break;
             case ArrayTypeId::Float32: appendNumericalPayloadLines<float>(*array, lines); break;
             case ArrayTypeId::Float64: appendNumericalPayloadLines<double>(*array, lines); break;
+            case ArrayTypeId::Complex64:
+            case ArrayTypeId::Complex128:
+                lines.push_back(array->getPrintString(512));
+                break;
             case ArrayTypeId::None:
             case ArrayTypeId::Bytes:
             case ArrayTypeId::Unicode:
@@ -667,8 +684,10 @@ TerminalModel::TerminalModel(
     std::shared_ptr<io::hdf5::cgns::LazyHdf5Reader> reader,
     const std::size_t pageSize,
     const std::size_t payloadElementLimit,
-    const std::size_t maxPayloadChars)
+    const std::size_t maxPayloadChars,
+    const bool strictTypes)
     : _reader(std::move(reader)),
+      _strictTypes(strictTypes),
       _current(nullptr),
       _selectedIndex(0),
       _firstVisibleIndex(0),
@@ -679,6 +698,7 @@ TerminalModel::TerminalModel(
       _viewportRows(24),
       _statusMessage(),
       _viewMode(ViewMode::Node),
+      _helpVisible(false),
       _payloadNode(nullptr),
       _pendingEditedPayload(nullptr),
       _payloadLines(),
@@ -728,12 +748,12 @@ void TerminalModel::setViewportRows(const std::size_t rows) {
 }
 
 std::size_t TerminalModel::childViewportRows() const {
-    constexpr std::size_t reservedRows = 8;
+    constexpr std::size_t reservedRows = 6;
     return _viewportRows > reservedRows ? _viewportRows - reservedRows : 1;
 }
 
 std::size_t TerminalModel::matchViewportRows() const {
-    constexpr std::size_t reservedRows = 9;
+    constexpr std::size_t reservedRows = 8;
     return _viewportRows > reservedRows ? _viewportRows - reservedRows : 1;
 }
 
@@ -741,7 +761,7 @@ std::size_t TerminalModel::payloadViewportRows() const {
     // The regular payload layout uses six rows outside the data area:
     // title, path, metadata, two separators, and the footer.  On short
     // terminals renderPayload switches to a compact layout and keeps only
-    // the three metadata rows, omitting the footer and separators.
+    // the three metadata rows, placing the help hint alongside the metadata.
     if (_viewportRows >= 7) {
         return _viewportRows - 6;
     }
@@ -919,6 +939,35 @@ void TerminalModel::search(const std::string& predicate, const bool outward) {
         (_searchResults.size() == 1 ? "" : "es") + ".";
 }
 
+void TerminalModel::inspectCgnsType(const std::string& cgnsType) {
+    if (_viewMode != ViewMode::Node) {
+        _statusMessage = "CGNS type inspection is available from the node view only.";
+        return;
+    }
+
+    const std::string requestedType = trim(cgnsType);
+    if (requestedType.empty()) {
+        _statusMessage = "No CGNS type was entered.";
+        return;
+    }
+
+    try {
+        _searchResults = _reader->findNodesByCgnsType(requestedType);
+    } catch (const std::exception& error) {
+        _statusMessage = "CGNS type inspection error: " + std::string(error.what());
+        return;
+    }
+
+    _viewMode = ViewMode::Matches;
+    _searchExpression = "cgns_type:" + requestedType;
+    _searchResultIndex = 0;
+    _firstVisibleMatchIndex = 0;
+    ensureMatchSelectionVisible();
+    _statusMessage = "Search " + _searchExpression + ": " +
+        std::to_string(_searchResults.size()) + " match" +
+        (_searchResults.size() == 1 ? "" : "es") + ".";
+}
+
 bool TerminalModel::canEditPayload() const {
     return _viewMode == ViewMode::Payload && static_cast<bool>(_payloadNode);
 }
@@ -1028,7 +1077,7 @@ void TerminalModel::persistEditedPayload(
         : editedData;
     selected->setData(storedData);
     try {
-        selected->saveThisNodeOnly(_reader->filename());
+        selected->saveThisNodeOnly(_reader->filename(), "hdf5", _strictTypes);
     } catch (...) {
         selected->setData(previousData);
         throw;
@@ -1462,6 +1511,18 @@ bool TerminalModel::handle(const Key key) {
         return false;
     }
 
+    if (_helpVisible) {
+        if (key == Key::ShowHelp || key == Key::Escape) {
+            _helpVisible = false;
+        }
+        return true;
+    }
+
+    if (key == Key::ShowHelp) {
+        _helpVisible = true;
+        return true;
+    }
+
     if (key == Key::SelectRoot) {
         selectRoot();
         return true;
@@ -1513,6 +1574,8 @@ bool TerminalModel::handle(const Key key) {
                 case Key::SavePayload:
                 case Key::ShowSummary:
                 case Key::ShowDetails:
+                case Key::InspectCgnsType:
+                case Key::ShowHelp:
                 case Key::Unknown:
                 case Key::ShowMatches:
                 case Key::Quit:
@@ -1565,6 +1628,8 @@ bool TerminalModel::handle(const Key key) {
                     break;
                 case Key::SearchInward:
                 case Key::SearchOutward:
+                case Key::InspectCgnsType:
+                case Key::ShowHelp:
                 case Key::Unknown:
                 case Key::ShowMatches:
                 case Key::Quit:
@@ -1611,6 +1676,8 @@ bool TerminalModel::handle(const Key key) {
                 case Key::ShiftEnter:
                 case Key::SearchInward:
                 case Key::SearchOutward:
+                case Key::InspectCgnsType:
+                case Key::ShowHelp:
                 case Key::Escape:
                 case Key::SelectRoot:
                 case Key::Unknown:
@@ -1635,6 +1702,7 @@ void TerminalModel::renderNodes(std::ostream& output) const {
     output << "path: " << (_rootSelected ? "\033[1;7m" : "\033[1;4m")
            << _current->path() << "\033[0m\n";
     output << "type: " << _current->type()
+           << "    CGNS HDF5 type: " << cgnsTypeAttributeText(*_reader, _current)
            << "    children: " << loadStateName(_current->childrenLoadState())
            << "    loaded: " << _current->loadedChildren().size();
     if (_rootSelected) {
@@ -1658,16 +1726,16 @@ void TerminalModel::renderNodes(std::ostream& output) const {
             }
             output << (!_rootSelected && index == _selectedIndex ? " >\033[7m" : "  ");
             output << child->name() << "  \033[90m" << child->type() << "\033[0m"
-                   << payloadMarker(child) << "\n";
+                   << "  \033[95m" << cgnsTypeAttributeText(*_reader, child) << "\033[0m"
+                   << payloadMarker(child)
+                   << "\n";
         }
         if (last < children.size() || _current->childrenLoadState() != ChildrenLoadState::Complete) {
             output << "  ... more children available ...\n";
         }
     }
 
-    output << "\n[Up/Down] select  [PgUp/PgDn] page  [Home/End] first/last  [Ctrl+Home] root  [Right] open  [Left] parent\n"
-               "[d] summary  [Shift+d] details  [/] descendant search  [\\] ancestor search\n"
-               "[Ctrl+S] save payload  [m] matches  [q] quit\n";
+    output << "\n[h] help\n";
     if (!_statusMessage.empty()) {
         output << "\n" << _statusMessage << "\n";
     }
@@ -1701,15 +1769,17 @@ void TerminalModel::renderMatches(std::ostream& output) const {
             if (!path.empty()) {
                 output << "  \033[2m" << path << "\033[0m";
             }
-            output << payloadMarker(match) << "\n";
+            output << "  \033[95m" << cgnsTypeAttributeText(*_reader, match) << "\033[0m"
+                   << payloadMarker(match)
+                   << "\n";
+
         }
         if (last < _searchResults.size()) {
             output << "  ... more matches available ...\n";
         }
     }
 
-    output << "\n[Up/Down] select  [PgUp/PgDn] page  [Home/End] first/last  [Right] children  [Left] parent\n"
-               "[d] summary  [Shift+d] details  [Escape] node view  [Ctrl+S] save payload  [m] matches  [q] quit\n";
+    output << "\n[h] help\n";
     if (!_statusMessage.empty()) {
         output << "\n" << _statusMessage << "\n";
     }
@@ -1724,6 +1794,8 @@ void TerminalModel::renderPayload(std::ostream& output) const {
         const Data& data = _payloadNode->data();
         std::ostringstream metadataStream;
         metadataStream << "type: " << _payloadNode->type()
+                       << "    CGNS HDF5 type: "
+                       << cgnsTypeAttributeText(*_reader, _payloadNode)
                        << "    dtype: " << data.dtype()
                        << "    elements: " << data.size()
                        << "    shape: " << shapeText(data);
@@ -1733,6 +1805,9 @@ void TerminalModel::renderPayload(std::ostream& output) const {
     }
     if (compact && !_statusMessage.empty()) {
         metadata += "  [" + _statusMessage + "]";
+    }
+    if (compact) {
+        metadata += "  [h] help";
     }
 
     output << "\x1b[2J\x1b[H";
@@ -1771,16 +1846,86 @@ void TerminalModel::renderPayload(std::ostream& output) const {
     }
 
     if (!compact) {
-        output << "\n[Up/Down] scroll  [PgUp/PgDn] page  [Home/End] first/last  [e] edit payload  [Escape] back to node view  [Ctrl+S] save payload  [m] matches  [q] quit";
+        output << "\n[h] help";
         if (!_statusMessage.empty()) {
-            output << "  " << _statusMessage;
+            output << "\n" << _statusMessage;
         }
         output << "\n";
     }
     renderMalformedWarning(output);
 }
 
+void TerminalModel::renderHelp(std::ostream& output) const {
+    output << "\x1b[2J\x1b[H";
+    output << "cgnsvi help\n";
+    switch (_viewMode) {
+        case ViewMode::Node:
+            output << "Tree view: browse the CGNS hierarchy and inspect node data.\n\n"
+                   << "[h] close help\n"
+                   << "[Escape] close help\n"
+                   << "[q] quit cgnsvi\n"
+                   << "[Up] select the previous child\n"
+                   << "[Down] select the next child\n"
+                   << "[PgUp] move up one page\n"
+                   << "[PgDn] move down one page\n"
+                   << "[Home] select the first child\n"
+                   << "[End] select the last child\n"
+                   << "[Ctrl+Home] select the root node\n"
+                   << "[Right] open the selected node's children\n"
+                   << "[Left] move to the parent node\n"
+                   << "[d] show a summary of the selected node's data\n"
+                   << "[D] open the selected node's payload details\n"
+                   << "[/] search descendants with a predicate\n"
+                   << "[\\] search ancestors with a predicate\n"
+                   << "[i] find nodes by raw CGNS HDF5 attribute type\n"
+                   << "[Ctrl+S] save the selected payload to a text file\n"
+                   << "[m] open the active search results\n";
+            break;
+        case ViewMode::Matches:
+            output << "Matches view: review search results and navigate to matching nodes.\n\n"
+                   << "[h] close help\n"
+                   << "[Escape] close help\n"
+                   << "[q] quit cgnsvi\n"
+                   << "[Up] select the previous match\n"
+                   << "[Down] select the next match\n"
+                   << "[PgUp] move up one page of matches\n"
+                   << "[PgDn] move down one page of matches\n"
+                   << "[Home] select the first match\n"
+                   << "[End] select the last match\n"
+                   << "[Right] open the selected match's children in tree view\n"
+                   << "[Left] select the match's parent in tree view\n"
+                   << "After closing help, [Escape] returns to the node view\n"
+                   << "[d] show a summary of the selected match's data\n"
+                   << "[D] open the selected match's payload details\n"
+                   << "[Ctrl+S] save the selected payload to a text file\n";
+            break;
+        case ViewMode::Payload:
+            output << "Payload view: inspect the selected node's data and edit it when supported.\n\n"
+                   << "[h] close help\n"
+                   << "[Escape] close help\n"
+                   << "[q] quit cgnsvi\n"
+                   << "[Up] scroll up one line\n"
+                   << "[Down] scroll down one line\n"
+                   << "[PgUp] scroll up one page\n"
+                   << "[PgDn] scroll down one page\n"
+                   << "[Home] go to the first payload line\n"
+                   << "[End] go to the last payload line\n"
+                   << "[e] edit the payload when supported\n"
+                   << "After closing help, [Escape] returns to the selected node in tree view\n"
+                   << "[Left] return to tree view\n"
+                   << "[Right] return to tree view\n"
+                   << "[Ctrl+S] save the payload to a text file\n"
+                   << "[m] open the active search results\n";
+            break;
+    }
+}
+
 void TerminalModel::render(std::ostream& output) const {
+    if (_helpVisible) {
+        renderHelp(output);
+        return;
+    }
+
     switch (_viewMode) {
         case ViewMode::Node:
             renderNodes(output);
@@ -1810,6 +1955,44 @@ std::size_t terminalRows() {
 #endif
     return 24;
 }
+
+#ifdef _WIN32
+class VirtualTerminalMode {
+public:
+    VirtualTerminalMode() : _outputHandle(GetStdHandle(STD_OUTPUT_HANDLE)) {
+        if (_outputHandle == INVALID_HANDLE_VALUE || _outputHandle == nullptr) {
+            throw std::runtime_error("cgnsvi: cannot access the console output handle");
+        }
+
+        if (!GetConsoleMode(_outputHandle, &_originalMode)) {
+            throw std::runtime_error("cgnsvi: cannot read the console output mode");
+        }
+
+        const DWORD enabledMode =
+            _originalMode | ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+        if (enabledMode != _originalMode) {
+            if (!SetConsoleMode(_outputHandle, enabledMode)) {
+                throw std::runtime_error("cgnsvi: cannot enable virtual terminal output");
+            }
+            _modeChanged = true;
+        }
+    }
+
+    ~VirtualTerminalMode() {
+        if (_modeChanged) {
+            SetConsoleMode(_outputHandle, _originalMode);
+        }
+    }
+
+    VirtualTerminalMode(const VirtualTerminalMode&) = delete;
+    VirtualTerminalMode& operator=(const VirtualTerminalMode&) = delete;
+
+private:
+    HANDLE _outputHandle = INVALID_HANDLE_VALUE;
+    DWORD _originalMode = 0;
+    bool _modeChanged = false;
+};
+#endif
 
 #ifndef _WIN32
 class RawTerminal {
@@ -1982,11 +2165,13 @@ Key readKey() {
 #endif
         return Key::Enter;
     }
+    if (first == 'h') return Key::ShowHelp;
     if (first == 'q' || first == 'Q') return Key::Quit;
     if (first == 19) return Key::SavePayload;
     if (first == 'd') return Key::ShowSummary;
     if (first == 'D') return Key::ShowDetails;
     if (first == 'e' || first == 'E') return Key::EditPayload;
+    if (first == 'i') return Key::InspectCgnsType;
     if (first == '/') return Key::SearchInward;
     if (first == '\\') return Key::SearchOutward;
     if (first == 'm') return Key::ShowMatches;
@@ -2122,6 +2307,17 @@ int runTerminal(TerminalModel& model, std::istream& input, std::ostream& output)
             model.render(output);
             output.flush();
             continue;
+        } else if (value == 'i') {
+            std::string cgnsType;
+            output << "Enter CGNS HDF5 attribute type to inspect (I4, I5...): " << std::flush;
+            std::getline(input, cgnsType);
+            if (cgnsType.empty() && input.good()) {
+                std::getline(input, cgnsType);
+            }
+            model.inspectCgnsType(cgnsType);
+            model.render(output);
+            output.flush();
+            continue;
         } else if (value == 'm') {
             model.handle(Key::ShowMatches);
             model.render(output);
@@ -2165,6 +2361,8 @@ int runInteractiveTerminal(TerminalModel& model) {
 #ifndef _WIN32
     RawTerminal rawTerminal;
     ModifiedKeyMode modifiedKeyMode(std::cout);
+#else
+    VirtualTerminalMode virtualTerminalMode;
 #endif
     AlternateScreen alternateScreen(std::cout);
     model.setViewportRows(terminalRows());
@@ -2186,6 +2384,13 @@ int runInteractiveTerminal(TerminalModel& model) {
                 if (model.preparePayloadEdit(expression)) {
                     model.completePayloadEdit();
                 }
+            }
+        } else if (key == Key::InspectCgnsType) {
+            bool accepted = false;
+            const std::string cgnsType = readInteractiveLine(
+                "Enter CGNS HDF5 attribute type to inspect (I4, I5...): ", accepted);
+            if (accepted) {
+                model.inspectCgnsType(cgnsType);
             }
         } else if (!model.handle(key)) {
             return 0;

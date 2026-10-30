@@ -43,8 +43,8 @@ See C++ counterpart: :ref:`cpp-io-module`.
     #endif
     io_m.def(
         "read",
-        [](const std::string& filename, const char order, const bool safe_mode) {
-            return io::read(filename, order, safe_mode);
+        [](const std::string& filename, const char order, const bool safe_mode, const bool strict_types) {
+            return io::read(filename, order, safe_mode, strict_types);
         },
         R"doc(
 Read a Node hierarchy from file.
@@ -60,6 +60,9 @@ order : str, optional
 safe_mode : bool, optional
     Replace malformed HDF5/CGNS nodes by ``Corrupted_t`` marker nodes instead
     of raising. Defaults to ``False``.
+strict_types : bool, optional
+    Promote I1/I2 to I4, U1/U2 to U4, and B1 to I4 so payloads use CGNS-compatible
+    types. Defaults to ``True``. Set to ``False`` to preserve all supported types.
 
 Returns
 -------
@@ -74,7 +77,8 @@ Example
 )doc",
         py::arg("filename"),
         py::arg("order")='F',
-        py::arg("safe_mode")=false);
+        py::arg("safe_mode")=false,
+        py::arg("strict_types")=true);
     #ifdef ENABLE_HDF5_IO
     bindLazyHdf5Reader(io_m);
     // The lazy reader owns its HDF5 lifetime and exposes explicit close/open

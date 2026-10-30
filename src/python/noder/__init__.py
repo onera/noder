@@ -75,7 +75,7 @@ def zeros(*args, **kwargs):
 factory.zeros = zeros
 
 
-def read_from_path(filename, path, order="F", safe_mode=False):
+def read_from_path(filename, path, order="F", safe_mode=False, strict_types=True):
     """Read and return one node from a file.
 
     For HDF5/CGNS files, this uses :class:`LazyHdf5Reader` and reads metadata
@@ -99,6 +99,9 @@ def read_from_path(filename, path, order="F", safe_mode=False):
     safe_mode : bool, optional
         Replace malformed HDF5/CGNS nodes by ``Corrupted_t`` markers instead
         of raising. Defaults to ``False``.
+    strict_types : bool, optional
+        Promote I1/I2 to I4, U1/U2 to U4, and B1 to I4 for CGNS-compatible
+        payload types. Defaults to ``True``.
 
     Returns
     -------
@@ -111,11 +114,11 @@ def read_from_path(filename, path, order="F", safe_mode=False):
     lazy_reader = getattr(_core_io, "LazyHdf5Reader", None)
 
     if suffix in {".yaml", ".yml"} or lazy_reader is None:
-        selected = read(filename, order=order, safe_mode=safe_mode).get_at_path(
+        selected = read(filename, order=order, safe_mode=safe_mode, strict_types=strict_types).get_at_path(
             path, path_is_relative=True
         )
     else:
-        reader = lazy_reader(filename, order=order, safe_mode=safe_mode)
+        reader = lazy_reader(filename, order=order, safe_mode=safe_mode, strict_types=strict_types)
         selected = reader.node_at_path(path)
 
     if selected is not None:
