@@ -1206,8 +1206,30 @@ void Node::merge(std::shared_ptr<Node> node) {
         throw std::invalid_argument("merge: Cannot merge a null node");
     }
     if (name() != node->name()) {
-        throw std::invalid_argument("merge: Mismatching names '" + name() +
-                                    "' and '" + node->name() + "'");
+
+        bool this_is_root_equivalent(false);
+        bool both_are_root_equivalent(false);
+        
+        if (name() == "HDF5 MotherNode" || 
+            name() == "CGNSTree") {
+            this_is_root_equivalent = true;
+        }
+
+        if (this_is_root_equivalent) {
+            if (node->name() == "HDF5 MotherNode" ||
+                node->name() == "CGNSTree") {
+                both_are_root_equivalent = true;
+            }
+            else {
+                both_are_root_equivalent = false;
+            }
+        }
+
+        if (!both_are_root_equivalent) {
+            throw std::invalid_argument("merge: Mismatching names '" + name() +
+                                        "' and '" + node->name() + "'");
+        }
+
     }
 
     auto thisPtr = selfPtr();
