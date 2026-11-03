@@ -3,6 +3,8 @@
 #include "array/array.hpp"
 #include "node/node.hpp"
 #include <limits>
+#include <unordered_map>
+#include <unordered_set>
 
 using namespace std::string_literals;
 
@@ -931,6 +933,77 @@ void Node::addChild(
 void Node::addChildren(
     const std::vector<std::shared_ptr<Node>>& nodes,
     bool overrideSiblingByName) {
+
+    // A common bulk-building case (including CGNS list import) attaches a
+    // batch of fresh nodes to an empty parent.  Going through attachTo for
+    // every child repeatedly scans all prior siblings for duplicate names,
+    // which is quadratic for wide trees.  Resolve names once and update the
+    // parent revision once for this detached batch.
+    bool canBatch = _children.empty() && !nodes.empty();
+    std::unordered_set<const Node*> seenNodes;
+    if (canBatch) {
+        seenNodes.reserve(nodes.size());
+        for (const auto& node : nodes) {
+            if (!node || !node->_parent.expired() || !seenNodes.insert(node.get()).second) {
+                canBatch = false;
+                break;
+            }
+        }
+    }
+
+    if (canBatch) {
+        auto self = shared_from_this();
+        std::vector<std::shared_ptr<Node>> children;
+        children.reserve(nodes.size());
+
+        if (overrideSiblingByName) {
+            std::unordered_map<std::string, size_t> positions;
+            positions.reserve(nodes.size());
+            for (const auto& node : nodes) {
+                const auto position = positions.find(node->name());
+                if (position != positions.end()) {
+                    // The previous node is removed by attachTo when a later
+                    // sibling with the same name is added.
+                    ++children[position->second]->_revision;
+                    children[position->second].reset();
+                    position->second = children.size();
+                } else {
+                    positions.emplace(node->name(), children.size());
+                }
+                children.push_back(node);
+            }
+
+            children.erase(
+                std::remove(children.begin(), children.end(), nullptr),
+                children.end());
+        } else {
+            std::unordered_set<std::string> names;
+            names.reserve(nodes.size());
+            for (const auto& node : nodes) {
+                const std::string baseName = node->name();
+                if (!names.insert(baseName).second) {
+                    size_t suffix = 0;
+                    std::string candidate;
+                    do {
+                        candidate = baseName + "." + std::to_string(suffix++);
+                    } while (names.find(candidate) != names.end());
+                    node->setName(candidate);
+                    names.insert(candidate);
+                }
+                children.push_back(node);
+            }
+        }
+
+        for (const auto& child : children) {
+            child->_parent = self;
+            ++child->_revision;
+        }
+        _children = std::move(children);
+        if (!_children.empty()) {
+            markModified();
+        }
+        return;
+    }
 
     for (const auto& node : nodes) {
         addChild(node, overrideSiblingByName);

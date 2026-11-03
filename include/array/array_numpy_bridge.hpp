@@ -44,22 +44,35 @@ inline std::vector<ssize_t> toSignedVector(const std::vector<size_t>& values) {
 inline ArrayTypeId typeIdFromPyArray(const py::array& array) {
     const py::dtype dtype = array.dtype();
     const char kind = dtype.kind();
+    const ssize_t itemSize = dtype.itemsize();
 
-    // Readers may return equivalent, separately allocated dtype descriptors.
-    // Compare dtype values; pointer identity rejects valid CGNS arrays.
-    if (dtype.equal(py::dtype::of<bool>())) return ArrayTypeId::Bool;
-    if (dtype.equal(py::dtype::of<int8_t>())) return ArrayTypeId::Int8;
-    if (dtype.equal(py::dtype::of<int16_t>())) return ArrayTypeId::Int16;
-    if (dtype.equal(py::dtype::of<int32_t>())) return ArrayTypeId::Int32;
-    if (dtype.equal(py::dtype::of<int64_t>())) return ArrayTypeId::Int64;
-    if (dtype.equal(py::dtype::of<uint8_t>())) return ArrayTypeId::UInt8;
-    if (dtype.equal(py::dtype::of<uint16_t>())) return ArrayTypeId::UInt16;
-    if (dtype.equal(py::dtype::of<uint32_t>())) return ArrayTypeId::UInt32;
-    if (dtype.equal(py::dtype::of<uint64_t>())) return ArrayTypeId::UInt64;
-    if (dtype.equal(py::dtype::of<float>())) return ArrayTypeId::Float32;
-    if (dtype.equal(py::dtype::of<double>())) return ArrayTypeId::Float64;
-    if (dtype.equal(py::dtype::of<std::complex<float>>())) return ArrayTypeId::Complex64;
-    if (dtype.equal(py::dtype::of<std::complex<double>>())) return ArrayTypeId::Complex128;
+    // CGNS commonly supplies fresh but equivalent NumPy dtype descriptors.
+    // Classify native numeric types by kind and width instead of comparing
+    // against every supported dtype for each array in a large tree.
+    if (kind == 'b' && itemSize == 1) return ArrayTypeId::Bool;
+    if (dtype.attr("isnative").cast<bool>()) {
+        if (kind == 'i') {
+            if (itemSize == static_cast<ssize_t>(sizeof(int8_t))) return ArrayTypeId::Int8;
+            if (itemSize == static_cast<ssize_t>(sizeof(int16_t))) return ArrayTypeId::Int16;
+            if (itemSize == static_cast<ssize_t>(sizeof(int32_t))) return ArrayTypeId::Int32;
+            if (itemSize == static_cast<ssize_t>(sizeof(int64_t))) return ArrayTypeId::Int64;
+        } else if (kind == 'u') {
+            if (itemSize == static_cast<ssize_t>(sizeof(uint8_t))) return ArrayTypeId::UInt8;
+            if (itemSize == static_cast<ssize_t>(sizeof(uint16_t))) return ArrayTypeId::UInt16;
+            if (itemSize == static_cast<ssize_t>(sizeof(uint32_t))) return ArrayTypeId::UInt32;
+            if (itemSize == static_cast<ssize_t>(sizeof(uint64_t))) return ArrayTypeId::UInt64;
+        } else if (kind == 'f') {
+            if (itemSize == static_cast<ssize_t>(sizeof(float))) return ArrayTypeId::Float32;
+            if (itemSize == static_cast<ssize_t>(sizeof(double))) return ArrayTypeId::Float64;
+        } else if (kind == 'c') {
+            if (itemSize == static_cast<ssize_t>(sizeof(std::complex<float>))) {
+                return ArrayTypeId::Complex64;
+            }
+            if (itemSize == static_cast<ssize_t>(sizeof(std::complex<double>))) {
+                return ArrayTypeId::Complex128;
+            }
+        }
+    }
     if (kind == 'S') return ArrayTypeId::Bytes;
     if (kind == 'U') return ArrayTypeId::Unicode;
     if (kind == 'O') return ArrayTypeId::None;

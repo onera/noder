@@ -12,6 +12,14 @@ namespace {
 struct AliasedPyCGNSNode {
     std::weak_ptr<Node> node;
     py::list pyList;
+    std::uint64_t revision;
+    bool strictTypes;
+    PyObject* nameObject;
+    PyObject* valueObject;
+    PyObject* childrenObject;
+    PyObject* typeObject;
+    Py_ssize_t childrenSize;
+    std::uint64_t childrenFingerprint;
 };
 
 using AliasedPyCGNSRegistry = std::unordered_map<const Node*, AliasedPyCGNSNode>;
@@ -32,21 +40,84 @@ void removeExpiredAliasedNodes() {
     }
 }
 
-void rememberAliasedPyCGNS(const std::shared_ptr<Node>& node, const py::list& pyList) {
+void periodicallyRemoveExpiredAliasedNodes() {
+    // Sweeping the whole registry for every node makes a single conversion
+    // quadratic.  Bound stale aliases while keeping the sweep cost amortized
+    // across top-level conversions.
+    static std::size_t conversionsSinceSweep = 0;
+    constexpr std::size_t sweepInterval = 128;
+    if (++conversionsSinceSweep == sweepInterval) {
+        removeExpiredAliasedNodes();
+        conversionsSinceSweep = 0;
+    }
+}
+
+std::uint64_t fingerprintChildren(const py::list& children) {
+    std::uint64_t fingerprint = 1469598103934665603ULL;
+    const Py_ssize_t size = PyList_GET_SIZE(children.ptr());
+    for (Py_ssize_t index = 0; index < size; ++index) {
+        fingerprint ^= reinterpret_cast<std::uintptr_t>(
+            PyList_GET_ITEM(children.ptr(), index));
+        fingerprint *= 1099511628211ULL;
+    }
+    return fingerprint;
+}
+
+void saveAliasedPyCGNSState(AliasedPyCGNSNode& entry, const std::shared_ptr<Node>& node) {
+    PyObject* list = entry.pyList.ptr();
+    PyObject* children = PyList_GET_ITEM(list, 2);
+    entry.revision = node->revision();
+    entry.nameObject = PyList_GET_ITEM(list, 0);
+    entry.valueObject = PyList_GET_ITEM(list, 1);
+    entry.childrenObject = children;
+    entry.typeObject = PyList_GET_ITEM(list, 3);
+    entry.childrenSize = PyList_GET_SIZE(children);
+    entry.childrenFingerprint = fingerprintChildren(
+        py::reinterpret_borrow<py::list>(children));
+}
+
+bool aliasedPyCGNSIsCurrent(
+    const AliasedPyCGNSNode& entry,
+    const std::shared_ptr<Node>& node,
+    const bool strictTypes) {
+    if (entry.revision != node->revision() || entry.strictTypes != strictTypes) {
+        return false;
+    }
+
+    PyObject* list = entry.pyList.ptr();
+    if (PyList_GET_SIZE(list) != 4 ||
+        PyList_GET_ITEM(list, 0) != entry.nameObject ||
+        PyList_GET_ITEM(list, 1) != entry.valueObject ||
+        PyList_GET_ITEM(list, 2) != entry.childrenObject ||
+        PyList_GET_ITEM(list, 3) != entry.typeObject ||
+        !PyList_Check(entry.childrenObject) ||
+        PyList_GET_SIZE(entry.childrenObject) != entry.childrenSize) {
+        return false;
+    }
+
+    return fingerprintChildren(py::reinterpret_borrow<py::list>(entry.childrenObject)) ==
+        entry.childrenFingerprint;
+}
+
+void rememberAliasedPyCGNS(
+    const std::shared_ptr<Node>& node,
+    const py::list& pyList,
+    const bool strictTypes) {
     if (!node) {
         return;
     }
 
-    removeExpiredAliasedNodes();
-    aliasedPyCGNSRegistry()[node.get()] = AliasedPyCGNSNode{node, pyList};
+    auto& entry = aliasedPyCGNSRegistry()[node.get()];
+    entry.node = node;
+    entry.pyList = pyList;
+    entry.strictTypes = strictTypes;
+    saveAliasedPyCGNSState(entry, node);
 }
 
 py::object aliasedPyCGNSOrNone(const std::shared_ptr<Node>& node) {
     if (!node) {
         return py::none();
     }
-
-    removeExpiredAliasedNodes();
 
     const auto it = aliasedPyCGNSRegistry().find(node.get());
     if (it == aliasedPyCGNSRegistry().end()) {
@@ -72,15 +143,16 @@ py::object restrictPyCGNSType(py::object value) {
         return value;
     }
     const py::dtype dtype = value.cast<py::array>().dtype();
-    const py::dtype boolType = py::dtype::of<bool>();
-    const py::dtype int8Type = py::dtype::of<int8_t>();
-    const py::dtype int16Type = py::dtype::of<int16_t>();
-    const py::dtype uint8Type = py::dtype::of<uint8_t>();
-    const py::dtype uint16Type = py::dtype::of<uint16_t>();
-    if (dtype.equal(boolType) || dtype.equal(int8Type) || dtype.equal(int16Type)) {
+    const char kind = dtype.kind();
+    const auto itemSize = dtype.itemsize();
+    const bool native = dtype.attr("isnative").cast<bool>();
+    if (native &&
+        ((kind == 'b' && itemSize == 1) ||
+         (kind == 'i' && itemSize < static_cast<ssize_t>(sizeof(int32_t))))) {
         return value.attr("astype")(py::dtype::of<int32_t>());
     }
-    if (dtype.equal(uint8Type) || dtype.equal(uint16Type)) {
+    if (native &&
+        kind == 'u' && itemSize < static_cast<ssize_t>(sizeof(uint32_t))) {
         return value.attr("astype")(py::dtype::of<uint32_t>());
     }
     return value;
@@ -127,7 +199,11 @@ py::list getOrCreateAliasedPyCGNS(const std::shared_ptr<Node>& node, const bool 
         return buildRegisteredPyCGNS(node, strictTypes);
     }
 
-    synchronizeAliasedPyCGNSRecursive(node, strictTypes);
+    const auto it = aliasedPyCGNSRegistry().find(node.get());
+    if (it == aliasedPyCGNSRegistry().end() ||
+        !aliasedPyCGNSIsCurrent(it->second, node, strictTypes)) {
+        synchronizeAliasedPyCGNSRecursive(node, strictTypes);
+    }
     return aliasedPyObject.cast<py::list>();
 }
 
@@ -140,16 +216,16 @@ py::list buildPyCGNSNodeList(const std::shared_ptr<Node>& node, bool registerAli
     nodePyList.append(childrenPyList);
     nodePyList.append(node->type());
 
-    if (registerAlias) {
-        rememberAliasedPyCGNS(node, nodePyList);
-    }
-
     for (const auto& child : node->children()) {
         if (registerAlias) {
             childrenPyList.append(buildRegisteredPyCGNS(child, strictTypes));
         } else {
             childrenPyList.append(buildPyCGNSSnapshot(child, strictTypes));
         }
+    }
+
+    if (registerAlias) {
+        rememberAliasedPyCGNS(node, nodePyList, strictTypes);
     }
 
     return nodePyList;
@@ -179,9 +255,29 @@ void synchronizeAliasedPyCGNSRecursive(const std::shared_ptr<Node>& node, const 
         return;
     }
 
+    const auto current = aliasedPyCGNSRegistry().find(node.get());
+    if (current == aliasedPyCGNSRegistry().end()) {
+        return;
+    }
+    if (aliasedPyCGNSIsCurrent(current->second, node, strictTypes)) {
+        return;
+    }
+
     py::list nodePyList = aliasedPyObject.cast<py::list>();
-    nodePyList[0] = py::cast(node->name());
-    nodePyList[1] = nodeValueToPyCGNS(node, strictTypes);
+    py::object name = py::cast(node->name());
+    py::object value = nodeValueToPyCGNS(node, strictTypes);
+    py::object type = py::cast(node->type());
+    if (PyList_GET_SIZE(nodePyList.ptr()) != 4) {
+        nodePyList.attr("clear")();
+        nodePyList.append(name);
+        nodePyList.append(value);
+        nodePyList.append(py::list());
+        nodePyList.append(type);
+    } else {
+        nodePyList[0] = name;
+        nodePyList[1] = value;
+        nodePyList[3] = type;
+    }
 
     py::list childrenPyList = mutableChildrenList(nodePyList);
     childrenPyList.attr("clear")();
@@ -189,24 +285,41 @@ void synchronizeAliasedPyCGNSRecursive(const std::shared_ptr<Node>& node, const 
         childrenPyList.append(getOrCreateAliasedPyCGNS(child, strictTypes));
     }
 
-    nodePyList[3] = py::cast(node->type());
+    // Creating a missing alias for a newly attached child may rehash the
+    // registry, so reacquire the iterator after synchronizing descendants.
+    const auto updated = aliasedPyCGNSRegistry().find(node.get());
+    if (updated != aliasedPyCGNSRegistry().end()) {
+        updated->second.strictTypes = strictTypes;
+        saveAliasedPyCGNSState(updated->second, node);
+    }
 }
 
 void populateNodeValueFromPyCGNS(
     const std::shared_ptr<Node>& node,
+    const py::list& pyList,
     const py::object& valueObj,
     const bool strictTypes) {
     if (py::isinstance<py::array>(valueObj)) {
         py::object source = strictTypes ? restrictPyCGNSType(valueObj) : valueObj;
-        node->setData(arraybridge::arrayFromPyArray(py::cast<py::array>(source)));
-        return;
-    }
+        if (!source.is(valueObj)) {
+            pyList[1] = source;
+        }
+        auto arrayData = std::make_shared<Array>(
+            arraybridge::arrayFromPyArray(py::cast<py::array>(source)));
+        node->setData(arrayData);
 
-    if (valueObj.is_none()) {
+        // Only string and None-like arrays need payload normalization here.
+        // Numeric arrays already alias the source NumPy object; visiting all
+        // of them a second time erased much of the cost saved by caching.
+        if (arrayData->hasString() || arrayData->isNone()) {
+            py::object normalizedValue = nodeValueToPyCGNS(node, strictTypes);
+            if (!normalizedValue.is(pyList[1])) {
+                pyList[1] = std::move(normalizedValue);
+            }
+        }
+    } else if (valueObj.is_none()) {
         return;
-    }
-
-    if (py::isinstance<py::list>(valueObj)) {
+    } else if (py::isinstance<py::list>(valueObj)) {
         py::list linkValue = py::cast<py::list>(valueObj);
         std::string targetFile;
         std::string targetPath;
@@ -229,11 +342,15 @@ void populateNodeValueFromPyCGNS(
         }
 
         node->setLinkTarget(targetFile, targetPath);
-        return;
+        py::object normalizedValue = nodeValueToPyCGNS(node, strictTypes);
+        if (!normalizedValue.is(valueObj)) {
+            pyList[1] = std::move(normalizedValue);
+        }
+    } else {
+        throw std::invalid_argument(
+            "pyCGNSToNode: Second element must be NumPy array, None, or Link value list.");
     }
 
-    throw std::invalid_argument(
-        "pyCGNSToNode: Second element must be NumPy array, None, or Link value list.");
 }
 
 std::shared_ptr<Node> makeNodeForCGNSType(
@@ -263,22 +380,36 @@ std::shared_ptr<Node> pyCGNSToNodeRecursive(const py::list& pyList, const bool s
     const std::string type = py::cast<std::string>(pyList[3]);
 
     std::shared_ptr<Node> node = makeNodeForCGNSType(name, type);
-    rememberAliasedPyCGNS(node, pyList);
-
-    populateNodeValueFromPyCGNS(node, pyList[1].cast<py::object>(), strictTypes);
+    populateNodeValueFromPyCGNS(node, pyList, pyList[1].cast<py::object>(), strictTypes);
 
     if (!py::isinstance<py::list>(pyList[2])) {
         throw std::invalid_argument("pyCGNSToNode: Third element must be a list.");
     }
 
     py::list children = py::cast<py::list>(pyList[2]);
+    std::vector<std::shared_ptr<Node>> childNodes;
+    childNodes.reserve(static_cast<size_t>(py::len(children)));
     for (const auto& child : children) {
         if (!py::isinstance<py::list>(child)) {
             throw std::invalid_argument("pyCGNSToNode: Child must be a list.");
         }
 
-        node->addChild(pyCGNSToNodeRecursive(py::cast<py::list>(child), strictTypes));
+        childNodes.push_back(pyCGNSToNodeRecursive(py::cast<py::list>(child), strictTypes));
     }
+    node->addChildren(childNodes);
+
+    // Node::addChild historically resolves duplicate sibling names by keeping
+    // the last node.  Reflect that policy in the aliased list once, so the
+    // revision cache can return the same Python subtree without rescanning it.
+    const auto& attachedChildren = node->children();
+    if (attachedChildren.size() != static_cast<size_t>(py::len(children))) {
+        children.attr("clear")();
+        for (const auto& child : attachedChildren) {
+            children.append(aliasedPyCGNSOrNone(child));
+        }
+    }
+
+    rememberAliasedPyCGNS(node, pyList, strictTypes);
 
     return node;
 }
@@ -303,6 +434,8 @@ void synchronizeAliasedPyCGNSIfPresent(const std::shared_ptr<Node>& node) {
  * @return A pybind11 list representing the Node in CGNS format.
  */
 py::list nodeToPyCGNS(const std::shared_ptr<Node>& node, const bool strictTypes) {
+    periodicallyRemoveExpiredAliasedNodes();
+
     py::object aliasedPyObject = aliasedPyCGNSOrNone(node);
     if (!aliasedPyObject.is_none()) {
         synchronizeAliasedPyCGNSRecursive(node, strictTypes);
@@ -318,5 +451,6 @@ py::list nodeToPyCGNS(const std::shared_ptr<Node>& node, const bool strictTypes)
  * @return A shared_ptr<Node> representing the converted Node.
  */
 std::shared_ptr<Node> pyCGNSToNode(const py::list& pyList, const bool strictTypes) {
+    periodicallyRemoveExpiredAliasedNodes();
     return pyCGNSToNodeRecursive(pyList, strictTypes);
 }

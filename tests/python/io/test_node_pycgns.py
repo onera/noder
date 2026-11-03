@@ -177,6 +177,33 @@ def test_interoperability_retrieval():
     a_pycgns_node = nodeToPyCGNS(a_node)
     assert a_pycgns_node is pycgns_node[2][0]
 
+
+def test_interoperability_reuses_unchanged_alias_and_tracks_node_changes():
+    pycgns_node = [
+        "root",
+        np.array([1, 2, 3], dtype=np.int32),
+        [["child", None, [], "DataArray_t"]],
+        "root_t",
+    ]
+
+    node = pyCGNSToNode(pycgns_node)
+    assert nodeToPyCGNS(node) is pycgns_node
+    assert nodeToPyCGNS(node) is pycgns_node
+
+    pycgns_node[0] = "external edit"
+    pycgns_node[2].append(["external", None, [], "DataArray_t"])
+    assert nodeToPyCGNS(node) is pycgns_node
+    assert pycgns_node[0] == "root"
+    assert len(pycgns_node[2]) == 1
+
+    child = node.pick().by_name("child")
+    child.set_name("renamed")
+    child.set_data(np.array([4, 5], dtype=np.int32))
+
+    assert nodeToPyCGNS(node) is pycgns_node
+    assert pycgns_node[2][0][0] == "renamed"
+    np.testing.assert_array_equal(pycgns_node[2][0][1], [4, 5])
+
 def test_interoperability_add_child_using_pycgns():
 
     pycgns_node = [
