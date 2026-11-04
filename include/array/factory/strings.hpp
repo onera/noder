@@ -7,8 +7,6 @@
 #include <vector>
 #include <string>
 #include <cstdint>
-#include <codecvt>
-#include <locale>
 # include "array/array.hpp"
 
 namespace arrayfactory {

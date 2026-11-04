@@ -2,17 +2,16 @@
 
 #include "array/array.hpp"
 #include "array/factory/strings.hpp"
+#include "utils/unicode.hpp"
 
 #include <algorithm>
 #include <charconv>
-#include <codecvt>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <limits>
-#include <locale>
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
@@ -954,8 +953,7 @@ std::string unicode_element_to_string(const Array& array, const size_t offset) {
         codePoints.push_back(codePoint);
     }
 
-    std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
-    return converter.to_bytes(codePoints);
+    return noder::unicode::to_utf8(codePoints);
 }
 
 YamlValue array_value_to_yaml(

@@ -13,7 +13,7 @@ def _insert_module_import(stub_text: str, import_statement: str) -> str:
         first_statement = module.body[0]
         if (
             isinstance(first_statement, ast.Expr)
-            and isinstance(first_statement.value, (ast.Constant, ast.Str))
+            and isinstance(first_statement.value, ast.Constant)
             and isinstance(getattr(first_statement.value, "value", None), str)
         ):
             insert_at = first_statement.end_lineno or first_statement.lineno

@@ -1,4 +1,5 @@
 #include "array/factory/strings.hpp"
+#include "utils/unicode.hpp"
 
 #include <cstring>
 
@@ -25,8 +26,7 @@ namespace arrayfactory {
     }
 
     std::u32string u32stringFromString(const std::string& str) {
-        std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
-        return converter.from_bytes(str);
+        return noder::unicode::from_utf8(str);
     }
 
 }

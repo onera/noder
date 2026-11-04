@@ -1,9 +1,8 @@
 #include "array/array.hpp"
 
 #include "array/factory/strings.hpp"
+#include "utils/unicode.hpp"
 
-#include <codecvt>
-#include <locale>
 #include <stdexcept>
 
 Array Array::operator[](const size_t flatIndex) {
@@ -137,7 +136,6 @@ std::string Array::extractStringOfKindU() const {
         throw std::invalid_argument("input array string kind is not 'U'");
     }
 
-    std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
     std::string outputString;
     const bool concatenateCharacters = this->itemsize() == sizeof(char32_t);
 
@@ -156,7 +154,7 @@ std::string Array::extractStringOfKindU() const {
             }
             value.push_back(codePoint);
         }
-        outputString += separator + converter.to_bytes(value);
+        outputString += separator + noder::unicode::to_utf8(value);
     }
 
     return outputString;

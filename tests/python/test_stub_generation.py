@@ -82,3 +82,28 @@ def test_configured_generation_writes_flat_stubs_and_postprocesses_core(
     assert "import typing" in package_stub
     assert all(line == line.rstrip() for line in package_stub.splitlines())
     assert (source_package_dir / "__init__.pyi").read_text(encoding="utf-8") == package_stub
+
+
+def test_import_insertion_handles_module_docstring_and_future_import(monkeypatch) -> None:
+    # Simulate Python 3.14, where ast.Str was removed, on older interpreters too.
+    original_getattr = ast.__getattr__
+
+    def without_legacy_str(name: str):
+        if name == "Str":
+            raise AttributeError(name)
+        return original_getattr(name)
+
+    monkeypatch.setattr(ast, "__getattr__", without_legacy_str)
+    postprocess = stubgen.load_postprocessor(
+        "stubgen_postprocess:ensure_typing_import"
+    )
+    assert postprocess is not None
+    result = postprocess(
+        '"""Generated module."""\n'
+        "from __future__ import annotations\n"
+        "value: str\n"
+    )
+    ast.parse(result)
+    assert result.index('"""Generated module."""') < result.index(
+        "from __future__ import annotations"
+    ) < result.index("import typing") < result.index("value: str")
