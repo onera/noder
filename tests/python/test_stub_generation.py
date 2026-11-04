@@ -85,15 +85,8 @@ def test_configured_generation_writes_flat_stubs_and_postprocesses_core(
 
 
 def test_import_insertion_handles_module_docstring_and_future_import(monkeypatch) -> None:
-    # Simulate Python 3.14, where ast.Str was removed, on older interpreters too.
-    original_getattr = ast.__getattr__
-
-    def without_legacy_str(name: str):
-        if name == "Str":
-            raise AttributeError(name)
-        return original_getattr(name)
-
-    monkeypatch.setattr(ast, "__getattr__", without_legacy_str)
+    # Make the legacy alias stop matching string constants on every Python version.
+    monkeypatch.setitem(ast.__dict__, "Str", type("RemovedStr", (), {}))
     postprocess = stubgen.load_postprocessor(
         "stubgen_postprocess:ensure_typing_import"
     )
