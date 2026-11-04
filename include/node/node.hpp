@@ -33,6 +33,7 @@
 # include <optional>
 
 # include "data/data.hpp"
+# include "data/data_factory.hpp"
 # include "node/navigation.hpp"
 # include "node/node_expansion.hpp"
 # include "node/node_group.hpp"
@@ -40,15 +41,6 @@
 # include "utils/compat.hpp"
 
 class Navigation;
-
-# ifndef DATA_FACTORY_HPP
-namespace datafactory {
-    template <typename T>
-    std::shared_ptr<Data> makeDataFrom(const T& value);
-
-    std::shared_ptr<Data> makeDataFrom(const char* value);
-}
-# endif
 
 /**
  * @brief Recursive value container used by Node parameter APIs.

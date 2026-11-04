@@ -7,6 +7,7 @@
 #include <pybind11/pybind11.h>
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <string>
 #include <vector>
@@ -154,7 +155,7 @@ void test_zone_new_fields() {
     if (centerFields.size() != 1) throw py::value_error("expected one created center field");
     auto centerArray = arrayFromData(centerFields[0], "newFields center");
     assertShape(centerArray->shape(), {2, 2, 2}, "newFields center");
-    if (centerArray->getItemAtIndex<double>(0) != 2.0) {
+    if (std::abs(centerArray->getItemAtIndex<double>(0) - 2.0) > 1e-12) {
         throw py::value_error("expected center field value 2.0");
     }
 }
@@ -293,10 +294,13 @@ void test_zone_typed_arrays_and_resize() {
         throw py::value_error("resizeVertexArrays produced inconsistent sizes");
     }
     const auto values = strength->readOnlySpan<double>();
-    if (values[0] != 10.0 || values[2] != 30.0 || values[3] != 0.0 || values[4] != 0.0) {
+    if (std::abs(values[0] - 10.0) > 1e-12 ||
+        std::abs(values[2] - 30.0) > 1e-12 ||
+        std::abs(values[3]) > 1e-12 ||
+        std::abs(values[4]) > 1e-12) {
         throw py::value_error("resizeVertexArrays did not preserve and initialize values");
     }
-    if (oldStrength->readOnlySpan<double>()[2] != 30.0) {
+    if (std::abs(oldStrength->readOnlySpan<double>()[2] - 30.0) > 1e-12) {
         throw py::value_error("old Array view must remain memory-safe after replacement");
     }
     if (zone->revision() <= revisionBefore) {

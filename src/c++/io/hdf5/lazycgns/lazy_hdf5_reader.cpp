@@ -120,7 +120,7 @@ std::string readStringAttribute(hid_t id, const std::string& key) {
         return result;
     }
 
-    const size_t size = static_cast<size_t>(H5Tget_size(type.get()));
+    const size_t size = H5Tget_size(type.get());
     std::vector<char> value(size + 1, '\0');
     check_status(H5Aread(attribute.get(), type.get(), value.data()), "read attribute '" + key + "'");
     return std::string(value.data());

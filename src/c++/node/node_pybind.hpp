@@ -333,7 +333,7 @@ py::object pyObjectFromStringList(const std::vector<std::string>& values) {
     for (const auto& value : values) {
         output.append(py::str(value));
     }
-    return std::move(output);
+    return output;
 }
 
 py::array pyArrayFromData(const std::shared_ptr<Data>& data, const char* context) {

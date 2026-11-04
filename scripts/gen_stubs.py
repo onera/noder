@@ -89,7 +89,10 @@ def find_stub_file(output_root: Path, package: str, module_name: str) -> Path:
 
 
 def generate_stubs(
-    config: dict[str, Any], import_roots: list[Path], target_dir: Path
+    config: dict[str, Any],
+    import_roots: list[Path],
+    target_dir: Path,
+    source_package_dir: Path | None = None,
 ) -> list[Path]:
     package = config["package"]
     env = build_stubgen_environment(import_roots)
@@ -109,21 +112,27 @@ def generate_stubs(
             processor = load_postprocessor(module.get("postprocess"))
             if processor is not None:
                 stub_text = processor(stub_text)
+            stub_text = "\n".join(line.rstrip() for line in stub_text.splitlines()) + "\n"
             generated.append((module["filename"], stub_text))
 
     target_dir.mkdir(parents=True, exist_ok=True)
     written_paths = []
+    source_package_stub: tuple[str, str] | None = None
     for filename, content in generated:
         target_path = target_dir / filename
         target_path.write_text(content, encoding="utf-8")
         written_paths.append(target_path)
+        if filename == "__init__.pyi" and any(
+            module["name"] == package for module in config["modules"]
+        ):
+            source_package_stub = (filename, content)
 
-    package_stub = config.get("package_stub")
-    if package_stub is not None:
-        package_stub_path = target_dir / package_stub["filename"]
-        if not package_stub_path.exists():
-            package_stub_path.write_text(package_stub["content"], encoding="utf-8")
-        written_paths.append(package_stub_path)
+    if source_package_dir is not None and source_package_stub is not None:
+        filename, content = source_package_stub
+        source_package_dir.mkdir(parents=True, exist_ok=True)
+        source_stub_path = source_package_dir / filename
+        source_stub_path.write_text(content, encoding="utf-8")
+        written_paths.append(source_stub_path)
 
     return written_paths
 
@@ -147,6 +156,14 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help="Package directory to receive generated stubs (defaults to dist/dev/<package>)",
     )
+    parser.add_argument(
+        "--source-package-dir",
+        type=Path,
+        help=(
+            "Also refresh the source package's __init__.pyi so IDEs using the "
+            "checkout see current package exports"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -155,7 +172,10 @@ def main() -> None:
     config = load_config(args.config.resolve())
     import_roots = args.import_root or [ROOT / "dist" / "dev"]
     target_dir = args.output_dir or ROOT / "dist" / "dev" / config["package"]
-    written_paths = generate_stubs(config, import_roots, target_dir)
+    source_package_dir = args.source_package_dir or ROOT / "src" / "python" / config["package"]
+    written_paths = generate_stubs(
+        config, import_roots, target_dir, source_package_dir=source_package_dir
+    )
     for path in written_paths:
         print(f"[gen_stubs] Updated: {path}")
 

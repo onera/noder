@@ -1,6 +1,7 @@
 # include "test_array_data_accessors.hpp"
 # include "array/array_numpy_bridge.hpp"
 
+# include <cmath>
 # include <pybind11/pybind11.h>
 
 namespace py = pybind11;
@@ -234,7 +235,7 @@ void test_checkedSpans() {
 
     const Array& readOnlyArray = array;
     const auto values = readOnlyArray.readOnlySpan<double>();
-    if (values.size() != 3 || values[1] != 4.5) {
+    if (values.size() != 3 || std::abs(values[1] - 4.5) > 1e-12) {
         throw py::value_error("checked spans must share the Array buffer");
     }
 
@@ -260,7 +261,7 @@ void test_readOnlyArray() {
     if (array.isWritable()) {
         throw py::value_error("read-only NumPy ownership must be preserved");
     }
-    if (array.readOnlySpan<double>()[2] != 3.0) {
+    if (std::abs(array.readOnlySpan<double>()[2] - 3.0) > 1e-12) {
         throw py::value_error("read-only span returned unexpected values");
     }
 

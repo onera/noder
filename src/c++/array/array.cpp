@@ -4,9 +4,11 @@
 #include "array/factory/strings.hpp"
 
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include <limits>
 #include <stdexcept>
+#include <type_traits>
 
 namespace {
 
@@ -140,7 +142,12 @@ size_t byteOffsetFromIndices(const Array& array, const std::vector<size_t>& indi
 
 template <typename T>
 std::shared_ptr<Data> makeFilledWithFactory(const std::vector<size_t>& shape, double value, char order) {
-    return std::make_shared<Array>(arrayfactory::full<T>(shape, static_cast<T>(value), order));
+    if constexpr (std::is_same_v<T, bool>) {
+        const bool fillValue = std::fpclassify(value) != FP_ZERO;
+        return std::make_shared<Array>(arrayfactory::full<T>(shape, fillValue, order));
+    } else {
+        return std::make_shared<Array>(arrayfactory::full<T>(shape, static_cast<T>(value), order));
+    }
 }
 
 std::shared_ptr<Data> fullFromDtype(

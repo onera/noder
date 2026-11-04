@@ -2,6 +2,11 @@
   "package": "noder",
   "modules": [
     {
+      "name": "noder",
+      "filename": "__init__.pyi",
+      "postprocess": "stubgen_postprocess:postprocess_package_stub"
+    },
+    {
       "name": "noder.core",
       "filename": "core.pyi",
       "ignore_unresolved_names": ["Node"],
@@ -17,9 +22,5 @@
       "filename": "io.pyi",
       "ignore_unresolved_names": ["Node"]
     }
-  ],
-  "package_stub": {
-    "filename": "__init__.pyi",
-    "content": "# Stub for noder.__init__\n# Adjust exports to match your public API as needed.\nfrom .core import Node, Array  # type: ignore[misc]\n"
-  }
+  ]
 }

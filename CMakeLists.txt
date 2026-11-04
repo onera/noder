@@ -181,9 +181,23 @@ if(NOT NODER_MPI_MODE MATCHES "^(AUTO|ON|OFF)$")
     message(FATAL_ERROR "ENABLE_MPI must be AUTO, ON, or OFF (got '${ENABLE_MPI}')")
 endif()
 
-# In AUTO mode prefer a parallel installation so the subsequent header probe
-# can detect its MPI requirement. OFF requests the serial HDF5 variant.
-if(NODER_MPI_MODE STREQUAL "OFF")
+# Check MPI before selecting HDF5. A parallel HDF5 header includes mpi.h, so
+# probing it without MPI's include directories cannot distinguish a parallel
+# build from a broken header installation. AUTO uses parallel HDF5 only when
+# both MPI language components are available; otherwise it prefers serial HDF5.
+set(NODER_MPI_AVAILABLE OFF)
+if(NODER_MPI_MODE STREQUAL "ON")
+    find_package(MPI REQUIRED COMPONENTS C CXX)
+    set(NODER_MPI_AVAILABLE ON)
+elseif(NODER_MPI_MODE STREQUAL "AUTO")
+    find_package(MPI QUIET COMPONENTS C CXX)
+    if(MPI_C_FOUND AND MPI_CXX_FOUND)
+        set(NODER_MPI_AVAILABLE ON)
+    endif()
+endif()
+
+if(NODER_MPI_MODE STREQUAL "OFF" OR
+   (NODER_MPI_MODE STREQUAL "AUTO" AND NOT NODER_MPI_AVAILABLE))
     set(HDF5_PREFER_PARALLEL FALSE)
 else()
     set(HDF5_PREFER_PARALLEL TRUE)
@@ -225,7 +239,6 @@ if (HDF5_C_LIBRARY AND HDF5_INCLUDE_DIR AND
     set(HDF5_LIBRARIES "${NODER_HDF5_LIBRARIES}")
     set(HDF5_INCLUDE_DIRS "${HDF5_INCLUDE_DIR}")
 
-    include_directories(${HDF5_INCLUDE_DIRS})
     get_filename_component(HDF5_LIBRARY_DIR "${HDF5_C_LIBRARY}" DIRECTORY)
     link_directories("${HDF5_LIBRARY_DIR}")
 
@@ -255,8 +268,10 @@ else()
     endif()
 endif()
 
-# Inspect the headers belonging to the HDF5 installation actually selected
-# above. FindHDF5's HDF5_IS_PARALLEL is not available for environment overrides.
+# Inspect the configuration header belonging to the HDF5 installation actually
+# selected above. H5pubconf.h exposes H5_HAVE_PARALLEL without including hdf5.h,
+# which itself includes mpi.h for parallel HDF5 and would make a missing MPI
+# installation look like a serial HDF5 build.
 set(NODER_HDF5_IS_PARALLEL OFF)
 if(ENABLE_HDF5_IO)
     include(CMakePushCheckState)
@@ -265,7 +280,7 @@ if(ENABLE_HDF5_IO)
     cmake_push_check_state(RESET)
     set(CMAKE_REQUIRED_INCLUDES ${HDF5_INCLUDE_DIRS})
     check_c_source_compiles([=[
-#include <hdf5.h>
+#include <H5pubconf.h>
 #ifndef H5_HAVE_PARALLEL
 #error Selected HDF5 was not built with parallel I/O
 #endif
@@ -290,16 +305,21 @@ if(NODER_MPI_MODE STREQUAL "OFF" AND NODER_HDF5_IS_PARALLEL)
         "Use ENABLE_MPI=AUTO or ON, or select a serial HDF5 distribution.")
 endif()
 
+if(NODER_HDF5_IS_PARALLEL AND NOT NODER_MPI_AVAILABLE)
+    message(FATAL_ERROR
+        "The selected HDF5 was built with parallel I/O, but MPI C and C++ "
+        "development components were not found. Install the matching MPI "
+        "development package, or select a serial HDF5 distribution.")
+endif()
+
 if(NODER_ENABLE_MPI)
-    find_package(MPI REQUIRED COMPONENTS C CXX)
-    include_directories(${MPI_CXX_INCLUDE_DIRS})
+    include_directories(SYSTEM ${MPI_CXX_INCLUDE_DIRS})
     message(STATUS "MPI enabled (ENABLE_MPI=${NODER_MPI_MODE}, parallel HDF5=${NODER_HDF5_IS_PARALLEL})")
 else()
     message(STATUS "MPI disabled (ENABLE_MPI=${NODER_MPI_MODE}, parallel HDF5=${NODER_HDF5_IS_PARALLEL})")
 endif()
 
 if (HDF5_FOUND)
-    include_directories(${HDF5_INCLUDE_DIRS})
     message(STATUS "    HDF5_INCLUDE_DIRS: ${HDF5_INCLUDE_DIRS}")
     message(STATUS "    HDF5_LIBRARIES: ${HDF5_LIBRARIES}")
     message(STATUS "    NODER_HDF5_IS_STATIC: ${NODER_HDF5_IS_STATIC}")
@@ -479,7 +499,7 @@ endif()
 
 
 if(ENABLE_HDF5_IO)
-    target_include_directories(core_shared PRIVATE ${HDF5_INCLUDE_DIRS})
+    target_include_directories(core_shared SYSTEM PRIVATE ${HDF5_INCLUDE_DIRS})
     target_link_libraries(core_shared PRIVATE ${HDF5_LIBRARIES})
 if(STDCXXFS_LIBRARY)
     target_link_libraries(core_shared PRIVATE ${STDCXXFS_LIBRARY})
@@ -551,7 +571,7 @@ if(APPLE)
     target_link_options(core PRIVATE "-Wl,-force_load,$<TARGET_FILE:core_shared>")
 endif()
 if(ENABLE_HDF5_IO)
-    target_include_directories(core PRIVATE ${HDF5_INCLUDE_DIRS})
+    target_include_directories(core SYSTEM PRIVATE ${HDF5_INCLUDE_DIRS})
     target_link_libraries(core PRIVATE ${HDF5_LIBRARIES})
 endif()
 
@@ -579,6 +599,7 @@ if(ENABLE_CGNSVI)
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/src/c++
     )
+    target_include_directories(cgnsvi SYSTEM PRIVATE ${HDF5_INCLUDE_DIRS})
     target_link_libraries(cgnsvi PRIVATE core_shared ${HDF5_LIBRARIES})
     if(STDCXXFS_LIBRARY)
         target_link_libraries(cgnsvi PRIVATE ${STDCXXFS_LIBRARY})
@@ -620,8 +641,9 @@ install(TARGETS _cgns DESTINATION ${NODER_PACKAGE_DIR})
 install(FILES README.md LICENSE DESTINATION ${NODER_PACKAGE_DIR})
 install(DIRECTORY src/python/noder/ DESTINATION ${NODER_PACKAGE_DIR} FILES_MATCHING PATTERN "*.py*")
 
-# Generate stubs from the extension modules in this exact install tree. This
-# runs for both local CMake installs and scikit-build-core wheel installs.
+# Generate stubs from the modules in this exact install tree, and refresh the
+# checked-in package stub so IDEs opened on the source tree see the same exports.
+# This runs for local CMake installs and scikit-build-core wheel installs.
 file(TO_CMAKE_PATH "${Python3_EXECUTABLE}" NODER_STUBGEN_PYTHON)
 file(TO_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_stubs.py" NODER_STUBGEN_SCRIPT)
 file(TO_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/scripts/stubgen_config.json" NODER_STUBGEN_CONFIG)
@@ -632,6 +654,7 @@ execute_process(
         --config \"${NODER_STUBGEN_CONFIG}\"
         --import-root \"\${_noder_stubgen_prefix}\"
         --output-dir \"\${_noder_stubgen_prefix}/${NODER_PACKAGE_DIR}\"
+        --source-package-dir \"${CMAKE_CURRENT_SOURCE_DIR}/src/python/${SKBUILD_PROJECT_NAME}\"
     RESULT_VARIABLE _noder_stubgen_result
 )
 if(NOT _noder_stubgen_result EQUAL 0)
@@ -700,6 +723,7 @@ if(ENABLE_TESTS)
         target_link_libraries(tests PRIVATE ${STDCXXFS_LIBRARY})
     endif()
     if(ENABLE_HDF5_IO)
+        target_include_directories(tests SYSTEM PRIVATE ${HDF5_INCLUDE_DIRS})
         target_link_libraries(tests PRIVATE ${HDF5_LIBRARIES})
     endif()
     target_include_directories(tests PRIVATE

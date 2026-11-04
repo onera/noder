@@ -163,7 +163,7 @@ py::object nodeValueToPyCGNS(const std::shared_ptr<Node>& node, const bool stric
         py::list linkValue;
         linkValue.append("target_file:" + node->linkTargetFile());
         linkValue.append("target_path:" + node->linkTargetPath());
-        return std::move(linkValue);
+        return linkValue;
     }
 
     std::shared_ptr<Data> dataPtr = node->dataPtr();
@@ -388,7 +388,7 @@ std::shared_ptr<Node> pyCGNSToNodeRecursive(const py::list& pyList, const bool s
 
     py::list children = py::cast<py::list>(pyList[2]);
     std::vector<std::shared_ptr<Node>> childNodes;
-    childNodes.reserve(static_cast<size_t>(py::len(children)));
+    childNodes.reserve(py::len(children));
     for (const auto& child : children) {
         if (!py::isinstance<py::list>(child)) {
             throw std::invalid_argument("pyCGNSToNode: Child must be a list.");
@@ -402,7 +402,7 @@ std::shared_ptr<Node> pyCGNSToNodeRecursive(const py::list& pyList, const bool s
     // the last node.  Reflect that policy in the aliased list once, so the
     // revision cache can return the same Python subtree without rescanning it.
     const auto& attachedChildren = node->children();
-    if (attachedChildren.size() != static_cast<size_t>(py::len(children))) {
+    if (attachedChildren.size() != py::len(children)) {
         children.attr("clear")();
         for (const auto& child : attachedChildren) {
             children.append(aliasedPyCGNSOrNone(child));

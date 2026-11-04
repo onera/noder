@@ -369,7 +369,7 @@ std::string read_string_attr(hid_t id, const std::string& key) {
         result = value ? std::string(value) : std::string();
         if (value) H5free_memory(value);
     } else {
-        const size_t size = static_cast<size_t>(H5Tget_size(type));
+        const size_t size = H5Tget_size(type);
         std::vector<char> value(size + 1, '\0');
         check_status(H5Aread(attr, type, value.data()), "H5Aread fixed string");
         result = std::string(value.data());

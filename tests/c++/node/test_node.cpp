@@ -690,20 +690,20 @@ void test_setParametersAndGetParameters() {
     auto root = newNode("root");
 
     ParameterValue::DictEntries nested;
-    nested.emplace_back("x", ParameterValue::makeData(std::make_shared<Array>(int32_t(1))));
+    nested.emplace_back("x", ParameterValue::makeData(std::make_shared<Array>(int32_t{1})));
 
     ParameterValue::DictEntries item0;
-    item0.emplace_back("a", ParameterValue::makeData(std::make_shared<Array>(int32_t(7))));
+    item0.emplace_back("a", ParameterValue::makeData(std::make_shared<Array>(int32_t{7})));
 
     ParameterValue::DictEntries item1;
-    item1.emplace_back("b", ParameterValue::makeData(std::make_shared<Array>(int32_t(9))));
+    item1.emplace_back("b", ParameterValue::makeData(std::make_shared<Array>(int32_t{9})));
 
     ParameterValue::ListEntries listItems;
     listItems.push_back(ParameterValue::makeDict(std::move(item0)));
     listItems.push_back(ParameterValue::makeDict(std::move(item1)));
 
     ParameterValue::DictEntries parameters;
-    parameters.emplace_back("scalar", ParameterValue::makeData(std::make_shared<Array>(double(3.5))));
+    parameters.emplace_back("scalar", ParameterValue::makeData(std::make_shared<Array>(double{3.5})));
     parameters.emplace_back("none_like", ParameterValue::makeNull());
     parameters.emplace_back("nested", ParameterValue::makeDict(std::move(nested)));
     parameters.emplace_back("items", ParameterValue::makeList(std::move(listItems)));
@@ -753,11 +753,11 @@ void test_getParametersMixedListAndDictFallback() {
     auto root = newNode("root");
 
     ParameterValue::DictEntries base;
-    base.emplace_back("scalar", ParameterValue::makeData(std::make_shared<Array>(int32_t(2))));
+    base.emplace_back("scalar", ParameterValue::makeData(std::make_shared<Array>(int32_t{2})));
     auto container = root->setParameters("Params", base);
 
     ParameterValue::DictEntries listItem;
-    listItem.emplace_back("entry", ParameterValue::makeData(std::make_shared<Array>(int32_t(4))));
+    listItem.emplace_back("entry", ParameterValue::makeData(std::make_shared<Array>(int32_t{4})));
     container->setParameters("_list_.0", listItem);
 
     ParameterValue output = root->getParameters("Params");
@@ -1169,7 +1169,7 @@ void test_setParameters_example() {
     // docs:start setParameters_cpp_example
     auto root = newNode("root");
     ParameterValue::DictEntries entries;
-    entries.emplace_back("alpha", ParameterValue::makeData(std::make_shared<Array>(double(1.5))));
+    entries.emplace_back("alpha", ParameterValue::makeData(std::make_shared<Array>(double{1.5})));
     root->setParameters("Parameters", entries);
     auto out = root->getParameters("Parameters");
     if (out.kind != ParameterValue::Kind::Dict) throw py::value_error("setParameters/getParameters dict mismatch");
@@ -1180,7 +1180,7 @@ void test_getParameters_example() {
     // docs:start getParameters_cpp_example
     auto root = newNode("root");
     ParameterValue::DictEntries entries;
-    entries.emplace_back("count", ParameterValue::makeData(std::make_shared<Array>(int32_t(3))));
+    entries.emplace_back("count", ParameterValue::makeData(std::make_shared<Array>(int32_t{3})));
     root->setParameters("Parameters", entries);
     auto out = root->getParameters("Parameters");
     const auto* count = findEntryByName(out.dictEntries, "count");

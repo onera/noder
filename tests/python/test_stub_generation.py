@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import importlib.util
 from pathlib import Path
 
@@ -22,6 +23,16 @@ def test_configured_generation_writes_flat_stubs_and_postprocesses_core(
         "    def __add__(self, other: str) -> str: ...\n"
         "    def getPyArray(self) -> typing.Any: ...\n"
     )
+    generated_package = (
+        "__all__ = ['new_tree', 'read_from_path', 'zeros']\n"
+        "from .cgns import new_tree\n"
+        "from noder.core import Array, Node\n"
+        "from pathlib import Path\n"
+        "def read_from_path(filename, path, order = 'F', safe_mode = False, strict_types = True):\n"
+        "    ...\n"
+        "def zeros(*args, **kwargs):\n"
+        "    ...\n"
+    )
 
     def fake_stubgen(command: list[str], env: dict[str, str]) -> None:
         module_name = command[1]
@@ -30,13 +41,25 @@ def test_configured_generation_writes_flat_stubs_and_postprocesses_core(
         stub_path = module_path / "__init__.pyi"
         stub_path.parent.mkdir(parents=True, exist_ok=True)
         stub_path.write_text(
-            generated_core if module_name == "noder.core" else "# generated\n",
+            generated_core
+            if module_name == "noder.core"
+            else generated_package
+            if module_name == "noder"
+            else "# generated\n",
             encoding="utf-8",
         )
 
     monkeypatch.setattr(stubgen.subprocess, "check_call", fake_stubgen)
     target_dir = tmp_path / "noder"
-    written = stubgen.generate_stubs(config, [tmp_path], target_dir)
+    target_dir.mkdir()
+    (target_dir / "__init__.pyi").write_text("# stale stub\n", encoding="utf-8")
+    source_package_dir = tmp_path / "source" / "noder"
+    written = stubgen.generate_stubs(
+        config,
+        [tmp_path],
+        target_dir,
+        source_package_dir=source_package_dir,
+    )
 
     assert {path.name for path in written} == {
         "core.pyi",
@@ -49,4 +72,13 @@ def test_configured_generation_writes_flat_stubs_and_postprocesses_core(
     assert "import typing" in core_stub
     assert "import numpy" in core_stub
     assert "def getPyArray(self) -> numpy.ndarray:" in core_stub
-    assert (target_dir / "__init__.pyi").is_file()
+    package_stub = (target_dir / "__init__.pyi").read_text(encoding="utf-8")
+    ast.parse(package_stub)
+    assert "new_tree" in package_stub
+    assert "stale stub" not in package_stub
+    assert "def read_from_path(" in package_stub
+    assert "filename: str | Path" in package_stub
+    assert "def zeros(*args: typing.Any, **kwargs: typing.Any) -> Array:" in package_stub
+    assert "import typing" in package_stub
+    assert all(line == line.rstrip() for line in package_stub.splitlines())
+    assert (source_package_dir / "__init__.pyi").read_text(encoding="utf-8") == package_stub
