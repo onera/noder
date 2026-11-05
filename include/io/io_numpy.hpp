@@ -54,7 +54,7 @@ inline void write_numpy(const py::array& array, const std::string& filename, con
     if (noderArray.hasString()) {
         const std::string dataString = noderArray.extractString();
         std::vector<int8_t> buffer(dataString.begin(), dataString.end());
-        hsize_t dims[1] = {static_cast<hsize_t>(buffer.size())};
+        hsize_t dims[1] = {buffer.size()};
         hid_t dataspaceId = H5Screate_simple(1, dims, nullptr);
         hid_t datasetId = H5Dcreate2(fileId, dataset_name.c_str(), H5T_NATIVE_INT8, dataspaceId,
                                      H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);

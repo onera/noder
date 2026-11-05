@@ -383,7 +383,7 @@ std::string read_string_attr(hid_t id, const std::string& key) {
 void write_int8_string_dataset(hid_t file, const std::string& dataset_path, const std::string& value) {
     std::vector<int8_t> buffer(value.begin(), value.end());
     buffer.push_back('\0');
-    hsize_t dims[1] = {static_cast<hsize_t>(buffer.size())};
+    hsize_t dims[1] = {buffer.size()};
     hid_t space = H5Screate_simple(1, dims, nullptr);
     hid_t dset = H5Dcreate2(file, dataset_path.c_str(), H5T_NATIVE_INT8, space,
                             H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -429,7 +429,7 @@ void write_cgns_file_metadata(hid_t file) {
 
     const std::string formatValue = "IEEE_LITTLE_32";
     std::vector<int8_t> formatData(formatValue.begin(), formatValue.end());
-    hsize_t formatDims[1] = {static_cast<hsize_t>(formatData.size())};
+    hsize_t formatDims[1] = {formatData.size()};
     hid_t formatSpace = H5Screate_simple(1, formatDims, nullptr);
     hid_t formatDset = H5Dcreate2(file, " format", H5T_NATIVE_INT8, formatSpace,
                                   H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -441,7 +441,7 @@ void write_cgns_file_metadata(hid_t file) {
     const std::string versionValue = hdf5_library_version_string();
     std::vector<int8_t> versionData(versionValue.begin(), versionValue.end());
     versionData.resize(kCGNSVersionDatasetLen, 0);
-    hsize_t versionDims[1] = {static_cast<hsize_t>(versionData.size())};
+    hsize_t versionDims[1] = {versionData.size()};
     hid_t versionSpace = H5Screate_simple(1, versionDims, nullptr);
     hid_t versionDset = H5Dcreate2(file, " hdf5version", H5T_NATIVE_INT8, versionSpace,
                                    H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -672,7 +672,7 @@ void write_array(hid_t loc, const std::string& name, const Array& array, const s
     if (cgnsType == "C1") {
         std::string str = array.extractString();
         std::vector<int8_t> buffer(str.begin(), str.end());
-        hsize_t oneDim = static_cast<hsize_t>(buffer.size());
+        hsize_t oneDim = buffer.size();
         hid_t strSpace = H5Screate_simple(1, &oneDim, nullptr);
         hid_t dset = H5Dcreate2(loc, name.c_str(), H5T_NATIVE_INT8, strSpace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
         check_status(H5Dwrite(dset, H5T_NATIVE_INT8, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()), "write string");

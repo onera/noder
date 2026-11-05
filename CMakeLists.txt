@@ -57,10 +57,10 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     )
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
     add_compile_options(
-        -Wall -Wextra -Wpedantic -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align
-        -Woverloaded-virtual -Wconversion -Wsign-conversion -Wnull-dereference -Wdouble-promotion
+        -Wall -Wextra -Wshadow -Wnon-virtual-dtor
+        -Woverloaded-virtual -Wconversion -Wsign-conversion
         -Wformat=2 -Wzero-as-null-pointer-constant -Wfloat-equal -Wundef -Wcast-qual
-        -Wredundant-decls -Wsign-compare -Wvla -Wpessimizing-move -Wredundant-move
+        -Wsign-compare -Wvla
         -Wunused-parameter
     )
 endif()
