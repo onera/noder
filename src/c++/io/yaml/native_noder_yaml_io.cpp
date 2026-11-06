@@ -901,7 +901,9 @@ std::string finite_number_string(const T value) {
         return std::to_string(value);
     }
 
+#if defined(__INTEL_COMPILER) && !defined(__INTEL_LLVM_COMPILER)
     return {};
+#endif
 }
 
 template <typename T>
@@ -920,7 +922,9 @@ YamlValue yaml_scalar_from_numeric(const T value) {
         return YamlValue::makeNumber(finite_number_string(value));
     }
 
+#if defined(__INTEL_COMPILER) && !defined(__INTEL_LLVM_COMPILER)
     return YamlValue{};
+#endif
 }
 
 template <typename T>
@@ -1128,7 +1132,9 @@ IntegerType parse_integer_yaml(const YamlValue& value, const char* context) {
         return static_cast<IntegerType>(parsedValue);
     }
 
+#if defined(__INTEL_COMPILER) && !defined(__INTEL_LLVM_COMPILER)
     return IntegerType{};
+#endif
 }
 
 size_t parse_size_t(const YamlValue& value, const char* context) {

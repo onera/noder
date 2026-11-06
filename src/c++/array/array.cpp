@@ -149,7 +149,9 @@ std::shared_ptr<Data> makeFilledWithFactory(const std::vector<size_t>& shape, do
         return std::make_shared<Array>(arrayfactory::full<T>(shape, static_cast<T>(value), order));
     }
 
+#if defined(__INTEL_COMPILER) && !defined(__INTEL_LLVM_COMPILER)
     return nullptr;
+#endif
 }
 
 std::shared_ptr<Data> fullFromDtype(

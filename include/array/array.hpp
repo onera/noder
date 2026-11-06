@@ -497,9 +497,12 @@ inline constexpr ArrayTypeId Array::typeIdFor() {
         static_assert(!sizeof(T*), "Unsupported Array::typeIdFor<T>()");
     }
 
-    // Intel Classic 2021 can report a missing return for the constexpr chain
-    // above even when a supported T selects a returning branch.
+#if defined(__INTEL_COMPILER) && !defined(__INTEL_LLVM_COMPILER)
+    // Intel Classic 2021 can report a missing return for this exhaustive
+    // constexpr chain. Keep the workaround out of compilers that diagnose it
+    // as unreachable code.
     return ArrayTypeId::None;
+#endif
 }
 
 template <typename T>

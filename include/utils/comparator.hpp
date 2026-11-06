@@ -27,7 +27,9 @@ namespace utils {
         else {
             return a == b;
         }
+#if defined(__INTEL_COMPILER) && !defined(__INTEL_LLVM_COMPILER)
         return false;
+#endif
     };
 
     /** @brief Vector-reference adapter for approxEqual. */

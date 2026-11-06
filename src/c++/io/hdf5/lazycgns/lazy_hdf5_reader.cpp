@@ -506,7 +506,7 @@ public:
             std::shared_ptr<Node> current = makeRoot();
             temporaryNodes.push_back(current.get());
 
-            auto discardCorruptedPath = [=, this, &current, &temporaryNodes](const std::string& childPath,
+            auto discardCorruptedPath = [=, this, &current](const std::string& childPath,
                                              const std::string& detail,
                                              const bool isFinalComponent) {
                 addCorrupted(*current, childPath, detail);

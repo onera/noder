@@ -26,10 +26,11 @@ namespace utils {
         else if constexpr (std::is_same_v<T, double>) return "double";
         else if constexpr (std::is_same_v<T, std::complex<float>>) return "complex64";
         else if constexpr (std::is_same_v<T, std::complex<double>>) return "complex128";
+        else return "unknown";
 
-        // Keep an unconditional fallback for compilers that do not prove
-        // every return path through a constexpr-if chain.
+#if defined(__INTEL_COMPILER) && !defined(__INTEL_LLVM_COMPILER)
         return "unknown";
+#endif
     }
 
     /** @brief Tag wrapper used by generic bind/dispatch helpers. */
