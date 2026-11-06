@@ -53,7 +53,7 @@ public:
         other._close = nullptr;
     }
 
-    hdf5_handle& operator=(hdf5_handle&& other) noexcept {
+    [[maybe_unused]] hdf5_handle& operator=(hdf5_handle&& other) noexcept {
         if (this != &other) {
             reset();
             _id = other._id;

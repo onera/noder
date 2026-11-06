@@ -63,6 +63,16 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Intel")
         -Wsign-compare -Wvla
         -Wunused-parameter
     )
+    # Intel Classic emits these optimizer heuristic remarks repeatedly. Keep
+    # the chosen inlining limits and silence only those remarks; IntelLLVM does
+    # not emit these Classic diagnostic IDs.
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+        if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+            add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:/Qdiag-disable:11074,11076>")
+        else()
+            add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-diag-disable=11074,11076>")
+        endif()
+    endif()
 endif()
 
 # C++17 filesystem library linking
@@ -310,6 +320,48 @@ if(NODER_HDF5_IS_PARALLEL AND NOT NODER_MPI_AVAILABLE)
         "The selected HDF5 was built with parallel I/O, but MPI C and C++ "
         "development components were not found. Install the matching MPI "
         "development package, or select a serial HDF5 distribution.")
+endif()
+
+# HDF5 1.12 changed its object-information API to token-based functions. A
+# common failure mode is compiling against newer headers while linking an older
+# HDF5 library; detect that at configure time rather than at the final app link.
+if(ENABLE_HDF5_IO)
+    include(CMakePushCheckState)
+    include(CheckCSourceCompiles)
+    unset(NODER_HDF5_MODERN_OBJECT_API_LINKS CACHE)
+    cmake_push_check_state(RESET)
+    set(CMAKE_REQUIRED_INCLUDES ${HDF5_INCLUDE_DIRS})
+    set(CMAKE_REQUIRED_LIBRARIES ${HDF5_LIBRARIES})
+    if(NODER_ENABLE_MPI)
+        list(APPEND CMAKE_REQUIRED_INCLUDES ${MPI_C_INCLUDE_DIRS})
+        list(APPEND CMAKE_REQUIRED_LIBRARIES ${MPI_C_LIBRARIES})
+    endif()
+    check_c_source_compiles([=[
+#include <hdf5.h>
+#if H5_VERSION_GE(1, 12, 0)
+int main(void) {
+    H5O_info2_t info = {0};
+    H5O_token_t token;
+    char *token_string = 0;
+    herr_t status = H5Oget_info3((hid_t)-1, &info, H5O_INFO_BASIC);
+    status += H5Oget_info_by_idx3(
+        (hid_t)-1, ".", H5_INDEX_NAME, H5_ITER_INC, 0,
+        &info, H5O_INFO_BASIC, H5P_DEFAULT);
+    status += H5Otoken_to_str((hid_t)-1, &token, &token_string);
+    return (int)status;
+}
+#else
+int main(void) { return 0; }
+#endif
+]=] NODER_HDF5_MODERN_OBJECT_API_LINKS)
+    cmake_pop_check_state()
+    if(NOT NODER_HDF5_MODERN_OBJECT_API_LINKS)
+        message(FATAL_ERROR
+            "The selected HDF5 headers expose the 1.12+ object API, but the "
+            "selected HDF5 library cannot link it. HDF5 headers and libraries "
+            "must come from compatible installations; check HDF5_INCLUDE_DIR(S), "
+            "HDF5_C_LIBRARY, and HDF5_LIBRARIES.")
+    endif()
 endif()
 
 if(NODER_ENABLE_MPI)

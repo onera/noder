@@ -27,6 +27,7 @@ namespace utils {
         else {
             return a == b;
         }
+        return false;
     };
 
     /** @brief Vector-reference adapter for approxEqual. */

@@ -900,6 +900,8 @@ std::string finite_number_string(const T value) {
     } else {
         return std::to_string(value);
     }
+
+    return {};
 }
 
 template <typename T>
@@ -917,6 +919,8 @@ YamlValue yaml_scalar_from_numeric(const T value) {
     } else {
         return YamlValue::makeNumber(finite_number_string(value));
     }
+
+    return YamlValue{};
 }
 
 template <typename T>
@@ -1123,6 +1127,8 @@ IntegerType parse_integer_yaml(const YamlValue& value, const char* context) {
         }
         return static_cast<IntegerType>(parsedValue);
     }
+
+    return IntegerType{};
 }
 
 size_t parse_size_t(const YamlValue& value, const char* context) {
