@@ -83,6 +83,7 @@ namespace arrayfactory {
         } else {
             return toArray1D(const_cast<T*>(arrayInC.data()), arrayInC.size(), copy);
         }
+        return Array{};
     }
 
     /** @brief Convert contiguous pointer storage to 2D Array. */

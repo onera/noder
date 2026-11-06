@@ -495,7 +495,7 @@ public:
         // Build a temporary hierarchy containing only ancestors on this
         // path. Do not use _root: its direct children should remain unloaded.
         std::vector<const Node*> temporaryNodes;
-        auto discardTemporaryRecords = [&]() {
+        auto discardTemporaryRecords = [=, this, &temporaryNodes]() {
             for (const Node* node : temporaryNodes) {
                 _records.erase(node);
             }
@@ -506,7 +506,7 @@ public:
             std::shared_ptr<Node> current = makeRoot();
             temporaryNodes.push_back(current.get());
 
-            auto discardCorruptedPath = [&](const std::string& childPath,
+            auto discardCorruptedPath = [=, this, &current, &temporaryNodes](const std::string& childPath,
                                              const std::string& detail,
                                              const bool isFinalComponent) {
                 addCorrupted(*current, childPath, detail);

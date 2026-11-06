@@ -1,5 +1,4 @@
 """
-
 Copyright (c) 2026 ONERA. All rights reserved.
 
 noder: Node-Oriented Data Extraction & Representation
@@ -30,10 +29,10 @@ from noder.core import registerDefaultFactory
 import os as os
 from pathlib import Path
 import sys as sys
-from . import _cgns
 from . import _version
-from . import cgns
 from . import core
+from . import _cgns
+from . import cgns
 __all__: list = ['__version__', 'get_package_dir', 'get_include_dir', 'get_cmake_dir', 'Node', 'Array', 'Tree', 'Base', 'Zone', 'factory', 'registerDefaultFactory', 'new_node', 'zeros', 'new_base', 'new_tree', 'new_zone_from_arrays', 'new_zone_from_dict', 'add', 'merge', 'read', 'read_from_path', 'write_numpy', 'read_numpy', 'pyCGNSToNode', 'nodeToPyCGNS']
 def get_cmake_dir() -> str:
     ...
@@ -85,4 +84,4 @@ def read_from_path(
     """
 def zeros(*args: typing.Any, **kwargs: typing.Any) -> Array:
     ...
-__version__: str = '1.5.7.dev3+g5c2e370c2.d20261023'
+__version__: str = '1.5.9.dev9+g60214ed21'
