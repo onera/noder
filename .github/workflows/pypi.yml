@@ -31,6 +31,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Set package version from release tag
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          if (-not $tag.StartsWith("v", [System.StringComparison]::Ordinal)) {
+            throw "Expected a v-prefixed release tag, got '$tag'."
+          }
+          $version = $tag.Substring(1)
+          "SETUPTOOLS_SCM_PRETEND_VERSION_FOR_NODER=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
@@ -71,6 +81,7 @@ jobs:
         env:
           CIBW_BUILD: ${{ matrix.cibw_build }}
           CIBW_SKIP: "*-manylinux_i686 *-musllinux* *-win32 *-pp*"
+          CIBW_ENVIRONMENT_PASS_LINUX: SETUPTOOLS_SCM_PRETEND_VERSION_FOR_NODER
           CIBW_CONFIG_SETTINGS: >-
             cmake.define.ENABLE_CGNSVI=ON
             cmake.define.ENABLE_MPI=OFF
@@ -125,6 +136,46 @@ jobs:
 
       - name: Verify HDF5 redistribution notices in wheels
         run: python scripts/check_hdf5_wheel_licenses.py wheelhouse
+
+      - name: Verify wheel versions match release tag
+        shell: bash
+        env:
+          EXPECTED_RELEASE_VERSION: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+          import zipfile
+          from email.parser import BytesParser
+          from pathlib import Path
+
+          from packaging.version import Version
+
+          tag = os.environ["EXPECTED_RELEASE_VERSION"]
+          expected = Version(tag[1:] if tag.startswith("v") else tag)
+          wheels = sorted(Path("wheelhouse").glob("*.whl"))
+          if not wheels:
+              raise SystemExit("No wheels found in wheelhouse")
+
+          mismatches = []
+          for wheel in wheels:
+              with zipfile.ZipFile(wheel) as archive:
+                  metadata_name = next(
+                      name for name in archive.namelist()
+                      if name.endswith(".dist-info/METADATA")
+                  )
+                  metadata = BytesParser().parsebytes(archive.read(metadata_name))
+              actual = Version(metadata["Version"])
+              if actual != expected:
+                  mismatches.append(f"{wheel.name}: {actual} (expected {expected})")
+
+          if mismatches:
+              print("Wheel version does not match the release tag:", file=sys.stderr)
+              print("\n".join(mismatches), file=sys.stderr)
+              raise SystemExit(1)
+
+          print(f"Verified {len(wheels)} wheel(s) use release version {expected}.")
+          PY
 
       - name: Publish to PyPI
         if: startsWith(github.ref, 'refs/tags/v')
