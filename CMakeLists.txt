@@ -365,7 +365,9 @@ int main(void) { return 0; }
 endif()
 
 if(NODER_ENABLE_MPI)
-    include_directories(SYSTEM ${MPI_CXX_INCLUDE_DIRS})
+    # MPI includes are added as target-level SYSTEM includes below (consistent
+    # with HDF5 handling). This suppresses compiler warnings from external MPI
+    # headers while keeping warnings active for noder source code.
     message(STATUS "MPI enabled (ENABLE_MPI=${NODER_MPI_MODE}, parallel HDF5=${NODER_HDF5_IS_PARALLEL})")
 else()
     message(STATUS "MPI disabled (ENABLE_MPI=${NODER_MPI_MODE}, parallel HDF5=${NODER_HDF5_IS_PARALLEL})")
@@ -601,6 +603,7 @@ endif()
 endif()
 
 if(NODER_ENABLE_MPI)
+    target_include_directories(core_shared SYSTEM PRIVATE ${MPI_CXX_INCLUDE_DIRS})
     target_link_libraries(core_shared PRIVATE ${MPI_CXX_LIBRARIES})
 endif()
 
@@ -619,6 +622,9 @@ endif()
 if(ENABLE_HDF5_IO)
     target_include_directories(core SYSTEM PRIVATE ${HDF5_INCLUDE_DIRS})
     target_link_libraries(core PRIVATE ${HDF5_LIBRARIES})
+endif()
+if(NODER_ENABLE_MPI)
+    target_include_directories(core SYSTEM PRIVATE ${MPI_CXX_INCLUDE_DIRS})
 endif()
 
 pybind11_add_module(_cgns MODULE src/c++/cgns_pybind.cpp)
@@ -646,6 +652,9 @@ if(ENABLE_CGNSVI)
         ${CMAKE_SOURCE_DIR}/src/c++
     )
     target_include_directories(cgnsvi SYSTEM PRIVATE ${HDF5_INCLUDE_DIRS})
+    if(NODER_ENABLE_MPI)
+        target_include_directories(cgnsvi SYSTEM PRIVATE ${MPI_CXX_INCLUDE_DIRS})
+    endif()
     target_link_libraries(cgnsvi PRIVATE core_shared ${HDF5_LIBRARIES})
     if(STDCXXFS_LIBRARY)
         target_link_libraries(cgnsvi PRIVATE ${STDCXXFS_LIBRARY})
@@ -771,6 +780,9 @@ if(ENABLE_TESTS)
     if(ENABLE_HDF5_IO)
         target_include_directories(tests SYSTEM PRIVATE ${HDF5_INCLUDE_DIRS})
         target_link_libraries(tests PRIVATE ${HDF5_LIBRARIES})
+    endif()
+    if(NODER_ENABLE_MPI)
+        target_include_directories(tests SYSTEM PRIVATE ${MPI_CXX_INCLUDE_DIRS})
     endif()
     target_include_directories(tests PRIVATE
         ${CMAKE_INSTALL_INCLUDEDIR}

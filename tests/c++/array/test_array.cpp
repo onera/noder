@@ -112,7 +112,7 @@ void test_sharingData() {
     
     Array array0 = arrayfactory::toArray1D(carray,2,false);
     Array array1 = array0;
-    Array array2 = Array(array1);
+    Array array2 = array1;
     
     carray[0] = 1;
 

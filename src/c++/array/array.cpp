@@ -671,7 +671,7 @@ int64_t Array::itemAsInt64(const std::vector<size_t>& indices) const {
     if (this->hasDataOfType<int16_t>()) return static_cast<int64_t>(*reinterpret_cast<const int16_t*>(bytes));
     if (this->hasDataOfType<int32_t>()) return static_cast<int64_t>(*reinterpret_cast<const int32_t*>(bytes));
     if (this->hasDataOfType<int64_t>()) return *reinterpret_cast<const int64_t*>(bytes);
-    if (this->hasDataOfType<uint8_t>()) return static_cast<int64_t>(*reinterpret_cast<const uint8_t*>(bytes));
+    if (this->hasDataOfType<uint8_t>()) return static_cast<int64_t>(*bytes);
     if (this->hasDataOfType<uint16_t>()) return static_cast<int64_t>(*reinterpret_cast<const uint16_t*>(bytes));
     if (this->hasDataOfType<uint32_t>()) return static_cast<int64_t>(*reinterpret_cast<const uint32_t*>(bytes));
     if (this->hasDataOfType<uint64_t>()) return static_cast<int64_t>(*reinterpret_cast<const uint64_t*>(bytes));
@@ -709,7 +709,7 @@ void Array::setItemFromInt64(const std::vector<size_t>& indices, int64_t value) 
         return;
     }
     if (this->hasDataOfType<uint8_t>()) {
-        *reinterpret_cast<uint8_t*>(bytes) = static_cast<uint8_t>(value);
+        *bytes = static_cast<uint8_t>(value);
         return;
     }
     if (this->hasDataOfType<uint16_t>()) {

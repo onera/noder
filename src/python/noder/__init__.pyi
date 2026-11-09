@@ -85,4 +85,4 @@ def read_from_path(
     """
 def zeros(*args: typing.Any, **kwargs: typing.Any) -> Array:
     ...
-__version__: str = '1.5.7.dev3+g5c2e370c2.d20261023'
+__version__: str = '1.5.12.dev0+g04c077a41.d20261109'
