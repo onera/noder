@@ -5,7 +5,6 @@ Array (Python)
 
 Python ``Array`` wraps NumPy arrays with the noder ``Data`` interface.
 
-C++ counterpart: :doc:`../cpp/array`
 
 Class
 -----

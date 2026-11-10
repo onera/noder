@@ -17,7 +17,6 @@ Abstract payload interface used by :py:class:`noder.core.Node`.
 This class is normally returned by :py:meth:`noder.core.Node.data` and most
 concrete payloads are :py:class:`noder.core.Array`.
 
-See C++ counterpart: :ref:`cpp-data-class`.
 )doc")
     .def("hasString", &Data::hasString, R"doc(
 Check whether this payload represents a string-like value.

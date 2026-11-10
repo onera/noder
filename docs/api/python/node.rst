@@ -3,8 +3,6 @@ Node (Python)
 
 .. currentmodule:: noder.core
 
-The Python ``Node`` API is bound from C++ and follows snake_case naming.
-
 Class
 -----
 

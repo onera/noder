@@ -33,8 +33,6 @@ None
         "io",
         R"doc(
 Input-output helpers.
-
-See C++ counterpart: :ref:`cpp-io-module`.
 )doc");
     #ifdef ENABLE_HDF5_IO
     io_m.attr("ENABLE_HDF5_IO") = py::bool_(true);

@@ -14,7 +14,6 @@ Typed array-construction helpers.
 Functions are generated per dtype suffix (for example ``zeros_float`` or
 ``uniformFromStep_int32``).
 
-See C++ counterpart: :ref:`cpp-arrayfactory-module`.
 )doc");
 
     bindFactoryOfArraysFromStrings(factory);

@@ -1,0 +1,276 @@
+/* ==========================================================================
+   Monokai-inspired dark mode color palette for pydata-sphinx-theme
+   Overrides all pst-color-* CSS variables to apply Monokai colors
+   across the entire website (background, text, links, admonitions, etc.)
+   ========================================================================== */
+
+
+
+html[data-theme="dark"] {
+
+  /* ==========================================================
+     MONOKAI TURQUOISE — PALETTE
+     ========================================================== */
+
+  --monokai-bg: #272822;
+  --monokai-surface: #30312B;
+  --monokai-elevated: #373831;
+  --monokai-border: #49483E;
+
+  --monokai-text: #F8F8F2;
+  --monokai-muted: #A59F8A;
+
+  --monokai-green: #A6E22E;
+  --monokai-pink: #F92672;
+  --monokai-yellow: #E6DB74;
+  --monokai-orange: #FD971F;
+  --monokai-purple: #AE81FF;
+
+  --logo-turquoise: #40E0D0;
+  --logo-teal: #207068;
+  --logo-teal-surface: #263B36;
+
+  /* ==========================================================
+     BASE / BACKGROUND
+     ========================================================== */
+
+  --pst-color-background: #272822;
+  --pst-color-on-background: #30312B;
+  --pst-color-surface: #30312B;
+  --pst-color-on-surface: #373831;
+  --pst-color-panel-background: #30312B;
+
+  --pst-color-text: #F8F8F2;
+  --pst-color-text-base: #F8F8F2;
+  --pst-color-text-muted: #A59F8A;
+
+  --pst-color-muted: #A59F8A;
+  --pst-color-muted-text: #A59F8A;
+  --pst-color-muted-highlight: #40E0D0;
+  --pst-color-muted-highlight-text: #272822;
+
+  /* ==========================================================
+     DARK / LIGHT MODE
+     ========================================================== */
+
+  --pst-color-dark: #272822;
+  --pst-color-dark-text: #F8F8F2;
+  --pst-color-dark-highlight: #40E0D0;
+  --pst-color-dark-highlight-text: #272822;
+
+  --pst-color-light: #F8F8F2;
+  --pst-color-light-text: #272822;
+  --pst-color-light-highlight: #207068;
+  --pst-color-light-highlight-text: #F8F8F2;
+
+  /* ==========================================================
+     BLACK / WHITE
+     ========================================================== */
+
+  --pst-color-black: #000000;
+  --pst-color-black-text: #F8F8F2;
+  --pst-color-black-highlight: #40E0D0;
+  --pst-color-black-highlight-text: #272822;
+
+  --pst-color-white: #FFFFFF;
+  --pst-color-white-text: #272822;
+  --pst-color-white-highlight: #207068;
+  --pst-color-white-highlight-text: #F8F8F2;
+
+  /* ==========================================================
+     PRIMARY — MONOKAI GREEN
+     ========================================================== */
+
+  --pst-color-primary: #A6E22E;
+  --pst-color-primary-text: #272822;
+  --pst-color-primary-bg: #343B2C;
+  --pst-color-primary-highlight: #B8F34A;
+  --pst-color-primary-highlight-text: #272822;
+
+  /* ==========================================================
+     SECONDARY — LOGO TURQUOISE
+     ========================================================== */
+
+  --pst-color-secondary: #40E0D0;
+  --pst-color-secondary-text: #272822;
+  --pst-color-secondary-bg: #263B36;
+  --pst-color-secondary-highlight: #75F2E5;
+  --pst-color-secondary-highlight-text: #272822;
+
+  /* ==========================================================
+     ACCENT — TURQUOISE + DEEP TEAL
+     ========================================================== */
+
+  --pst-color-accent: #40E0D0;
+  --pst-color-accent-bg: #207068;
+
+  /* ==========================================================
+     LINKS
+     ========================================================== */
+
+  --pst-color-link: #40E0D0;
+  --pst-color-link-hover: #A6E22E;
+  --pst-color-link-higher-contrast: #75F2E5;
+
+  /* ==========================================================
+     HEADINGS
+     ========================================================== */
+
+  --pst-color-heading: #F8F8F2;
+
+  /* ==========================================================
+     BORDERS / SHADOW
+     ========================================================== */
+
+  --pst-color-border: #49483E;
+  --pst-color-border-muted: #3E3D32;
+  --pst-color-shadow: rgba(0, 0, 0, 0.35);
+
+  /* ==========================================================
+     ADMONITIONS
+     ========================================================== */
+
+  /* Attention — Monokai yellow */
+  --pst-color-attention: #E6DB74;
+  --pst-color-attention-bg: #393729;
+
+  /* Danger — Monokai pink */
+  --pst-color-danger: #F92672;
+  --pst-color-danger-bg: #3D2932;
+  --pst-color-danger-highlight: #F92672;
+  --pst-color-danger-highlight-text: #272822;
+  --pst-color-danger-text: #F8F8F2;
+
+  /* Warning — Monokai orange */
+  --pst-color-warning: #FD971F;
+  --pst-color-warning-bg: #3D3328;
+  --pst-color-warning-highlight: #FD971F;
+  --pst-color-warning-highlight-text: #272822;
+  --pst-color-warning-text: #F8F8F2;
+
+  /* Info — Logo turquoise */
+  --pst-color-info: #40E0D0;
+  --pst-color-info-bg: #263B36;
+  --pst-color-info-highlight: #40E0D0;
+  --pst-color-info-highlight-text: #272822;
+  --pst-color-info-text: #F8F8F2;
+
+  /* Success — Monokai green */
+  --pst-color-success: #A6E22E;
+  --pst-color-success-bg: #343B2C;
+  --pst-color-success-highlight: #A6E22E;
+  --pst-color-success-highlight-text: #272822;
+  --pst-color-success-text: #F8F8F2;
+
+  --pst-color-admonition-background: #30312B;
+
+  /* ==========================================================
+     INLINE CODE
+     ========================================================== */
+
+  --pst-color-inline-code: #E6DB74;
+
+  /* ==========================================================
+     TABLES
+     ========================================================== */
+
+  --pst-color-table: #F8F8F2;
+  --pst-color-table-heading-bg: #373831;
+  --pst-color-table-inner-border: #49483E;
+  --pst-color-table-outer-border: #49483E;
+
+  --pst-color-table-row-hover: #49483E;
+  --pst-color-table-row-hover-bg: #383930;
+
+  --pst-color-table-row-zebra-high-bg: #30312B;
+  --pst-color-table-row-zebra-low-bg: #272822;
+
+  /* ==========================================================
+     TARGETS / BLOCKQUOTES
+     ========================================================== */
+
+  --pst-color-target: #207068;
+  --pst-color-blockquote-notch: #40E0D0;
+
+  /* ==========================================================
+     SEARCH
+     ========================================================== */
+
+  --pst-color-search-background: #30312B;
+  --pst-color-search-border: #49483E;
+  --pst-color-search-icon: #A59F8A;
+  --pst-color-search-text: #F8F8F2;
+
+  /* ==========================================================
+     SIDEBAR
+     ========================================================== */
+
+  --pst-color-sidebar-background: #272822;
+  --pst-color-sidebar-brand-text: #F8F8F2;
+
+  --pst-color-sidebar-link-text: #C7C7BA;
+  --pst-color-sidebar-link-text--top-level: #F8F8F2;
+  --pst-color-sidebar-caption-text: #A59F8A;
+
+  --pst-color-sidebar-search-text: #F8F8F2;
+  --pst-color-sidebar-search-background: #30312B;
+  --pst-color-sidebar-search-border: #49483E;
+  --pst-color-sidebar-search-icon: #A59F8A;
+
+  /* ==========================================================
+     TABLE OF CONTENTS
+     ========================================================== */
+
+  --pst-color-toc-background: #272822;
+  --pst-color-toc-title-text: #A59F8A;
+  --pst-color-toc-item-text: #C7C7BA;
+  --pst-color-toc-item-text--active: #40E0D0;
+
+  /* ==========================================================
+     ANNOUNCEMENT BAR
+     ========================================================== */
+
+  --pst-color-announcement-background: #30312B;
+  --pst-color-announcement-text: #F8F8F2;
+
+  /* ==========================================================
+     API DOCUMENTATION
+     ========================================================== */
+
+  --pst-color-api-name: #40E0D0;
+
+  --pst-color-api-added: #A6E22E;
+  --pst-color-api-added-border: #A6E22E;
+
+  --pst-color-api-changed: #40E0D0;
+  --pst-color-api-changed-border: #40E0D0;
+
+  --pst-color-api-deprecated: #FD971F;
+  --pst-color-api-deprecated-border: #FD971F;
+
+  --pst-color-api-removed: #F92672;
+  --pst-color-api-removed-border: #F92672;
+
+  /* ==========================================================
+     HIGHLIGHTED TEXT
+     ========================================================== */
+
+  --pst-color-highlighted-background: #354B41;
+  --pst-color-highlighted-text: #F8F8F2;
+}
+
+/* ==========================================================
+   OPTIONAL — TEXT SELECTION
+   ========================================================== */
+
+html[data-theme="dark"] ::selection {
+  background-color: #207068;
+  color: #F8F8F2;
+}
+
+html[data-theme="dark"] .bd-header {
+    background-color: #30312B;
+    color: #F8F8F2;
+    border-bottom: 1px solid #49483E;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.20);
+}

@@ -271,7 +271,6 @@ Tree-query helper attached to :py:class:`noder.core.Node` via :py:meth:`Node.pic
 
 Navigation methods search descendants by name, type, data, or combined predicates.
 
-See C++ counterpart: :ref:`cpp-navigation-class`.
 )doc");
 
     navigation

@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.metadata
 import importlib
 import os
+from pathlib import Path
 import sys
 
 project = "noder"
@@ -34,8 +35,6 @@ extensions = [
     "myst_parser",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
-    "breathe",
-    "exhale",
     "sphinx.ext.intersphinx",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
@@ -59,9 +58,61 @@ exclude_patterns = [
     ".venv",
 ]
 
-html_theme = "furo"
+
+# -- Options for HTML output -------------------------------------------------
 html_title = f"{project} {release}"
-html_static_path = []
+
+# The theme to use for HTML and HTML Help pages.
+#
+html_theme = 'pydata_sphinx_theme'
+
+html_favicon = str(Path('_static/logos/n_light.svg'))
+
+# Theme options are theme-specific and customize the look and feel of a theme
+# further.  For a list of options available for each theme, see the
+# documentation.
+#
+html_theme_options = {
+    "logo": {
+      "image_light": "_static/logos/noder_light.svg",
+      "image_dark" : "_static/logos/noder_dark.svg",
+    },
+
+    "navbar_start": ["navbar-logo"],
+    "navbar_align": "content",
+    "header_links_before_dropdown": 5,
+    'navbar_end': ['theme-switcher',
+                   'navbar-icon-links',
+               ],
+
+    "navbar_persistent": ["search-button"],
+
+    "icon_links": [
+
+        {
+            'name':'MOLA GitLab',
+            'url':'https://gitlab.onera.net/numerics/mola',
+            "icon": "fa-brands fa-gitlab",
+            },
+    ],
+
+    "pygments_light_style": "friendly",
+    "pygments_dark_style": "monokai",
+}
+
+# Add any paths that contain custom templates here, relative to this directory.
+templates_path = ['_templates']
+
+# Add any paths that contain custom static files ( such as style sheets ) here,
+# relative to this directory. They are copied after the builtin static files,
+# so a file named "default.css" will overwrite the builtin "default.css".
+html_static_path = ['_static']
+
+# Additional CSS files for Monokai color palette (dark and light mode)
+html_css_files = [
+    'css/mola-monokai-light.css',
+    'css/mola-monokai-dark.css',
+]
 
 autosummary_generate = True
 autodoc_member_order = "bysource"
@@ -84,20 +135,3 @@ nitpick_ignore = [
 ]
 
 always_document_param_types = True
-
-DOXYGEN_XML_DIR = os.path.join(DOCS_DIR, "_doxygen", "xml")
-breathe_projects = {"noder": DOXYGEN_XML_DIR}
-breathe_default_project = "noder"
-breathe_domain_by_extension = {
-    "hpp": "cpp",
-    "h": "cpp",
-}
-
-exhale_args = {
-    "containmentFolder": "./api/cpp/generated",
-    "rootFileName": "library_root.rst",
-    "rootFileTitle": "C++ API (Auto)",
-    "doxygenStripFromPath": PROJECT_ROOT,
-    "createTreeView": True,
-    "exhaleExecutesDoxygen": False,
-}
