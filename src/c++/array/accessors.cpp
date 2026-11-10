@@ -167,9 +167,14 @@ std::string Array::extractStringOfKindS() const {
 
     std::string outputString;
     const bool concatenateCharacters = this->itemsize() == sizeof(char);
+    // For F-contiguous arrays, the raw data buffer is in F-order, so element i
+    // is at offset i * itemsize. For C-contiguous arrays, we must use
+    // getByteOffsetFromFlatIndex which decomposes i in C-order.
+    const bool fContiguous = this->isContiguousInStyleFortran();
     for (size_t i = 0; i < this->size(); ++i) {
         const std::string separator = (i == 0 || concatenateCharacters) ? std::string("") : std::string(" ");
-        const size_t offset = this->getByteOffsetFromFlatIndex(i);
+        const size_t offset = fContiguous ? i * this->itemsize()
+                                           : this->getByteOffsetFromFlatIndex(i);
         const auto* dataPtr = static_cast<const char*>(
             static_cast<const void*>(static_cast<const std::uint8_t*>(this->rawData()) + offset));
         std::string value(dataPtr, this->itemsize());

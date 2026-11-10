@@ -609,16 +609,114 @@ def test_read_rank_2_cgns_string_dataset(tmp_path):
         node.attrs["type"] = np.bytes_("C1")
         node.attrs["flags"] = np.array([1], dtype=np.int32)
 
-        data = np.zeros((5, 32), dtype=np.int8)
+        data = np.zeros((32, 5), dtype=np.int8, order='F')
         for row, value in enumerate([b"Kilogram", b"Meter", b"Second", b"Kelvin", b"Radian"]):
-            data[row, :len(value)] = np.frombuffer(value, dtype=np.int8)
+            data[:len(value), row] = np.frombuffer(value, dtype=np.int8)
         node.create_dataset(" data", data=data)
 
     loaded = read(str(filename))
-    value = loaded.pick().by_name("DimensionalUnits").data().extractString()
+    array = loaded.pick().by_name("DimensionalUnits").data().getPyArray()
 
-    assert "Kilogram" in value
-    assert "Radian" in value
+    assert array.shape == (32, 5), f"Expected (32, 5), got {array.shape}"
+    assert array.dtype == '|S1', f"Expected |S1, got {array.dtype}"
+    # Each column of the array corresponds to one input string (CGNS F-contiguous convention).
+    assert array[:, 0].tobytes().rstrip(b'\x00') == b"Kilogram"
+    assert array[:, 4].tobytes().rstrip(b'\x00') == b"Radian"
+
+    # interpret_data("rows") returns strings column-by-column for 2D C1 data.
+    assert loaded.pick().by_name("DimensionalUnits").interpret_data("rows") == [
+        "Kilogram", "Meter", "Second", "Kelvin", "Radian"
+    ]
+
+
+def test_read_rank_2_cgns_string_dataset_lazy(tmp_path):
+    h5py = pytest.importorskip("h5py")
+    from noder import read_from_path
+    from noder.core.io import LazyHdf5Reader
+
+    filename = tmp_path / "rank_2_string_lazy.cgns"
+    with h5py.File(filename, "w", track_order=True) as h5file:
+        h5file.attrs["name"] = np.bytes_("HDF5 MotherNode")
+        h5file.attrs["label"] = np.bytes_("Root Node of HDF5 File")
+        h5file.attrs["type"] = np.bytes_("MT")
+
+        node = h5file.create_group("DimensionalUnits", track_order=True)
+        node.attrs["name"] = np.bytes_("DimensionalUnits")
+        node.attrs["label"] = np.bytes_("DimensionalUnits_t")
+        node.attrs["type"] = np.bytes_("C1")
+        node.attrs["flags"] = np.array([1], dtype=np.int32)
+
+        data = np.zeros((32, 5), dtype=np.int8, order='F')
+        for row, value in enumerate([b"Kilogram", b"Meter", b"Second", b"Kelvin", b"Radian"]):
+            data[:len(value), row] = np.frombuffer(value, dtype=np.int8)
+        node.create_dataset(" data", data=data)
+
+    # Lazy path via read_from_path.
+    lazy_node = read_from_path(str(filename), "/DimensionalUnits")
+    assert lazy_node is not None
+    lazy_array = lazy_node.numpy()
+    assert lazy_array.shape == (32, 5), f"Expected (32, 5), got {lazy_array.shape}"
+    assert lazy_array.dtype == '|S1', f"Expected |S1, got {lazy_array.dtype}"
+    assert lazy_array[:, 0].tobytes().rstrip(b'\x00') == b"Kilogram"
+    assert lazy_array[:, 4].tobytes().rstrip(b'\x00') == b"Radian"
+    assert lazy_node.interpret_data("rows") == ["Kilogram", "Meter", "Second", "Kelvin", "Radian"]
+
+    # Lazy path via LazyHdf5Reader.
+    reader = LazyHdf5Reader(str(filename))
+    try:
+        reader_node = reader.node_at_path("/DimensionalUnits")
+        reader_array = reader_node.numpy()
+        assert reader_array.shape == (32, 5)
+        assert reader_array.dtype == '|S1'
+        assert reader_node.interpret_data("rows") == ["Kilogram", "Meter", "Second", "Kelvin", "Radian"]
+    finally:
+        reader.close()
+
+
+def test_rank_2_cgns_string_dataset_roundtrip_preserves_shape_and_dtype(tmp_path):
+    h5py = pytest.importorskip("h5py")
+    from noder import read, nodeToPyCGNS, pyCGNSToNode
+
+    filename = tmp_path / "rank_2_string_roundtrip.cgns"
+    with h5py.File(filename, "w", track_order=True) as h5file:
+        h5file.attrs["name"] = np.bytes_("HDF5 MotherNode")
+        h5file.attrs["label"] = np.bytes_("Root Node of HDF5 File")
+        h5file.attrs["type"] = np.bytes_("MT")
+
+        node = h5file.create_group("DimensionalUnits", track_order=True)
+        node.attrs["name"] = np.bytes_("DimensionalUnits")
+        node.attrs["label"] = np.bytes_("DimensionalUnits_t")
+        node.attrs["type"] = np.bytes_("C1")
+        node.attrs["flags"] = np.array([1], dtype=np.int32)
+
+        data = np.zeros((32, 5), dtype=np.int8, order='F')
+        for row, value in enumerate([b"Kilogram", b"Meter", b"Second", b"Kelvin", b"Radian"]):
+            data[:len(value), row] = np.frombuffer(value, dtype=np.int8)
+        node.create_dataset(" data", data=data)
+
+    loaded = read(str(filename))
+    du = loaded.pick().by_name("DimensionalUnits")
+
+    # Verify read-time shape and dtype.
+    array = du.numpy()
+    assert array.shape == (32, 5), f"Expected (32, 5), got {array.shape}"
+    assert array.dtype == "|S1", f"Expected |S1, got {array.dtype}"
+
+    # Round-trip through pyCGNS must preserve shape and dtype.
+    pytree = nodeToPyCGNS(loaded)
+    reloaded = pyCGNSToNode(pytree)
+    reloaded_du = reloaded.pick().by_name("DimensionalUnits")
+
+    rt_array = reloaded_du.numpy()
+    assert rt_array.shape == (32, 5), f"Roundtrip shape {rt_array.shape}"
+    assert rt_array.dtype == "|S1", f"Roundtrip dtype {rt_array.dtype}"
+    assert rt_array[:, 0].tobytes().rstrip(b"\x00") == b"Kilogram"
+    assert rt_array[:, 4].tobytes().rstrip(b"\x00") == b"Radian"
+
+    # interpret_data("rows") on round-tripped data returns one string per column.
+    assert reloaded_du.interpret_data("rows") == [
+        "Kilogram", "Meter", "Second", "Kelvin", "Radian"
+    ]
 
 
 def test_read_reports_exact_dataset_path_for_invalid_cgns_type(tmp_path):

@@ -901,11 +901,52 @@ Array readArrayFromDataset(
         std::vector<int8_t> buffer(static_cast<size_t>(npoints));
         check_status(H5Dread(dset, H5T_NATIVE_INT8, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()), "read string dataset");
         H5Sclose(space);
-        std::string str(buffer.begin(), buffer.end());
-        while (!str.empty() && str.back() == '\0') {
-            str.pop_back();
+
+        // For 1D or scalar C1 data, preserve existing behavior (backward compatible)
+        if (ndims <= 1) {
+            std::string str(buffer.begin(), buffer.end());
+            while (!str.empty() && str.back() == '\0') {
+                str.pop_back();
+            }
+            return Array(str);
         }
-        return Array(str);
+
+        // Multi-dimensional C1: CGNS stores C1 data in F-order:
+        // shape (M, N) where M = max string length (first dim), N = number of strings.
+        // HDF5 stores this as either (M, N) C-contiguous (columns are strings) or
+        // (N, M) C-contiguous (rows are strings). Always produce F-contiguous (M, N)
+        // where each column is a string.
+        std::vector<size_t> array_shape(dims.begin(), dims.end());
+        bool hdf5IsNM = dims[0] < dims[1];  // HDF5 stores (N, M) with rows as strings
+        if (hdf5IsNM) {
+            std::swap(array_shape[0], array_shape[1]);  // now (M, N)
+        }
+        std::vector<size_t> strides(array_shape.size());
+        size_t stride = sizeof(int8_t);
+        for (size_t i = 0; i < array_shape.size(); ++i) {
+            strides[i] = stride;
+            stride *= array_shape[i];
+        }
+        auto buf_owner = std::make_shared<std::vector<int8_t>>(npoints);
+        if (hdf5IsNM) {
+            // Transpose from C-contiguous (N, M) to F-contiguous (M, N):
+            // F(i, j) = C(j, i) → F_buf[i + j*M] = C_buf[j*M + i]
+            for (size_t i = 0; i < array_shape[0]; ++i) {
+                for (size_t j = 0; j < array_shape[1]; ++j) {
+                    (*buf_owner)[i + j * array_shape[0]] = buffer[j * dims[1] + i];
+                }
+            }
+        } else {
+            // Rearrange from C-contiguous (M, N) to F-contiguous (M, N):
+            // F(i, j) = C(i, j) but at different offsets:
+            // F_buf[i + j*M] = C_buf[i*N + j]
+            for (size_t i = 0; i < array_shape[0]; ++i) {
+                for (size_t j = 0; j < array_shape[1]; ++j) {
+                    (*buf_owner)[i + j * array_shape[0]] = buffer[i * dims[1] + j];
+                }
+            }
+        }
+        return Array::bytesView(buf_owner->data(), sizeof(int8_t), array_shape, strides, buf_owner);
     }
 
     if (cgnsType == "I1") {

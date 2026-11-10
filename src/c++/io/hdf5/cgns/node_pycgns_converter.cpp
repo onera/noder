@@ -173,6 +173,13 @@ py::object nodeValueToPyCGNS(const std::shared_ptr<Node>& node, const bool stric
 
     if (auto arrayPtr = std::dynamic_pointer_cast<Array>(dataPtr)) {
         if (arrayPtr->hasString()) {
+            if (arrayPtr->itemsize() == 1) {
+                // For |S1 arrays the standard path preserves multi-dimensional
+                // shape (e.g. (5,32) dtype |S1). Only fixed-width string
+                // arrays need the extractString+frombuffer workaround.
+                py::object value = arraybridge::toPyObject(*arrayPtr);
+                return strictTypes ? restrictPyCGNSType(std::move(value)) : value;
+            }
             // PyCGNS and Cassiopee expect CGNS C1 payloads as one byte per
             // array element. Legacy fixed-width NumPy strings (for example,
             // shape (1,), dtype S10) are otherwise written as just their

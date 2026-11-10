@@ -380,11 +380,21 @@ std::vector<std::string> stringsFromRows(const Array& arrayData) {
         return {stringFromStringArrayObject(pyArray, characterItems)};
     }
 
+    // For multi-dimensional F-contiguous character arrays (e.g. CGNS C1 data
+    // stored as shape (M,N) F-contiguous where each column is a string), iterate
+    // columns instead of rows. Transpose so that rows of the view correspond to
+    // CGNS strings (columns in the F-contiguous original).
+    const bool iterateColumns =
+        characterItems && pyArray.ndim() >= 2 &&
+        (pyArray.flags() & 0x0002) != 0;  // NPY_ARRAY_F_CONTIGUOUS
+
+    py::array arrayToIterate = iterateColumns ? pyArray.attr("T").cast<py::array>() : pyArray;
+
     std::vector<std::string> output;
-    const auto numberOfRows = static_cast<size_t>(pyArray.shape(0));
+    const auto numberOfRows = static_cast<size_t>(arrayToIterate.shape(0));
     output.reserve(numberOfRows);
     for (size_t i = 0; i < numberOfRows; ++i) {
-        py::object row = pyArray.attr("__getitem__")(py::int_(i));
+        py::object row = arrayToIterate.attr("__getitem__")(py::int_(i));
         std::string value = stringFromStringArrayObject(row, characterItems);
         if (!value.empty()) {
             output.push_back(value);
