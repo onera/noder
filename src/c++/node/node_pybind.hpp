@@ -262,34 +262,6 @@ py::object pyObjectFromParameterValue(
     throw py::value_error("get_parameters: unsupported ParameterValue kind");
 }
 
-std::shared_ptr<Node> sharedNodeOrNull(Node& node) {
-    return node.selfPtr();
-}
-
-void synchronizeAliasedNodes(const std::vector<std::shared_ptr<Node>>& nodes) {
-    std::vector<const Node*> synchronized;
-    synchronized.reserve(nodes.size());
-
-    for (const auto& node : nodes) {
-        if (!node) {
-            continue;
-        }
-
-        const Node* rawNode = node.get();
-        const bool alreadySynchronized = std::find(
-            synchronized.begin(),
-            synchronized.end(),
-            rawNode) != synchronized.end();
-
-        if (alreadySynchronized) {
-            continue;
-        }
-
-        pycgnsinterop::synchronizeAliasedPyCGNSIfPresent(node);
-        synchronized.push_back(rawNode);
-    }
-}
-
 std::string trimString(std::string value) {
     auto isNotSpace = [](unsigned char c) {
         return !std::isspace(c);
@@ -535,7 +507,6 @@ Return node name.
 )doc")
         .def("set_name", [](Node& node, const std::string& name) {
             node.setName(name);
-            synchronizeAliasedNodes({sharedNodeOrNull(node)});
         }, R"doc(
 Set node name.
 
@@ -585,7 +556,6 @@ Numeric arrays are returned as NumPy arrays and empty payloads return None.
         
         .def("set_data", [](Node &node, const py::object& d, bool storeStringsAsS1) {
             node.setData(dataFromPyObject(d, "set_data", storeStringsAsS1));
-            synchronizeAliasedNodes({sharedNodeOrNull(node)});
         }, R"doc(
 Set node payload from scalar, string, NumPy array, list/tuple (converted via numpy.asarray), or Data.
 
@@ -614,7 +584,6 @@ Pass ``store_strings_as_S1=False`` to preserve the legacy string-array encoding.
                         parameterValueFromPyObject(item.second, "set_parameters", storeStringsAsS1));
                 }
                 auto container = node.setParameters(containerName, entries, containerType, parameterType);
-                synchronizeAliasedNodes({sharedNodeOrNull(node), container});
                 return container;
             },
             R"doc(
@@ -735,7 +704,6 @@ Return node type.
 )doc")
         .def("set_type", [](Node& node, const std::string& type) {
             node.setType(type);
-            synchronizeAliasedNodes({sharedNodeOrNull(node)});
         }, R"doc(
 Set node type.
 
@@ -758,7 +726,6 @@ Collect all descendant link definitions in CGNS-compatible tuple format.
 )doc")
         .def("set_link_target", [](Node& node, const std::string& targetFile, const std::string& targetPath) {
             node.setLinkTarget(targetFile, targetPath);
-            synchronizeAliasedNodes({sharedNodeOrNull(node)});
         },
              R"doc(
 Set link target metadata.
@@ -767,7 +734,6 @@ Set link target metadata.
              py::arg("target_file"), py::arg("target_path"))
         .def("clear_link_target", [](Node& node) {
             node.clearLinkTarget();
-            synchronizeAliasedNodes({sharedNodeOrNull(node)});
         }, R"doc(
 Clear link target metadata.
 
@@ -778,7 +744,6 @@ have been materialized.
 )doc")
         .def("reload_node_data", [](Node& node, const std::string& filename) {
             node.reloadNodeData(filename);
-            synchronizeAliasedNodes({sharedNodeOrNull(node)});
         },
              R"doc(
 Reload this node payload from file using this node path.
@@ -810,10 +775,7 @@ Return sibling position.
 
 )doc")
         .def("detach", [](Node& node) {
-            auto self = sharedNodeOrNull(node);
-            std::shared_ptr<Node> oldParent = node.parent().lock();
             node.detach();
-            synchronizeAliasedNodes({oldParent, self});
         }, R"doc(
 Detach from current parent.
 
@@ -822,10 +784,7 @@ Detach from current parent.
                              std::shared_ptr<Node> parent,
                              const int16_t& position,
                              bool overrideSiblingByName) {
-            auto self = sharedNodeOrNull(node);
-            std::shared_ptr<Node> oldParent = node.parent().lock();
             node.attachTo(parent, position, overrideSiblingByName);
-            synchronizeAliasedNodes({oldParent, parent, self});
         }, R"doc(
 Attach this node to another parent.
 
@@ -837,14 +796,7 @@ Attach this node to another parent.
                              std::shared_ptr<Node> child,
                              bool overrideSiblingByName,
                              const int16_t& position) {
-            std::shared_ptr<Node> previousParent;
-            if (child) {
-                previousParent = child->parent().lock();
-            }
-
-            auto self = sharedNodeOrNull(node);
             node.addChild(child, overrideSiblingByName, position);
-            synchronizeAliasedNodes({previousParent, self, child});
         },
              R"doc(
 Add one child node.
@@ -884,23 +836,7 @@ Return child names in insertion order.
         .def("add_children", [](Node& node,
                                 const std::vector<std::shared_ptr<Node>>& nodes,
                                 bool overrideSiblingByName) {
-            std::vector<std::shared_ptr<Node>> nodesToSynchronize;
-            nodesToSynchronize.reserve(nodes.size() + 1);
-            nodesToSynchronize.push_back(sharedNodeOrNull(node));
-
-            for (const auto& child : nodes) {
-                if (child) {
-                    nodesToSynchronize.push_back(child->parent().lock());
-                }
-            }
-
             node.addChildren(nodes, overrideSiblingByName);
-
-            for (const auto& child : nodes) {
-                nodesToSynchronize.push_back(child);
-            }
-
-            synchronizeAliasedNodes(nodesToSynchronize);
         },
              R"doc(
 Add multiple children.
@@ -909,15 +845,7 @@ Add multiple children.
              py::arg("nodes"),
              py::arg("override_sibling_by_name")=true)
         .def("swap", [](Node& node, std::shared_ptr<Node> other) {
-            auto self = sharedNodeOrNull(node);
-            std::shared_ptr<Node> selfParent = node.parent().lock();
-            std::shared_ptr<Node> otherParent;
-            if (other) {
-                otherParent = other->parent().lock();
-            }
-
             node.swap(other);
-            synchronizeAliasedNodes({selfParent, otherParent, self, other});
         }, R"doc(
 Swap this node with another node.
 
@@ -933,9 +861,7 @@ Resolve a node by path (absolute by default).
 )doc",
              py::arg("path"), py::arg("path_is_relative")=false)
         .def("merge", [](Node& node, std::shared_ptr<Node> other) {
-            auto self = sharedNodeOrNull(node);
             node.merge(other);
-            synchronizeAliasedNodes({self});
         }, R"doc(
 Merge descendants from another node with the same root name.
 

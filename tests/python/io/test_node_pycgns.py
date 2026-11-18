@@ -172,13 +172,15 @@ def test_interoperability_retrieval():
     assert a_node.name() == "a"
 
     root_pycgns_node = nodeToPyCGNS(noder_view)
-    assert root_pycgns_node is pycgns_node
+    assert root_pycgns_node is not pycgns_node
+    assert root_pycgns_node[2] is not pycgns_node[2]
+    assert root_pycgns_node[1] is pycgns_node[1]
 
     a_pycgns_node = nodeToPyCGNS(a_node)
-    assert a_pycgns_node is pycgns_node[2][0]
+    assert a_pycgns_node is not pycgns_node[2][0]
 
 
-def test_interoperability_reuses_unchanged_alias_and_tracks_node_changes():
+def test_interoperability_ports_copy_structure_and_share_numpy_arrays():
     pycgns_node = [
         "root",
         np.array([1, 2, 3], dtype=np.int32),
@@ -187,22 +189,41 @@ def test_interoperability_reuses_unchanged_alias_and_tracks_node_changes():
     ]
 
     node = pyCGNSToNode(pycgns_node)
-    assert nodeToPyCGNS(node) is pycgns_node
-    assert nodeToPyCGNS(node) is pycgns_node
+    snapshot = nodeToPyCGNS(node)
+    assert snapshot is not pycgns_node
+    assert snapshot[2] is not pycgns_node[2]
+    assert snapshot[2][0] is not pycgns_node[2][0]
+    assert snapshot[1] is pycgns_node[1]
 
     pycgns_node[0] = "external edit"
     pycgns_node[2].append(["external", None, [], "DataArray_t"])
-    assert nodeToPyCGNS(node) is pycgns_node
-    assert pycgns_node[0] == "root"
-    assert len(pycgns_node[2]) == 1
+    assert node.name() == "root"
+    assert len(node.children()) == 1
 
     child = node.pick().by_name("child")
     child.set_name("renamed")
     child.set_data(np.array([4, 5], dtype=np.int32))
 
-    assert nodeToPyCGNS(node) is pycgns_node
-    assert pycgns_node[2][0][0] == "renamed"
-    np.testing.assert_array_equal(pycgns_node[2][0][1], [4, 5])
+    updated_snapshot = nodeToPyCGNS(node)
+    assert updated_snapshot is not snapshot
+    assert updated_snapshot[0] == "root"
+    assert updated_snapshot[2][0][0] == "renamed"
+    np.testing.assert_array_equal(updated_snapshot[2][0][1], [4, 5])
+    assert pycgns_node[2][0][0] == "child"
+
+
+def test_empty_numeric_arrays_survive_pycgns_roundtrip():
+    values = np.empty((0, 3), dtype=np.int32)
+    pycgns_node = ["ElementConnectivity", values, [], "DataArray_t"]
+
+    node = pyCGNSToNode(pycgns_node)
+    restored = nodeToPyCGNS(node)
+
+    assert pycgns_node[1] is values
+    assert restored is not pycgns_node
+    assert restored[1] is values
+    assert restored[1].shape == (0, 3)
+    assert restored[1].dtype == np.dtype(np.int32)
 
 def test_interoperability_add_child_using_pycgns():
 
@@ -226,8 +247,7 @@ def test_interoperability_add_child_using_pycgns():
     noder_view = pyCGNSToNode(pycgns_node)
     a_node = noder_view.pick().by_name("a")
     assert a_node.name() == "a"
-    a_pycgns_node = nodeToPyCGNS(a_node)
-    assert a_pycgns_node is pycgns_node[2][0]
+    assert nodeToPyCGNS(a_node) is not pycgns_node[2][0]
 
     pycgns_node[2] += [ ["c", None, [], "DataArray_t"] ]
 
@@ -235,7 +255,7 @@ def test_interoperability_add_child_using_pycgns():
     c_node = noder_view.pick().by_name("c")
     assert c_node.name() == "c"
     c_pycgns_node = nodeToPyCGNS(c_node)
-    assert c_pycgns_node is pycgns_node[2][2]
+    assert c_pycgns_node is not pycgns_node[2][2]
 
 def test_interoperability_add_child_using_noder():
 
@@ -263,9 +283,10 @@ def test_interoperability_add_child_using_noder():
     c = Node("c","DataArray_t")
     root.add_child(c)
 
-    assert nodeToPyCGNS(root) is pycgns_node
-    assert nodeToPyCGNS(c) is pycgns_node[2][2]
-    assert pycgns_node[2][2] == ["c", None, [], "DataArray_t"]
+    root_snapshot = nodeToPyCGNS(root)
+    assert root_snapshot is not pycgns_node
+    assert root_snapshot[2][-1] == ["c", None, [], "DataArray_t"]
+    assert len(pycgns_node[2]) == 2
 
 
 def test_interoperability_add_child_using_node_group():
@@ -294,9 +315,10 @@ def test_interoperability_add_child_using_node_group():
     c = Node("c","DataArray_t")
     root/c
 
-    assert nodeToPyCGNS(root) is pycgns_node
-    assert nodeToPyCGNS(c) is pycgns_node[2][2]
-    assert pycgns_node[2][2] == ["c", None, [], "DataArray_t"]
+    root_snapshot = nodeToPyCGNS(root)
+    assert root_snapshot is not pycgns_node
+    assert root_snapshot[2][-1] == ["c", None, [], "DataArray_t"]
+    assert len(pycgns_node[2]) == 2
 
 def test_interoperability_robustness_forbidden_same_name():
     pycgns_node = [
@@ -333,12 +355,16 @@ def test_interoperability_robustness_forbidden_same_name():
     assert a_node.name() == "a"
 
     root_pycgns_node = nodeToPyCGNS(noder_view)
-    assert root_pycgns_node is pycgns_node
+    assert root_pycgns_node is not pycgns_node
+    assert len(pycgns_node[2]) == 4
+    assert len(root_pycgns_node[2]) == len(noder_view.children())
+    assert len({child[0] for child in root_pycgns_node[2]}) == len(root_pycgns_node[2])
 
     a_pycgns_node = nodeToPyCGNS(a_node)
-    assert a_pycgns_node is pycgns_node[2][0]
+    assert a_pycgns_node is not pycgns_node[2][0]
 
-    b_pycgns_node = pycgns_node[2][1]
+    b_pycgns_node = pycgns_node[2][3]
     assert b_pycgns_node[0] == "b"
+    assert root_pycgns_node[2][1][0] == "b"
 
 # def test_matrix(tmp_path):
