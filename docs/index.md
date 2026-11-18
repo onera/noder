@@ -1,3 +1,5 @@
+**Version:** {{ noder_version }} · **Source date:** {{ noder_source_date }}
+
 ```{include} ../README.md
 ```
 
@@ -5,6 +7,8 @@
   <p class="noder-kicker">Scientific data, as objects</p>
   <p class="noder-hero-copy">Build, navigate and exchange large hierarchical datasets through a clear Python object model, backed by a portable native core.</p>
 </div>
+
+
 
 ## Explore Noder
 

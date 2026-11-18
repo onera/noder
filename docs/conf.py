@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib
+import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -31,7 +33,90 @@ except Exception as exc:  # pragma: no cover - docs build runtime guard
 project = "Noder"
 author = "ONERA"
 copyright = "2026, ONERA"
-version = release = getattr(noder, "__version__", "dev")
+
+
+_STABLE_TAG_PATTERN = re.compile(
+    r"^v(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)$"
+)
+
+
+def _get_documentation_release() -> str:
+    """Return a clean stable or development version for the documentation."""
+    try:
+        tags = subprocess.run(
+            ["git", "tag", "--list", "v[0-9]*"],
+            cwd=PROJECT_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+        tagged_head = subprocess.run(
+            ["git", "tag", "--points-at", "HEAD"],
+            cwd=PROJECT_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+    except (OSError, subprocess.CalledProcessError):
+        tags = []
+        tagged_head = []
+
+    stable_tags = []
+    for tag in tags:
+        match = _STABLE_TAG_PATTERN.fullmatch(tag)
+        if match:
+            version_tuple = tuple(
+                int(match.group(part)) for part in ("major", "minor", "patch")
+            )
+            stable_tags.append((version_tuple, ".".join(map(str, version_tuple))))
+
+    if stable_tags:
+        exact_tags = []
+        for tag in tagged_head:
+            match = _STABLE_TAG_PATTERN.fullmatch(tag)
+            if match:
+                version_tuple = tuple(
+                    int(match.group(part)) for part in ("major", "minor", "patch")
+                )
+                exact_tags.append((version_tuple, ".".join(map(str, version_tuple))))
+        if exact_tags:
+            return max(exact_tags)[1]
+
+        latest_version = max(stable_tags)[0]
+        return f"{latest_version[0]}.{latest_version[1]}.{latest_version[2] + 1}.dev"
+
+    # Source archives may not include Git metadata. Normalize the packaged
+    # version as a fallback and strip setuptools-scm's distance/hash suffix.
+    package_version = str(getattr(noder, "__version__", "dev"))
+    match = re.match(r"^(\d+\.\d+\.\d+)(\.dev\d+)?(?:\+.*)?$", package_version)
+    if match:
+        suffix = ".dev" if match.group(2) else ""
+        return f"{match.group(1)}{suffix}"
+    return "dev"
+
+
+version = release = _get_documentation_release()
+
+
+def _get_source_date() -> str:
+    """Return the date of the latest source commit, if Git metadata exists."""
+    try:
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%cs"],
+            cwd=PROJECT_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+    return result.stdout.strip() or "unknown"
+
+
+myst_substitutions = {
+    "noder_version": release,
+    "noder_source_date": _get_source_date(),
+}
 
 extensions = [
     "myst_parser",
@@ -75,12 +160,6 @@ html_theme_options = {
     "navbar_persistent": ["search-button"],
     "icon_links": [
         {
-            "name": "MOLA GitLab",
-            "url": "https://gitlab.onera.net/numerics/mola",
-            "icon": "fa-brands fa-gitlab",
-            "type": "fontawesome",
-        },
-        {
             "name": "GitHub",
             "url": "https://github.com/onera/noder",
             "icon": "fa-brands fa-github",
@@ -114,6 +193,7 @@ always_document_param_types = True
 myst_enable_extensions = [
     "colon_fence",
     "deflist",
+    "substitution",
 ]
 
 intersphinx_mapping = {

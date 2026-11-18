@@ -1,3 +1,11 @@
+/* Use the logo teal for interactive and secondary accents in light mode. */
+html[data-theme="light"] {
+  --pst-color-secondary: var(--logo-teal, #207068);
+  --pst-color-secondary-highlight: var(--logo-teal, #207068);
+  --pst-color-link-hover: var(--logo-teal, #207068);
+  --bs-link-hover-color: var(--logo-teal, #207068);
+}
+
 .noder-hero {
   margin: 1.6rem 0 2rem;
   padding: 1.5rem 1.8rem;
