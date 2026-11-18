@@ -673,6 +673,43 @@ def test_read_rank_2_cgns_string_dataset_lazy(tmp_path):
         reader.close()
 
 
+def test_read_empty_c1_dataset_eager_and_lazy(tmp_path):
+    h5py = pytest.importorskip("h5py")
+    from noder import read, read_from_path
+    from noder.core.io import LazyHdf5Reader
+
+    filename = tmp_path / "empty_descriptor.cgns"
+    with h5py.File(filename, "w", track_order=True) as h5file:
+        h5file.attrs["name"] = np.bytes_("HDF5 MotherNode")
+        h5file.attrs["label"] = np.bytes_("Root Node of HDF5 File")
+        h5file.attrs["type"] = np.bytes_("MT")
+
+        descriptor = h5file.create_group("EmptyDescriptor", track_order=True)
+        descriptor.attrs["name"] = np.bytes_("EmptyDescriptor")
+        descriptor.attrs["label"] = np.bytes_("Descriptor_t")
+        descriptor.attrs["type"] = np.bytes_("C1")
+        descriptor.create_dataset(" data", shape=(0,), dtype=np.int8)
+
+    # Empty C1 descriptors are valid in Maia-produced CGNS files. Noder's
+    # Data API represents zero-size payloads as no data, but must read them.
+    eager_node = read(str(filename), safe_mode=True).get(name="EmptyDescriptor")
+    assert eager_node is not None
+    assert eager_node.data() is None
+
+    lazy_node = read_from_path(str(filename), "/EmptyDescriptor", safe_mode=True)
+    assert lazy_node is not None
+    assert lazy_node.data() is None
+
+    reader = LazyHdf5Reader(str(filename), safe_mode=True)
+    try:
+        reader_node = reader.node_at_path("/EmptyDescriptor")
+        assert reader_node is not None
+        assert reader_node.data() is None
+        assert not reader.has_warnings()
+    finally:
+        reader.close()
+
+
 def test_rank_2_cgns_string_dataset_roundtrip_preserves_shape_and_dtype(tmp_path):
     h5py = pytest.importorskip("h5py")
     from noder import read, nodeToPyCGNS, pyCGNSToNode

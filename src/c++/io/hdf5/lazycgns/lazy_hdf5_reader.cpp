@@ -360,14 +360,22 @@ Array readArrayFromDataset(
         if (pointCount < 0) {
             throw std::runtime_error("cannot determine string dataset size");
         }
+        const int ndims = H5Sget_simple_extent_ndims(space.get());
+        if (ndims < 0) {
+            throw std::runtime_error("cannot determine string dataset rank");
+        }
         std::vector<int8_t> buffer(static_cast<size_t>(pointCount));
-        check_status(
-            H5Dread(dataset, H5T_NATIVE_INT8, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()),
-            "read C1 payload");
+        if (pointCount > 0) {
+            check_status(
+                H5Dread(dataset, H5T_NATIVE_INT8, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()),
+                "read C1 payload");
+        }
 
         // For 1D or scalar C1 data, preserve existing behavior (backward compatible)
-        int ndims = H5Sget_simple_extent_ndims(space.get());
         if (ndims <= 1) {
+            if (pointCount == 0) {
+                return Array(std::string{}, true);
+            }
             std::string value(buffer.begin(), buffer.end());
             while (!value.empty() && value.back() == '\0') {
                 value.pop_back();
@@ -926,7 +934,7 @@ public:
             if (record.dataType != "C1") {
                 std::reverse(shape.begin(), shape.end());
             }
-            if (_safeMode && std::any_of(
+            if (_safeMode && record.dataType != "C1" && std::any_of(
                     shape.begin(), shape.end(), [](const size_t dimension) {
                         return dimension == 0;
                     })) {

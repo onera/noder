@@ -899,11 +899,16 @@ Array readArrayFromDataset(
             throw std::runtime_error("HDF5 error: cannot get string dataset size");
         }
         std::vector<int8_t> buffer(static_cast<size_t>(npoints));
-        check_status(H5Dread(dset, H5T_NATIVE_INT8, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()), "read string dataset");
+        if (npoints > 0) {
+            check_status(H5Dread(dset, H5T_NATIVE_INT8, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer.data()), "read string dataset");
+        }
         H5Sclose(space);
 
         // For 1D or scalar C1 data, preserve existing behavior (backward compatible)
         if (ndims <= 1) {
+            if (npoints == 0) {
+                return Array(std::string{}, true);
+            }
             std::string str(buffer.begin(), buffer.end());
             while (!str.empty() && str.back() == '\0') {
                 str.pop_back();
@@ -1107,16 +1112,15 @@ std::shared_ptr<Node> read_node_rec_impl(
                              "get dataset dimensions: " + dataPath);
             }
             shape.assign(dims.begin(), dims.end());
-            if (safeMode && std::any_of(
+            cgnsType = read_string_attr(group.get(), "type");
+            if (cgnsType.empty()) {
+                cgnsType = "MT";
+            }
+            if (safeMode && cgnsType != "C1" && std::any_of(
                     shape.begin(), shape.end(), [](const size_t dimension) {
                         return dimension == 0;
                     })) {
                 throw std::runtime_error("malformed zero-size HDF5 dataset");
-            }
-
-            cgnsType = read_string_attr(group.get(), "type");
-            if (cgnsType.empty()) {
-                cgnsType = "MT";
             }
 
             if (cgnsType != "MT") {
