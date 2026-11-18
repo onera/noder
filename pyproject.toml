@@ -58,11 +58,9 @@ dev = [
 docs = [
   "sphinx>=7.0",
   "myst_parser>=0.13",
-  "breathe>=4.36",
-  "exhale>=0.3.7",
   "sphinx_copybutton",
   "sphinx_autodoc_typehints",
-  "furo>=2023.08.17",
+  "pydata-sphinx-theme>=0.15",
 ]
 
 [project.urls]
@@ -158,6 +156,10 @@ filterwarnings = [
 log_cli_level = "INFO"
 testpaths = [
   "tests",
+]
+markers = [
+  "doc: executable example maintained for user documentation",
+  "doc_example(target): attach a marked snippet to a Sphinx autodoc target",
 ]
 
 

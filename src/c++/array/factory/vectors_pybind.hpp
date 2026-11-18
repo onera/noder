@@ -22,11 +22,6 @@ Returns
 Array
     New one-dimensional numeric array.
 
-Example
--------
-.. literalinclude:: ../../../tests/python/array/factory/test_vectors.py
-   :language: python
-   :pyobject: test_uniformFromStep_positive_step
 )doc"
     );
 
@@ -44,11 +39,6 @@ Returns
 Array
     New one-dimensional numeric array.
 
-Example
--------
-.. literalinclude:: ../../../tests/python/array/factory/test_vectors.py
-   :language: python
-   :pyobject: test_uniformFromCount_true
 )doc"
     );
 }

@@ -14,6 +14,7 @@
 
 # include <algorithm>
 # include <cctype>
+# include <stdexcept>
 
 namespace {
 
@@ -443,6 +444,58 @@ static std::shared_ptr<Node> new_node(
     return node;
 }
 
+namespace {
+
+py::object deepcopyNodePreservingTree(py::object self, py::dict memo) {
+    const py::object objectId = py::module_::import("builtins").attr("id");
+    const py::object selfId = objectId(self);
+    if (memo.contains(selfId)) {
+        return memo[selfId].cast<py::object>();
+    }
+
+    const auto selfNode = self.cast<std::shared_ptr<Node>>();
+    auto sourceRoot = selfNode;
+    while (auto parent = sourceRoot->parent().lock()) {
+        sourceRoot = std::move(parent);
+    }
+
+    const auto copiedRoot = sourceRoot->copy(true);
+    py::object copiedSelf = py::none();
+    auto mapNodes = [&](auto&& mapNodesRef,
+                        const std::shared_ptr<Node>& source,
+                        const std::shared_ptr<Node>& copied) -> void {
+        const py::object sourceObject = source.get() == selfNode.get()
+            ? self
+            : py::cast(source);
+        const py::object copiedObject = py::cast(copied);
+        memo[objectId(sourceObject)] = copiedObject;
+        if (source.get() == selfNode.get()) {
+            copiedSelf = copiedObject;
+        }
+
+        const auto& sourceChildren = source->children();
+        const auto& copiedChildren = copied->children();
+        if (sourceChildren.size() != copiedChildren.size()) {
+            throw std::runtime_error("Node copy changed the tree structure");
+        }
+        for (size_t index = 0; index < sourceChildren.size(); ++index) {
+            mapNodesRef(mapNodesRef, sourceChildren[index], copiedChildren[index]);
+        }
+    };
+    mapNodes(mapNodes, sourceRoot, copiedRoot);
+
+    if (sourceRoot.get() != selfNode.get()) {
+        auto retainRoot = py::cpp_function(
+            [](py::object, py::object nodeObject) {
+                return nodeObject;
+            },
+            py::keep_alive<0, 1>());
+        return retainRoot(py::cast(copiedRoot), copiedSelf);
+    }
+    return copiedSelf;
+}
+
+} // namespace
 
 void bindNode(py::module_ &m) {
 
@@ -802,15 +855,6 @@ Attach this node to another parent.
 Add one child node.
 
 
-Example
--------
-The following example is imported dynamically from the test suite:
-
-.. literalinclude:: ../../../tests/python/node/test_node.py
-   :language: python
-   :start-after: # docs:start add_child_example
-   :end-before: # docs:end add_child_example
-   :dedent: 4
 )doc",
              py::arg("node"),
              py::arg("override_sibling_by_name")=true,
@@ -854,6 +898,13 @@ Swap this node with another node.
 Copy subtree; deep copy clones payload arrays.
 
 )doc", py::arg("deep")=false)
+        .def("__deepcopy__", &deepcopyNodePreservingTree, R"doc(
+Return a deep copy of the owning tree, preserving references between nodes.
+
+The full tree is copied when called on a descendant so that parent and sibling
+references in the copied object graph resolve to the corresponding copied nodes.
+Payload arrays are copied using the native deep-copy implementation.
+)doc", py::arg("memo"))
         .def("get_at_path", &Node::getAtPath,
              R"doc(
 Resolve a node by path (absolute by default).
@@ -927,11 +978,6 @@ Returns
 Node
     Newly created node.
 
-Example
--------
-.. literalinclude:: ../../../tests/python/node/test_node_factory.py
-   :language: python
-   :pyobject: test_new_node_parent
 
 )doc",
         py::arg("name") = "",

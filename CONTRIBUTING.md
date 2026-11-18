@@ -10,7 +10,8 @@ The code must be able build and deploy using command:
 pip install .
 ```
 
-The objective is having a code able to use GitHub's Actions CI/CD capacities in order to produce pre-compiled binaries for all aforementiond platforms and multiple python versions and upload them towards PyPi. Final user will install the code using the single command `pip install noder`.
+The objective is having a code able to use GitHub's Actions CI/CD capacities in order to produce pre-compiled binaries for all aforementiond platforms and multiple python versions and upload them towards PyPi (see [`stable`](../.github/workflows/pypi.yml) and [`current`](../.github/workflows/test-pypi.yml) github pipelines
+). Final user will install the code using the single command `pip install noder`.
 
 Requirements
 ------------
@@ -308,5 +309,5 @@ function noder_gen_stubs {
 
 # Additional considerations
 
-- *BEWARE*: NEVER use `pip install . -e`, since this usually creates conflicts for this codebase.
+- *BEWARE*: NEVER use `pip install -e .`, since this usually creates conflicts for this codebase.
 

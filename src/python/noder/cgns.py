@@ -105,10 +105,6 @@ def new_tree(**bases_by_name) -> Tree:
     Returns:
         Tree: A new Tree containing the created Bases with their zones.
 
-    Example:
-        >>> zone1 = new_zone_from_arrays('zone1', ['x', 'y'], [x_arr, y_arr])
-        >>> zone2 = new_zone_from_arrays('zone2', ['x', 'y'], [x_arr, y_arr])
-        >>> tree = new_tree(BaseA=[zone1, zone2], BaseB=zone1)
     """
     tree = Tree()
     for base_name, zones in bases_by_name.items():

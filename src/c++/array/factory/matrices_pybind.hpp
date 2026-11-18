@@ -24,11 +24,6 @@ Returns
 Array
     Allocated numeric array.
 
-Example
--------
-.. literalinclude:: ../../../tests/python/array/factory/test_matrices.py
-   :language: python
-   :pyobject: test_full
 )doc"
     );
 
@@ -44,11 +39,6 @@ Returns
 Array
     Allocated array with unspecified initial content.
 
-Example
--------
-.. literalinclude:: ../../../tests/python/array/factory/test_matrices.py
-   :language: python
-   :pyobject: test_empty
 )doc"
     );
 
@@ -90,11 +80,6 @@ Returns
 Array
     Array filled with zeros.
 
-Example
--------
-.. literalinclude:: ../../../tests/python/array/factory/test_matrices.py
-   :language: python
-   :pyobject: test_zeros
 )doc"
     );
 
@@ -111,11 +96,6 @@ Returns
 Array
     Array filled with ones.
 
-Example
--------
-.. literalinclude:: ../../../tests/python/array/factory/test_matrices.py
-   :language: python
-   :pyobject: test_ones
 )doc"
     );
 

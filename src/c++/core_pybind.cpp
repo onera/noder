@@ -67,11 +67,6 @@ Returns
 Node
     Root node read from disk.
 
-Example
--------
-.. literalinclude:: ../../../tests/python/io/test_io.py
-   :language: python
-   :pyobject: test_read
 )doc",
         py::arg("filename"),
         py::arg("order")='F',
@@ -100,11 +95,6 @@ Returns
 -------
 None
 
-Example
--------
-.. literalinclude:: ../../../tests/python/io/test_io.py
-   :language: python
-   :pyobject: test_write_and_read_numerical_numpy
 )doc",
         py::arg("array"),
         py::arg("filename"),
@@ -129,11 +119,6 @@ Returns
 numpy.ndarray
     Loaded array.
 
-Example
--------
-.. literalinclude:: ../../../tests/python/io/test_io.py
-   :language: python
-   :pyobject: test_write_and_read_numerical_numpy
 )doc",
         py::arg("filename"),
         py::arg("dataset_name")=std::string("numpy"),

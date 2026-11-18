@@ -25,11 +25,6 @@ Returns
 Array
     String payload array.
 
-Example
--------
-.. literalinclude:: ../../../tests/python/array/factory/test_strings.py
-   :language: python
-   :pyobject: test_arrayFromString
 )doc");
 
     m.def(
@@ -49,11 +44,6 @@ Returns
 Array
     Unicode payload array.
 
-Example
--------
-.. literalinclude:: ../../../tests/python/array/factory/test_strings.py
-   :language: python
-   :pyobject: test_arrayFromUnicodeString
 )doc");
 
 }

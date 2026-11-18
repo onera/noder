@@ -138,7 +138,7 @@ def test_cpp_saveThisNodeOnly(tmp_path):
     return test_in_cpp.test_saveThisNodeOnly(filename)
 
 @pytest.mark.skipif(not ENABLE_HDF5_IO, reason="HDF5 support not enabled in the build.")
-def test_cpp_write_example(tmp_path):
+def test_cpp_write(tmp_path):
     return test_in_cpp.test_write_example(str(tmp_path))
 
 def test_cpp_merge(): return test_in_cpp.test_merge()

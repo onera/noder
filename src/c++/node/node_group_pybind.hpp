@@ -41,11 +41,6 @@ list[Node]
         }, py::is_operator(), R"doc(
 Create a :py:class:`_NodeGroup` from two nodes.
 
-Example
--------
-.. literalinclude:: ../../../tests/python/node/test_node_group.py
-   :language: python
-   :pyobject: test_operator_plus_attach_to_first_parent
 )doc")
         .def("__add__", [](std::shared_ptr<Node> lhs, const NodeGroup& rhs) {
             return lhs + rhs;

@@ -1,0 +1,90 @@
+.noder-hero {
+  margin: 1.6rem 0 2rem;
+  padding: 1.5rem 1.8rem;
+  border: 1px solid var(--pst-color-border, #d8e5e2);
+  border-left: 0.3rem solid var(--pst-color-secondary, #207068);
+  border-radius: 0.7rem;
+  background: var(--pst-color-surface, #f5f8f7);
+}
+
+.noder-kicker {
+  margin: 0 0 0.45rem;
+  color: var(--pst-color-secondary, #207068);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.noder-hero-copy {
+  max-width: 52rem;
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.55;
+}
+
+.noder-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 1rem;
+  margin: 1rem 0 2rem;
+}
+
+.noder-card {
+  display: block;
+  min-height: 9rem;
+  padding: 1.2rem;
+  border: 1px solid var(--pst-color-border, #d8e5e2);
+  border-radius: 0.7rem;
+  background: var(--pst-color-background, #fff);
+  color: var(--pst-color-text, inherit);
+  text-decoration: none;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.noder-card:hover {
+  border-color: var(--pst-color-secondary, #207068);
+  color: var(--pst-color-text, inherit);
+  text-decoration: none;
+  transform: translateY(-2px);
+}
+
+/* Keep API examples visually secondary to method signatures and prose. */
+.noder-api-examples > h2,
+.noder-api-examples > h3 {
+  margin-top: 0.8rem;
+  font-size: 0.95rem;
+}
+
+.noder-api-examples .highlight-python pre {
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+.noder-card-number {
+  color: var(--pst-color-secondary, #207068);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.noder-card h3 {
+  margin: 0.55rem 0 0.35rem;
+  font-size: 1.08rem;
+}
+
+.noder-card p {
+  margin: 0;
+  color: var(--pst-color-text-muted, #5a6268);
+  font-size: 0.92rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .noder-card {
+    transition: none;
+  }
+
+  .noder-card:hover {
+    transform: none;
+  }
+}

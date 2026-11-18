@@ -25,11 +25,6 @@ Returns
 list
     CGNS-like list representation.
 
-Example
--------
-.. literalinclude:: ../../../tests/python/io/test_node_pycgns.py
-   :language: python
-   :pyobject: test_nodeToPyCGNS_tree
 )doc",
         py::arg("arg0"), py::arg("strict_types") = true);
     m.def(
@@ -57,11 +52,6 @@ Returns
 Node
     Converted root node.
 
-Example
--------
-.. literalinclude:: ../../../tests/python/io/test_node_pycgns.py
-   :language: python
-   :pyobject: test_pyCGNSToNode_tree
 )doc",
         py::arg("arg0"), py::arg("strict_types") = true);
 }
